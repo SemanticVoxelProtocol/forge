@@ -1,0 +1,21 @@
+{
+  "id": "order-service",
+  "name": "order-service",
+  "steps": [
+    {
+      "id": "pipeline",
+      "action": "call",
+      "flowRef": "order-pipeline"
+    }
+  ],
+  "dataFlows": [],
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.951Z"
+  },
+  "contentHash": "082ceae284e2e291"
+}

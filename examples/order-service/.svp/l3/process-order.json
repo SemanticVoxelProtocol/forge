@@ -1,0 +1,40 @@
+{
+  "id": "process-order",
+  "name": "process-order",
+  "input": [
+    {
+      "name": "request",
+      "type": "OrderRequest"
+    },
+    {
+      "name": "inventory",
+      "type": "InventoryStatus"
+    }
+  ],
+  "output": [
+    {
+      "name": "result",
+      "type": "OrderResult"
+    }
+  ],
+  "validate": {
+    "request": "required",
+    "inventory.available": "== true"
+  },
+  "constraints": [
+    "output.result.total >= 0",
+    "output.result.order_id is uuid",
+    "if output.result.success then output.result.order_id is not empty",
+    "count of output.result.items == count of input.request.items"
+  ],
+  "description": "处理新订单。\n\n计算价格：小计 = 各项 price * quantity 的总和。\nVIP 用户（user_id 以 \"vip-\" 开头）打 85 折，\n普通用户满 200 打 95 折，两者不叠加取更优。\n税费 = 折后价 * 13%。\n\n库存不足时通知补货服务。\n订单持久化和事件发布在同一个事务中完成。\n成功后发出 OrderCreated 事件并通知支付服务。",
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.948Z"
+  },
+  "contentHash": "dfe663b7a2ff0df8"
+}

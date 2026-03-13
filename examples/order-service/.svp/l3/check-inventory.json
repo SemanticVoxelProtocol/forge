@@ -1,0 +1,32 @@
+{
+  "id": "check-inventory",
+  "name": "check-inventory",
+  "input": [
+    {
+      "name": "items",
+      "type": "LineItem[]"
+    }
+  ],
+  "output": [
+    {
+      "name": "status",
+      "type": "InventoryStatus"
+    }
+  ],
+  "validate": {
+    "items": "array, min 1"
+  },
+  "constraints": [
+    "if output.status.available then output.status.unavailable_items is empty"
+  ],
+  "description": "调用库存服务查询可用性。\n按商品聚合数量后批量查询，避免逐条请求。\n查询失败时重试 3 次，指数退避。\n返回哪些商品有库存、哪些缺货。",
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.948Z"
+  },
+  "contentHash": "3ea5cb50d8eab7ac"
+}

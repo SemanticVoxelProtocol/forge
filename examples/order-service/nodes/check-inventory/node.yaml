@@ -1,0 +1,21 @@
+name: check-inventory
+
+pins:
+  input:
+    - name: items
+      type: LineItem[]
+  output:
+    - name: status
+      type: InventoryStatus
+
+validate:
+  items: array, min 1
+
+constraints:
+  - if output.status.available then output.status.unavailable_items is empty
+
+description: |
+  调用库存服务查询可用性。
+  按商品聚合数量后批量查询，避免逐条请求。
+  查询失败时重试 3 次，指数退避。
+  返回哪些商品有库存、哪些缺货。

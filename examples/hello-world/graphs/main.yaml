@@ -1,0 +1,21 @@
+name: hello-world
+description: 接收名字，生成大写问候语
+
+input:
+  - name: name
+    type: string
+
+output:
+  - name: result
+    type: Greeting
+
+nodes:
+  - id: g
+    type: greet
+  - id: u
+    type: uppercase
+
+wires:
+  - from: input.name       → to: g.name
+  - from: g.greeting       → to: u.greeting
+  - from: u.result         → to: output.result

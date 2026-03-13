@@ -1,0 +1,26 @@
+name: order-pipeline
+description: 完整的下单流程。校验 → 库存检查 → 处理订单。
+type: composite
+
+pins:
+  input:
+    - name: request
+      type: OrderRequest
+  output:
+    - name: result
+      type: OrderResult
+
+nodes:
+  - id: val
+    type: validate-order
+  - id: inv
+    type: check-inventory
+  - id: proc
+    type: process-order
+
+wires:
+  - from: input.request      → to: val.request
+  - from: val.result         → to: inv.items        # 校验通过后取 items 检查库存
+  - from: input.request      → to: proc.request     # 原始请求也传给处理节点
+  - from: inv.status         → to: proc.inventory
+  - from: proc.result        → to: output.result

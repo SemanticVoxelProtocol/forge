@@ -1,0 +1,33 @@
+{
+  "id": "greet",
+  "name": "greet",
+  "input": [
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ],
+  "output": [
+    {
+      "name": "greeting",
+      "type": "Greeting"
+    }
+  ],
+  "validate": {
+    "name": "string"
+  },
+  "constraints": [
+    "output.greeting.message is not empty",
+    "output.greeting.timestamp is not empty"
+  ],
+  "description": "接收名字，生成问候消息 \"Hello, {name}!\"。\n如果名字为空，使用 \"World\" 作为默认值。\n附带当前时间戳。",
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.962Z"
+  },
+  "contentHash": "a778e92a77102ccc"
+}

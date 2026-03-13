@@ -1,0 +1,20 @@
+name: uppercase
+
+pins:
+  input:
+    - name: greeting
+      type: Greeting
+  output:
+    - name: result
+      type: Greeting
+
+validate:
+  greeting: required
+  greeting.message: string, required
+
+constraints:
+  - output.result.message == uppercase of input.greeting.message
+  - output.result.timestamp == input.greeting.timestamp
+
+description: |
+  将 message 字段转为全大写，保持其他字段不变。

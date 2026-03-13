@@ -1,0 +1,33 @@
+name: process-order
+
+pins:
+  input:
+    - name: request
+      type: OrderRequest
+    - name: inventory
+      type: InventoryStatus
+  output:
+    - name: result
+      type: OrderResult
+
+validate:
+  request: required
+  inventory.available: == true
+
+constraints:
+  - output.result.total >= 0
+  - output.result.order_id is uuid
+  - if output.result.success then output.result.order_id is not empty
+  - count of output.result.items == count of input.request.items
+
+description: |
+  处理新订单。
+
+  计算价格：小计 = 各项 price * quantity 的总和。
+  VIP 用户（user_id 以 "vip-" 开头）打 85 折，
+  普通用户满 200 打 95 折，两者不叠加取更优。
+  税费 = 折后价 * 13%。
+
+  库存不足时通知补货服务。
+  订单持久化和事件发布在同一个事务中完成。
+  成功后发出 OrderCreated 事件并通知支付服务。

@@ -1,0 +1,32 @@
+{
+  "id": "hello-world",
+  "name": "hello-world",
+  "steps": [
+    {
+      "id": "g",
+      "action": "process",
+      "blockRef": "greet",
+      "next": "u"
+    },
+    {
+      "id": "u",
+      "action": "process",
+      "blockRef": "uppercase"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "g.greeting",
+      "to": "u.greeting"
+    }
+  ],
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.964Z"
+  },
+  "contentHash": "7c8b4df198dc2ba1"
+}

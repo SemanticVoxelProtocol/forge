@@ -1,0 +1,21 @@
+name: greet
+
+pins:
+  input:
+    - name: name
+      type: string
+  output:
+    - name: greeting
+      type: Greeting
+
+validate:
+  name: string
+
+constraints:
+  - output.greeting.message is not empty
+  - output.greeting.timestamp is not empty
+
+description: |
+  接收名字，生成问候消息 "Hello, {name}!"。
+  如果名字为空，使用 "World" 作为默认值。
+  附带当前时间戳。

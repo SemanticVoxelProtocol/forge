@@ -1,0 +1,42 @@
+{
+  "id": "order-pipeline",
+  "name": "order-pipeline",
+  "steps": [
+    {
+      "id": "val",
+      "action": "process",
+      "blockRef": "validate-order",
+      "next": "inv"
+    },
+    {
+      "id": "inv",
+      "action": "process",
+      "blockRef": "check-inventory",
+      "next": "proc"
+    },
+    {
+      "id": "proc",
+      "action": "process",
+      "blockRef": "process-order"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "val.result",
+      "to": "inv.items"
+    },
+    {
+      "from": "inv.status",
+      "to": "proc.inventory"
+    }
+  ],
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "init"
+    },
+    "timestamp": "2026-03-13T14:56:21.949Z"
+  },
+  "contentHash": "e42bb69ae01465cc"
+}
