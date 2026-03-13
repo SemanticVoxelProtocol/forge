@@ -1,0 +1,28 @@
+# Ignore everything
+*
+
+# Allow project structure
+!.gitignore
+!.prettierrc
+!README.md
+!tsconfig.json
+!package.json
+!package-lock.json
+!eslint.config.ts
+!vitest.config.ts
+
+# Allow source directories
+!packages/
+!packages/**
+!docs/
+!docs/**
+!examples/
+!examples/**
+!scripts/
+!scripts/**
+
+# Re-ignore generated/temp files within allowed dirs
+*.swp
+*.kate-swp
+*.swo
+*~
