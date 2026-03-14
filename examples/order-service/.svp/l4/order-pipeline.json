@@ -22,12 +22,12 @@
   ],
   "dataFlows": [
     {
-      "from": "val.result",
-      "to": "inv.items"
-    },
-    {
       "from": "inv.status",
       "to": "proc.inventory"
+    },
+    {
+      "from": "val.result",
+      "to": "inv.items"
     }
   ],
   "revision": {
@@ -36,7 +36,7 @@
     "source": {
       "type": "init"
     },
-    "timestamp": "2026-03-13T14:56:21.949Z"
+    "timestamp": "2026-03-14T10:40:46.348Z"
   },
-  "contentHash": "e42bb69ae01465cc"
+  "contentHash": "bf9305cd595dbe40"
 }
