@@ -13,10 +13,19 @@ import type { L5Blueprint } from "./l5.js";
  */
 export function computeHash(obj: Record<string, unknown>): string {
   const cleaned = stripHashFields(obj);
-  const record = cleaned as Record<string, unknown>;
-  const keys: string[] = Object.keys(record).toSorted();
-  const json = JSON.stringify(record, keys);
+  const json = sortedStringify(cleaned);
   return createHash("sha256").update(json).digest("hex").slice(0, 16);
+}
+
+/** 递归排序所有嵌套对象的 key，保证序列化稳定且不丢失嵌套属性 */
+function sortedStringify(value: unknown): string {
+  if (value === null || value === undefined) return JSON.stringify(value);
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map((v) => sortedStringify(v)).join(",") + "]";
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).toSorted();
+  const entries = keys.map((k) => JSON.stringify(k) + ":" + sortedStringify(record[k]));
+  return "{" + entries.join(",") + "}";
 }
 
 function stripHashFields(obj: unknown): unknown {
