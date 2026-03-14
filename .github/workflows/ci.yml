@@ -23,7 +23,9 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npx vitest run
-      - run: npx vitest run --coverage
+      - name: Coverage report
+        if: matrix.node-version == 22
+        run: npx vitest run --coverage
 
   build:
     name: Build
