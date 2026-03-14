@@ -395,3 +395,454 @@ describe("viewL2Detail", () => {
     expect(output).not.toContain("↑ L3:");
   });
 });
+
+// ── L5 edge cases ──
+
+describe("viewL5Overview — edge cases", () => {
+  it("L5 with empty constraints, domains, integrations omits those sections", () => {
+    const bp: L5Blueprint = {
+      id: "empty-bp",
+      name: "Empty BP",
+      version: "1.0.0",
+      intent: "A minimal blueprint",
+      constraints: [],
+      domains: [],
+      integrations: [],
+      revision: REV1,
+      contentHash: "h1",
+    };
+    const output = viewL5Overview(bp);
+    expect(output).toContain("Empty BP v1.0.0");
+    expect(output).toContain("intent: A minimal blueprint");
+    expect(output).not.toContain("constraints:");
+    expect(output).not.toContain("domains");
+    expect(output).not.toContain("integrations");
+  });
+
+  it("L5 with very long intent renders without truncation", () => {
+    const longIntent = "A".repeat(120);
+    const bp: L5Blueprint = {
+      id: "long-intent",
+      name: "Long Intent",
+      version: "1.0.0",
+      intent: longIntent,
+      constraints: [],
+      domains: [],
+      integrations: [],
+      revision: REV1,
+      contentHash: "h2",
+    };
+    const output = viewL5Overview(bp);
+    expect(output).toContain(`intent: ${longIntent}`);
+  });
+
+  it("L5 with multiple domains shows dependency arrows", () => {
+    const bp: L5Blueprint = {
+      id: "multi-domain",
+      name: "Multi Domain",
+      version: "1.0.0",
+      intent: "test",
+      constraints: [],
+      domains: [
+        { name: "alpha", description: "first", dependencies: [] },
+        { name: "beta", description: "second", dependencies: ["alpha"] },
+        { name: "gamma", description: "third", dependencies: ["alpha", "beta"] },
+      ],
+      integrations: [],
+      revision: REV1,
+      contentHash: "h3",
+    };
+    const output = viewL5Overview(bp);
+    expect(output).toContain("domains (3):");
+    expect(output).toContain("  alpha");
+    expect(output).toContain("  beta → alpha");
+    expect(output).toContain("  gamma → alpha, beta");
+  });
+
+  it("L5 with all integration types renders each type tag", () => {
+    const bp: L5Blueprint = {
+      id: "all-integrations",
+      name: "All Integrations",
+      version: "1.0.0",
+      intent: "test",
+      constraints: [],
+      domains: [],
+      integrations: [
+        { name: "pg", type: "database", description: "db" },
+        { name: "ext-api", type: "api", description: "api" },
+        { name: "rabbit", type: "messageQueue", description: "mq" },
+        { name: "s3", type: "storage", description: "blob" },
+      ],
+      revision: REV1,
+      contentHash: "h4",
+    };
+    const output = viewL5Overview(bp);
+    expect(output).toContain("integrations (4):");
+    expect(output).toContain("pg [database]");
+    expect(output).toContain("ext-api [api]");
+    expect(output).toContain("rabbit [messageQueue]");
+    expect(output).toContain("s3 [storage]");
+  });
+
+  it("L5 domain with dependencies on other domains shows arrows", () => {
+    const bp: L5Blueprint = {
+      id: "dep-domain",
+      name: "Dep Domain",
+      version: "1.0.0",
+      intent: "test",
+      constraints: [],
+      domains: [{ name: "shipping", description: "shipping", dependencies: ["order", "payment"] }],
+      integrations: [],
+      revision: REV1,
+      contentHash: "h5",
+    };
+    const output = viewL5Overview(bp);
+    expect(output).toContain("shipping → order, payment");
+  });
+});
+
+// ── L4 Overview edge cases ──
+
+describe("viewL4Overview — edge cases", () => {
+  it("flow with trigger field is shown", () => {
+    const output = viewL4Overview([l4Flow]);
+    expect(output).toContain("create-order [flow]  POST /orders");
+  });
+
+  it("flow with no trigger — trigger section omitted from overview line", () => {
+    const output = viewL4Overview([l4FlowNoTrigger]);
+    expect(output).toContain("notify-user [flow]");
+    expect(output).not.toContain("POST");
+    expect(output).not.toContain("trigger:");
+  });
+
+  it("flow with multiple steps shows chain", () => {
+    const output = viewL4Overview([l4Flow]);
+    expect(output).toContain("validate-order → calc-total");
+  });
+
+  it("mixed L4 variants overview — flow, event-graph, state-machine together", () => {
+    const output = viewL4Overview([l4Flow, l4EventGraph, l4StateMachine]);
+    expect(output).toContain("L4 Logic Chains (3 artifacts)");
+    expect(output).toContain("create-order [flow]");
+    expect(output).toContain("doc-collab [event-graph]");
+    expect(output).toContain("po-lifecycle [state-machine]");
+  });
+
+  it("StateMachine overview shows entity name and state count", () => {
+    const output = viewL4Overview([l4StateMachine]);
+    expect(output).toContain("po-lifecycle [state-machine]");
+    expect(output).toContain("states: 4");
+    expect(output).toContain("initial: draft");
+  });
+});
+
+// ── L4 Detail edge cases ──
+
+describe("viewL4Detail — edge cases", () => {
+  it("flow detail without L5 — no '↑ L5:' line", () => {
+    const output = viewL4Detail(l4Flow, [l3Block, l3Block2]);
+    expect(output).not.toContain("↑ L5:");
+  });
+
+  it("flow detail with L5 — shows '↑ L5:' line", () => {
+    const output = viewL4Detail(l4Flow, [l3Block, l3Block2], l5);
+    expect(output).toContain("↑ L5: My Project");
+  });
+
+  it("flow with missing L3 block refs — shows [not found]", () => {
+    const output = viewL4Detail(l4Flow, [], l5);
+    expect(output).toContain("validate-order: [not found]");
+    expect(output).toContain("calc-total: [not found]");
+  });
+
+  it("flow with no dataFlows — dataFlows section omitted", () => {
+    const output = viewL4Detail(l4FlowNoTrigger, [l3Block]);
+    expect(output).not.toContain("dataFlows:");
+  });
+
+  it("EventGraph detail shows state fields", () => {
+    const output = viewL4Detail(l4EventGraph, [l3Block, l3Block2]);
+    expect(output).toContain("state (2 keys):");
+    expect(output).toContain("document: CRDTDocument");
+    expect(output).toContain("cursors: CursorMap");
+  });
+
+  it("EventGraph detail shows handler structure", () => {
+    const output = viewL4Detail(l4EventGraph, [l3Block, l3Block2]);
+    expect(output).toContain("handlers (1):");
+    expect(output).toContain('[on-local-edit] on "user.local_edit"');
+  });
+
+  it("StateMachine detail shows transitions", () => {
+    const output = viewL4Detail(l4StateMachine, [l3Block, l3Block2]);
+    expect(output).toContain("transitions (3):");
+    expect(output).toContain('draft → pending_approval  on "submit"');
+    expect(output).toContain("[guard: validate-order]");
+  });
+});
+
+// ── L3 Overview edge cases ──
+
+describe("viewL3Overview — edge cases", () => {
+  it("empty blocks array produces empty body", () => {
+    const output = viewL3Overview([]);
+    expect(output).toContain("L3 Logic Blocks (0 blocks)");
+    // no block lines beyond the header
+    const lines = output.split("\n").filter((l) => l.trim().length > 0);
+    expect(lines.length).toBe(2); // header + separator
+  });
+
+  it("block with very long description — truncated at 40 chars in overview", () => {
+    const longDesc = "B".repeat(80);
+    const block: L3Block = {
+      id: "long-desc-block",
+      name: "Long Desc",
+      input: [],
+      output: [],
+      validate: {},
+      constraints: [],
+      description: longDesc,
+      revision: REV1,
+      contentHash: "ldh",
+    };
+    const output = viewL3Overview([block]);
+    expect(output).toContain("...");
+    expect(output).not.toContain(longDesc);
+  });
+
+  it("block with empty description — no crash and renders cleanly", () => {
+    const block: L3Block = {
+      id: "empty-desc",
+      name: "Empty Desc",
+      input: [],
+      output: [],
+      validate: {},
+      constraints: [],
+      description: "",
+      revision: REV1,
+      contentHash: "edh",
+    };
+    const output = viewL3Overview([block]);
+    expect(output).toContain("empty-desc");
+    expect(output).not.toContain("...");
+  });
+});
+
+// ── L3 Detail edge cases ──
+
+describe("viewL3Detail — edge cases", () => {
+  const minimalBlock: L3Block = {
+    id: "minimal-block",
+    name: "Minimal",
+    input: [],
+    output: [],
+    validate: {},
+    constraints: [],
+    description: "A minimal block",
+    revision: REV1,
+    contentHash: "minh",
+  };
+
+  it("block with no input pins — no 'in:' lines", () => {
+    const output = viewL3Detail(minimalBlock, [], []);
+    expect(output).not.toContain("in:");
+  });
+
+  it("block with no output pins — no 'out:' lines", () => {
+    const output = viewL3Detail(minimalBlock, [], []);
+    expect(output).not.toContain("out:");
+  });
+
+  it("block with optional pins — shows '?' marker", () => {
+    const output = viewL3Detail(l3Block2, [], []);
+    expect(output).toContain("[optional]");
+    expect(output).toContain("[required]");
+  });
+
+  it("block with no referencing L4 flows — no '↑ L4:' line", () => {
+    const output = viewL3Detail(minimalBlock, [l4Flow], []);
+    expect(output).not.toContain("↑ L4:");
+  });
+
+  it("block with paired L2 in sync — shows 'synced ✓'", () => {
+    const output = viewL3Detail(l3Block, [], [l2Block]);
+    expect(output).toContain("↓ L2: validate-order [synced ✓]");
+  });
+
+  it("block with paired L2 in drift — shows 'drift ⚠'", () => {
+    const output = viewL3Detail(l3Block2, [], [l2BlockDrift]);
+    expect(output).toContain("↓ L2: calc-total [drift ⚠]");
+  });
+
+  it("block with no paired L2 — no '↓ L2:' line", () => {
+    const output = viewL3Detail(l3Block, [], []);
+    expect(output).not.toContain("↓ L2:");
+  });
+});
+
+// ── L2 Overview edge cases ──
+
+describe("viewL2Overview — edge cases", () => {
+  it("L2 with single file shows path directly", () => {
+    const output = viewL2Overview([l2Block], [l3Block]);
+    expect(output).toContain("src/validate-order.ts");
+    expect(output).not.toContain("1 files");
+  });
+
+  it("L2 with multiple files shows count", () => {
+    const output = viewL2Overview([l2BlockDrift], [l3Block2]);
+    expect(output).toContain("2 files");
+  });
+
+  it("L2 with zero files shows '0 files'", () => {
+    const zeroFiles: L2CodeBlock = {
+      id: "no-files",
+      blockRef: "validate-order",
+      language: "typescript",
+      files: [],
+      sourceHash: "l3hash1",
+      contentHash: "zfh",
+      revision: REV1,
+    };
+    const output = viewL2Overview([zeroFiles], [l3Block]);
+    expect(output).toContain("0 files");
+  });
+
+  it("L2 where L3 not found — shows 'drift'", () => {
+    const output = viewL2Overview([l2Block], []);
+    expect(output).toContain("(drift)");
+  });
+});
+
+// ── L2 Detail edge cases ──
+
+describe("viewL2Detail — edge cases", () => {
+  it("L2 detail with L3 found — shows signature in '↑ L3:' line", () => {
+    const output = viewL2Detail(l2Block, [l3Block]);
+    expect(output).toContain("↑ L3: validate-order");
+    expect(output).toContain("(OrderRequest) → ValidationResult");
+  });
+
+  it("L2 detail with L3 not found — shows 'drift' status and no '↑ L3:' line", () => {
+    const output = viewL2Detail(l2Block, []);
+    expect(output).toContain("status:   drift ⚠");
+    expect(output).not.toContain("↑ L3:");
+  });
+
+  it("L2 with empty files array — files section is empty", () => {
+    const emptyFiles: L2CodeBlock = {
+      id: "empty-files",
+      blockRef: "validate-order",
+      language: "typescript",
+      files: [],
+      sourceHash: "l3hash1",
+      contentHash: "efh",
+      revision: REV1,
+    };
+    const output = viewL2Detail(emptyFiles, [l3Block]);
+    expect(output).toContain("files:");
+    expect(output).toContain("status:   synced ✓");
+  });
+});
+
+// ── viewL4Detail — non-http triggers ──
+
+describe("viewL4Detail — non-http triggers", () => {
+  it("schedule trigger renders as [schedule]", () => {
+    const flow: L4Flow = {
+      id: "scheduled-job",
+      name: "Scheduled Job",
+      trigger: { type: "schedule", config: { cron: "* * * * *" } },
+      steps: [{ id: "s0", action: "process", blockRef: "validate-order", next: null }],
+      dataFlows: [],
+      revision: REV1,
+      contentHash: "sch1",
+    };
+    const output = viewL4Detail(flow, [l3Block]);
+    expect(output).toContain("[schedule]");
+  });
+
+  it("event trigger renders as [event]", () => {
+    const flow: L4Flow = {
+      id: "event-handler",
+      name: "Event Handler",
+      trigger: { type: "event", config: { topic: "orders" } },
+      steps: [{ id: "s0", action: "process", blockRef: "validate-order", next: null }],
+      dataFlows: [],
+      revision: REV1,
+      contentHash: "evt1",
+    };
+    const output = viewL4Detail(flow, [l3Block]);
+    expect(output).toContain("[event]");
+  });
+});
+
+// ── viewL4Detail — call, parallel, wait steps ──
+
+describe("viewL4Detail — call, parallel, wait steps", () => {
+  it("call step renders as 'call <flowRef>'", () => {
+    const flow: L4Flow = {
+      id: "caller-flow",
+      name: "Caller Flow",
+      steps: [{ id: "s0", action: "call", flowRef: "sub-flow", next: null }],
+      dataFlows: [],
+      revision: REV1,
+      contentHash: "call1",
+    };
+    const output = viewL4Detail(flow, []);
+    expect(output).toContain("call sub-flow");
+  });
+
+  it("parallel step renders as 'parallel [a, b]'", () => {
+    const flow: L4Flow = {
+      id: "parallel-flow",
+      name: "Parallel Flow",
+      steps: [{ id: "s0", action: "parallel", branches: ["a", "b"] }],
+      dataFlows: [],
+      revision: REV1,
+      contentHash: "par1",
+    };
+    const output = viewL4Detail(flow, []);
+    expect(output).toContain("parallel [a, b]");
+  });
+
+  it("wait step renders as 'wait [x, y]'", () => {
+    const flow: L4Flow = {
+      id: "wait-flow",
+      name: "Wait Flow",
+      steps: [{ id: "s0", action: "wait", waitFor: ["x", "y"], next: "final" }],
+      dataFlows: [],
+      revision: REV1,
+      contentHash: "wait1",
+    };
+    const output = viewL4Detail(flow, []);
+    expect(output).toContain("wait [x, y]");
+  });
+});
+
+// ── viewL3Summary / viewL3Detail — zero output pins ──
+
+describe("viewL3Overview / viewL3Detail — zero output pins", () => {
+  const zeroOutputBlock: L3Block = {
+    id: "no-output",
+    name: "No Output",
+    input: [{ name: "cmd", type: "Command" }],
+    output: [],
+    validate: {},
+    constraints: [],
+    description: "A block that produces no output",
+    revision: REV1,
+    contentHash: "zo1",
+  };
+
+  it("viewL3Overview shows 'void' for output signature when output is empty", () => {
+    const output = viewL3Overview([zeroOutputBlock]);
+    expect(output).toContain("void");
+  });
+
+  it("viewL3Detail shows 'void' in signature when output is empty", () => {
+    const output = viewL3Detail(zeroOutputBlock, [], []);
+    expect(output).toContain("void");
+  });
+});

@@ -123,4 +123,180 @@ wires:
     expect(result.value.wires?.[0]).toEqual({ from: "input.x", to: "a.x" });
     expect(result.value.wires?.[1]).toEqual({ from: "a.y", to: "output.y" });
   });
+
+  // --- edge case tests ---
+
+  it("a) empty YAML content (null raw) → INVALID_NODE error", () => {
+    const result = parseNodeYaml("", "empty.yaml");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_NODE");
+  });
+
+  it("b) node with empty name string → MISSING_FIELD", () => {
+    const yaml = `
+name: ""
+pins:
+  input: []
+  output: []
+`;
+    const result = parseNodeYaml(yaml, "bad.yaml");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("MISSING_FIELD");
+  });
+
+  it("c) composite node with type: composite field", () => {
+    const yaml = `
+name: my-composite
+type: composite
+pins:
+  input:
+    - name: in
+      type: string
+  output:
+    - name: out
+      type: string
+nodes:
+  - id: step
+    type: do-thing
+wires:
+  - from: input.in      → to: step.in
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.type).toBe("composite");
+  });
+
+  it("d) wire parsing with arrow syntax (→ character)", () => {
+    const yaml = `
+name: arrow-test
+type: composite
+pins:
+  input:
+    - name: src
+      type: string
+  output:
+    - name: dst
+      type: string
+nodes:
+  - id: n
+    type: pass
+wires:
+  - from: input.src     → to: n.src
+  - from: n.dst         → to: output.dst
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.wires?.[0]).toEqual({ from: "input.src", to: "n.src" });
+    expect(result.value.wires?.[1]).toEqual({ from: "n.dst", to: "output.dst" });
+  });
+
+  it("e) node with all optional fields present (validate, constraints, description)", () => {
+    const yaml = `
+name: full-node
+pins:
+  input:
+    - name: x
+      type: string
+  output:
+    - name: y
+      type: number
+validate:
+  x: string
+constraints:
+  - x is not empty
+  - y > 0
+description: A fully specified node.
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.validate).toEqual({ x: "string" });
+    expect(result.value.constraints).toEqual(["x is not empty", "y > 0"]);
+    expect(result.value.description).toBe("A fully specified node.");
+  });
+
+  it("f) node with no optional fields (only name and pins)", () => {
+    const yaml = `
+name: minimal
+pins:
+  input:
+    - name: a
+      type: string
+  output:
+    - name: b
+      type: string
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.validate).toBeUndefined();
+    expect(result.value.constraints).toBeUndefined();
+    expect(result.value.description).toBeUndefined();
+    expect(result.value.type).toBeUndefined();
+  });
+
+  it("g) pins with optional: true field", () => {
+    const yaml = `
+name: opt-pins
+pins:
+  input:
+    - name: required
+      type: string
+    - name: optional-in
+      type: string
+      optional: true
+  output:
+    - name: out
+      type: string
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.pins.input[0]?.optional).toBeUndefined();
+    expect(result.value.pins.input[1]?.optional).toBe(true);
+  });
+
+  it("h) multiple input and output pins", () => {
+    const yaml = `
+name: multi-pins
+pins:
+  input:
+    - name: a
+      type: string
+    - name: b
+      type: number
+    - name: c
+      type: boolean
+  output:
+    - name: x
+      type: string
+    - name: y
+      type: number
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.pins.input).toHaveLength(3);
+    expect(result.value.pins.output).toHaveLength(2);
+    expect(result.value.pins.input[1]?.name).toBe("b");
+    expect(result.value.pins.output[1]?.name).toBe("y");
+  });
+
+  it("i) empty pins object (input: [], output: [])", () => {
+    const yaml = `
+name: empty-pins
+pins:
+  input: []
+  output: []
+`;
+    const result = parseNodeYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.pins.input).toHaveLength(0);
+    expect(result.value.pins.output).toHaveLength(0);
+  });
 });
