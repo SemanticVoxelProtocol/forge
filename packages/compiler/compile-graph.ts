@@ -279,5 +279,6 @@ function generateDataFlows(graph: GraphIr): DataFlow[] {
         fromNode !== "input" && fromNode !== "output" && toNode !== "input" && toNode !== "output"
       );
     })
-    .map((w) => ({ from: w.from, to: w.to }));
+    .map((w) => ({ from: w.from, to: w.to }))
+    .toSorted((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 }
