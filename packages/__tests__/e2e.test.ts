@@ -5,31 +5,26 @@ import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
+import { loadCheckInput } from "../cli/load.js";
 import { compileBlueprint } from "../compiler/compile.js";
 import { check } from "../core/check.js";
 import { compilePlan } from "../core/compile-plan.js";
-import { hashL2, hashL3, hashL4, hashL5 } from "../core/hash.js";
+import { hashL2, hashL3, hashL4 } from "../core/hash.js";
 import { init } from "../core/init.js";
 import {
   readL3,
   readL4,
-  readL5,
   writeL2,
   writeL3,
   writeL4,
   writeL5,
 } from "../core/store.js";
-import { loadCheckInput } from "../cli/load.js";
 import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../skills/rehash.js";
-import { unwrap } from "../core/result.js";
-
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
 import type { L4Flow } from "../core/l4.js";
 import type { L5Blueprint } from "../core/l5.js";
 import type { ArtifactVersion } from "../core/version.js";
-import type { CheckInput } from "../core/check.js";
 
 // ── Shared helpers ──
 
@@ -103,24 +98,6 @@ function makeL4(overrides: Partial<L4Flow> = {}): L4Flow {
   };
 }
 
-function makeL5(overrides: Partial<L5Blueprint> = {}): L5Blueprint {
-  const base = {
-    id: "test-project",
-    name: "Test Project",
-    version: "1.0",
-    intent: "e2e testing",
-    constraints: [],
-    domains: [],
-    integrations: [],
-    ...overrides,
-  };
-  const { revision: _r, contentHash: _ch, ...hashInput } = base as L5Blueprint;
-  return {
-    ...base,
-    revision: overrides.revision ?? REV1,
-    contentHash: overrides.contentHash ?? hashL5(hashInput),
-  };
-}
 
 function makeL2(overrides: Partial<L2CodeBlock> = {}): L2CodeBlock {
   const base = {
