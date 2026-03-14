@@ -11,14 +11,7 @@ import { check } from "../core/check.js";
 import { compilePlan } from "../core/compile-plan.js";
 import { hashL2, hashL3, hashL4 } from "../core/hash.js";
 import { init } from "../core/init.js";
-import {
-  readL3,
-  readL4,
-  writeL2,
-  writeL3,
-  writeL4,
-  writeL5,
-} from "../core/store.js";
+import { readL3, readL4, writeL2, writeL3, writeL4, writeL5 } from "../core/store.js";
 import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../skills/rehash.js";
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
@@ -98,7 +91,6 @@ function makeL4(overrides: Partial<L4Flow> = {}): L4Flow {
   };
 }
 
-
 function makeL2(overrides: Partial<L2CodeBlock> = {}): L2CodeBlock {
   const base = {
     id: "validate-order-ts",
@@ -107,12 +99,7 @@ function makeL2(overrides: Partial<L2CodeBlock> = {}): L2CodeBlock {
     files: ["src/validate-order.ts"],
     ...overrides,
   };
-  const {
-    sourceHash: _s,
-    revision: _r,
-    contentHash: _ch,
-    ...hashInput
-  } = base as L2CodeBlock;
+  const { sourceHash: _s, revision: _r, contentHash: _ch, ...hashInput } = base as L2CodeBlock;
   return {
     ...base,
     revision: overrides.revision ?? REV1,
@@ -216,12 +203,8 @@ describe("E2E: SVP Pipeline", () => {
       expect(compileResult.value.l3Blocks).toContain("process-order");
 
       // Verify files exist
-      expect(
-        existsSync(path.join(tmpDir, ".svp", "l3", "validate-order.json")),
-      ).toBe(true);
-      expect(
-        existsSync(path.join(tmpDir, ".svp", "l3", "process-order.json")),
-      ).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "l3", "validate-order.json"))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "l3", "process-order.json"))).toBe(true);
 
       // Verify content
       const valBlock = await readL3(tmpDir, "validate-order");
@@ -315,17 +298,13 @@ describe("E2E: SVP Pipeline", () => {
       expect(l4Flow.steps.length).toBeGreaterThanOrEqual(2);
 
       // Steps should reference the L3 blocks
-      const blockRefs = l4Flow.steps
-        .filter((s) => s.blockRef !== undefined)
-        .map((s) => s.blockRef);
+      const blockRefs = l4Flow.steps.filter((s) => s.blockRef !== undefined).map((s) => s.blockRef);
       expect(blockRefs).toContain("validate-order");
       expect(blockRefs).toContain("process-order");
 
       // DataFlows should wire v.result → p.order
       expect(l4Flow.dataFlows.length).toBeGreaterThan(0);
-      const wire = l4Flow.dataFlows.find(
-        (df) => df.from === "v.result" && df.to === "p.order",
-      );
+      const wire = l4Flow.dataFlows.find((df) => df.from === "v.result" && df.to === "p.order");
       expect(wire).toBeDefined();
 
       // No referential integrity errors
@@ -427,9 +406,7 @@ describe("E2E: SVP Pipeline", () => {
       input = await loadCheckInput(tmpDir);
       report = check(input);
 
-      const driftIssues = report.issues.filter(
-        (i) => i.code === "SOURCE_DRIFT",
-      );
+      const driftIssues = report.issues.filter((i) => i.code === "SOURCE_DRIFT");
       expect(driftIssues).toHaveLength(1);
       expect(driftIssues[0].severity).toBe("warning");
       expect(driftIssues[0].layer).toBe("l2");
@@ -461,9 +438,7 @@ describe("E2E: SVP Pipeline", () => {
       const input = await loadCheckInput(tmpDir);
       const report = check(input);
 
-      const missingRefErrors = report.issues.filter(
-        (i) => i.code === "MISSING_BLOCK_REF",
-      );
+      const missingRefErrors = report.issues.filter((i) => i.code === "MISSING_BLOCK_REF");
       expect(missingRefErrors.length).toBeGreaterThan(0);
       expect(missingRefErrors[0].severity).toBe("error");
       expect(missingRefErrors[0].message).toContain("nonexistent-block");
@@ -576,17 +551,11 @@ describe("E2E: SVP Pipeline", () => {
       expect(compileTasks.some((t) => t.targetId === "block-b")).toBe(true);
 
       // Check for "recompile" task (stale L2 for block-a)
-      const recompileTasks = plan.tasks.filter(
-        (t) => t.action === "recompile",
-      );
-      expect(recompileTasks.some((t) => t.targetId === "block-a-ts")).toBe(
-        true,
-      );
+      const recompileTasks = plan.tasks.filter((t) => t.action === "recompile");
+      expect(recompileTasks.some((t) => t.targetId === "block-a-ts")).toBe(true);
 
       // Check for "update-ref" task (missing L3 for missing-block)
-      const updateRefTasks = plan.tasks.filter(
-        (t) => t.action === "update-ref",
-      );
+      const updateRefTasks = plan.tasks.filter((t) => t.action === "update-ref");
       expect(updateRefTasks.some((t) => t.targetId === "main-flow")).toBe(true);
     });
   });
@@ -751,9 +720,7 @@ describe("E2E: SVP Pipeline", () => {
       // Check should report HASH_MISMATCH for all
       let input = await loadCheckInput(tmpDir);
       let report = check(input);
-      const hashMismatches = report.issues.filter(
-        (i) => i.code === "HASH_MISMATCH",
-      );
+      const hashMismatches = report.issues.filter((i) => i.code === "HASH_MISMATCH");
       // L5 + L4 + L3 + L2 = at least 4 hash mismatches
       expect(hashMismatches.length).toBeGreaterThanOrEqual(4);
 
@@ -788,9 +755,7 @@ describe("E2E: SVP Pipeline", () => {
       // Check → zero HASH_MISMATCH errors
       input = await loadCheckInput(tmpDir);
       report = check(input);
-      const remainingHashErrors = report.issues.filter(
-        (i) => i.code === "HASH_MISMATCH",
-      );
+      const remainingHashErrors = report.issues.filter((i) => i.code === "HASH_MISMATCH");
       expect(remainingHashErrors).toHaveLength(0);
     });
   });
