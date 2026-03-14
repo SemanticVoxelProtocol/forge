@@ -4,6 +4,7 @@
 # Allow project structure
 !.gitignore
 !.prettierrc
+!.node-version
 !README.md
 !tsconfig.json
 !package.json
@@ -20,6 +21,8 @@
 !examples/**
 !scripts/
 !scripts/**
+!.github/
+!.github/**
 
 # Re-ignore generated/temp files within allowed dirs
 *.swp
