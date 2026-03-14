@@ -133,4 +133,175 @@ pins:
     expect(result.value.input[1]?.optional).toBe(true);
     expect(result.value.input[0]?.optional).toBeUndefined();
   });
+
+  // --- edge case tests ---
+
+  it("a) node with empty validate → empty validate object in L3", () => {
+    const yaml = `
+name: empty-validate
+pins:
+  input: []
+  output: []
+validate: {}
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.validate).toEqual({});
+  });
+
+  it("b) node with empty constraints → empty array in L3", () => {
+    const yaml = `
+name: empty-constraints
+pins:
+  input: []
+  output: []
+constraints: []
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.constraints).toEqual([]);
+  });
+
+  it("c) node with empty description → empty string in L3", () => {
+    const yaml = `
+name: empty-desc
+pins:
+  input: []
+  output: []
+description: ""
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.description).toBe("");
+  });
+
+  it("d) node with multiple validate rules", () => {
+    const yaml = `
+name: multi-validate
+pins:
+  input:
+    - name: a
+      type: string
+    - name: b
+      type: number
+  output: []
+validate:
+  a: string
+  b: number
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.validate).toEqual({ a: "string", b: "number" });
+  });
+
+  it("e) node with multiple constraints", () => {
+    const yaml = `
+name: multi-constraints
+pins:
+  input:
+    - name: x
+      type: number
+  output:
+    - name: y
+      type: number
+constraints:
+  - x > 0
+  - x < 100
+  - y is not null
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.constraints).toEqual(["x > 0", "x < 100", "y is not null"]);
+  });
+
+  it("f) node name used as both id and name in resulting L3Block", () => {
+    const yaml = `
+name: my-node
+pins:
+  input: []
+  output: []
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.id).toBe("my-node");
+    expect(result.value.name).toBe("my-node");
+  });
+
+  it("g) revision is always rev:1, parentRev:null, source:init for fresh compile", () => {
+    const yaml = `
+name: rev-check
+pins:
+  input: []
+  output: []
+`;
+    const parseResult = parseNodeYaml(yaml, "test.yaml");
+    expect(parseResult.ok).toBe(true);
+    if (!parseResult.ok) return;
+
+    const result = compileNode(parseResult.value);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.revision.rev).toBe(1);
+    expect(result.value.revision.parentRev).toBeNull();
+    expect(result.value.revision.source).toEqual({ type: "init" });
+  });
+
+  it("h) contentHash is consistent (compile same node twice → same hash)", () => {
+    const yaml = `
+name: hash-stable
+pins:
+  input:
+    - name: p
+      type: string
+  output:
+    - name: q
+      type: string
+validate:
+  p: string
+constraints:
+  - p is not empty
+description: stable node
+`;
+    const parse1 = parseNodeYaml(yaml, "a.yaml");
+    const parse2 = parseNodeYaml(yaml, "b.yaml");
+    expect(parse1.ok && parse2.ok).toBe(true);
+    if (!parse1.ok || !parse2.ok) return;
+
+    const result1 = compileNode(parse1.value);
+    const result2 = compileNode(parse2.value);
+    expect(result1.ok && result2.ok).toBe(true);
+    if (!result1.ok || !result2.ok) return;
+
+    expect(result1.value.contentHash).toBe(result2.value.contentHash);
+  });
 });

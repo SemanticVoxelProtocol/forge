@@ -114,4 +114,124 @@ wires: []
       path: "/api/orders",
     });
   });
+
+  // --- edge case tests ---
+
+  it("a) graph with trigger field", () => {
+    const yaml = `
+name: scheduled-flow
+trigger:
+  type: schedule
+  config:
+    cron: "0 * * * *"
+nodes:
+  - id: job
+    type: run-job
+wires: []
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.trigger?.type).toBe("schedule");
+    expect(result.value.trigger?.config).toEqual({ cron: "0 * * * *" });
+  });
+
+  it("b) graph with input and output pins", () => {
+    const yaml = `
+name: pinned-graph
+input:
+  - name: userId
+    type: string
+  - name: payload
+    type: object
+output:
+  - name: response
+    type: Result
+nodes:
+  - id: proc
+    type: processor
+wires: []
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.input).toHaveLength(2);
+    expect(result.value.input?.[0]?.name).toBe("userId");
+    expect(result.value.output).toHaveLength(1);
+    expect(result.value.output?.[0]?.name).toBe("response");
+  });
+
+  it("c) graph with empty nodes array (valid YAML but no nodes)", () => {
+    const yaml = `
+name: empty-nodes
+nodes: []
+wires: []
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.nodes).toHaveLength(0);
+  });
+
+  it("d) graph with empty wires array (valid YAML but no wires)", () => {
+    const yaml = `
+name: empty-wires
+nodes:
+  - id: a
+    type: foo
+wires: []
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.wires).toHaveLength(0);
+  });
+
+  it("e) graph with description field", () => {
+    const yaml = `
+name: described-graph
+description: This graph does something useful.
+nodes:
+  - id: a
+    type: foo
+wires: []
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.description).toBe("This graph does something useful.");
+  });
+
+  it("f) graph missing wires field → MISSING_FIELD", () => {
+    const yaml = `
+name: no-wires
+nodes:
+  - id: a
+    type: foo
+`;
+    const result = parseGraphYaml(yaml, "bad.yaml");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("MISSING_FIELD");
+  });
+
+  it("g) graph with arrow-syntax wires", () => {
+    const yaml = `
+name: arrow-graph
+nodes:
+  - id: src
+    type: source
+  - id: dst
+    type: sink
+wires:
+  - from: src.out       → to: dst.in
+  - from: src.meta      → to: dst.meta
+`;
+    const result = parseGraphYaml(yaml, "test.yaml");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.wires).toHaveLength(2);
+    expect(result.value.wires[0]).toEqual({ from: "src.out", to: "dst.in" });
+    expect(result.value.wires[1]).toEqual({ from: "src.meta", to: "dst.meta" });
+  });
 });
