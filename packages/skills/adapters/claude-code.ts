@@ -1,34 +1,46 @@
-// Claude Code adapter — CodeCLIAdapter 实现
-// Prompt 即 Skill：execute() 生成结构化 prompt，由宿主 AI 执行
+// adapters/claude-code — Claude Code host adapter
 
-import { createSkillRegistry } from "../../core/skill.js";
-import { buildPrompt, renderPrompt } from "../prompt-builder.js";
-import type { CodeCLIAdapter } from "../../core/adapter.js";
-import type { TaskAction } from "../../core/compile-plan.js";
-import type { Skill, SkillInput, SkillResult } from "../../core/skill.js";
+import type { HostAdapter, SkillFile } from "./types.js";
+import {
+  buildSkillFileContent,
+  generateContextBody,
+  defaultSlashCommands,
+  DEFAULT_CONTEXT_MARKER,
+} from "./shared.js";
 
-function createPromptSkill(action: TaskAction): Skill {
-  return {
-    action,
-    execute: (input: SkillInput): Promise<SkillResult> => {
-      const prompt = buildPrompt(input);
-      return Promise.resolve({
-        action: input.task.action,
-        status: "needs-review" as const,
-        artifacts: [],
-        notes: renderPrompt(prompt),
-      });
-    },
-  };
-}
+export const claudeCodeAdapter: HostAdapter = {
+  id: "claude-code",
+  displayName: "Claude Code",
 
-export const claudeCodeAdapter: CodeCLIAdapter = {
-  name: "claude-code",
-  createSkillRegistry: () =>
-    createSkillRegistry([
-      createPromptSkill("compile"),
-      createPromptSkill("recompile"),
-      createPromptSkill("review"),
-      createPromptSkill("update-ref"),
-    ]),
+  skillDir() {
+    return ".claude/commands";
+  },
+
+  generateSkillFiles(language = "en"): readonly SkillFile[] {
+    const modelTierLine =
+      language === "zh"
+        ? "heavy=opus/最强 | standard=sonnet/均衡 | light=haiku/最快"
+        : "heavy=opus/strongest | standard=sonnet/balanced | light=haiku/fastest";
+
+    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, modelTierLine) }];
+  },
+
+  contextFilePath() {
+    return "CLAUDE.md";
+  },
+
+  contextMarker() {
+    return DEFAULT_CONTEXT_MARKER;
+  },
+
+  generateContextSection(projectName: string, language = "en"): string {
+    return generateContextBody(projectName, language, {
+      modelTierRows: {
+        heavy: language === "zh" ? "opus / 最强" : "opus / most capable",
+        standard: language === "zh" ? "sonnet / 均衡" : "sonnet / balanced",
+        light: language === "zh" ? "haiku / 最快" : "haiku / fastest",
+      },
+      slashCommands: defaultSlashCommands(language),
+    });
+  },
 };

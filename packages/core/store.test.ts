@@ -10,6 +10,8 @@ import {
   readL3,
   readL4,
   readL5,
+  readNodeDocs,
+  readGraphDocs,
   writeL2,
   writeL3,
   writeL4,
@@ -558,5 +560,67 @@ describe("cross-layer", () => {
     expect(loadedL2).toEqual(l2a);
     expect(loadedL3?.name).toBe("Changed Name");
     expect(loadedL3?.contentHash).toBe("changed-hash");
+  });
+});
+
+// ── Docs ──
+
+describe("readNodeDocs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-node-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing docs.md", async () => {
+    const docsDir = path.join(root, "nodes", "my-node");
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(path.join(docsDir, "docs.md"), "## Intent\nTest docs content", "utf8");
+    const result = await readNodeDocs(root, "my-node");
+    expect(result).toBe("## Intent\nTest docs content");
+  });
+
+  it("returns null when docs.md does not exist", async () => {
+    const result = await readNodeDocs(root, "nonexistent-node");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when node directory does not exist", async () => {
+    const freshRoot = await mkdtemp(path.join(tmpdir(), "svp-docs-empty-"));
+    try {
+      const result = await readNodeDocs(freshRoot, "no-such-node");
+      expect(result).toBeNull();
+    } finally {
+      await rm(freshRoot, { recursive: true });
+    }
+  });
+});
+
+describe("readGraphDocs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-graph-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing graph docs.md", async () => {
+    const graphsDir = path.join(root, "graphs");
+    await mkdir(graphsDir, { recursive: true });
+    await writeFile(path.join(graphsDir, "my-flow.docs.md"), "# Flow Docs\nDetails here", "utf8");
+    const result = await readGraphDocs(root, "my-flow");
+    expect(result).toBe("# Flow Docs\nDetails here");
+  });
+
+  it("returns null when graph docs.md does not exist", async () => {
+    const result = await readGraphDocs(root, "nonexistent-graph");
+    expect(result).toBeNull();
   });
 });

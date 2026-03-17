@@ -19,6 +19,9 @@ export interface L5Blueprint {
   // 版本追踪
   readonly revision: ArtifactVersion;
 
+  // 语言偏好（ISO 639-1，如 "en" / "zh"）
+  readonly language?: string;
+
   // 变更追踪
   readonly contentHash: string;
 }

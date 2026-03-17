@@ -4,7 +4,8 @@ import { buildDesignL4EventGraphPrompt } from "../prompts/design-l4-event-graph.
 import { buildDesignL4StateMachinePrompt } from "../prompts/design-l4-state-machine.js";
 import { buildDesignL4Prompt } from "../prompts/design-l4.js";
 import type { L3Block } from "../../core/l3.js";
-import type { L4Flow } from "../../core/l4.js";
+import type { L4EventGraph, L4Flow, L4StateMachine } from "../../core/l4.js";
+import { findBlockContext } from "../../core/l4.js";
 import type { L5Blueprint } from "../../core/l5.js";
 import type { DesignL3Input } from "../prompts/design-l3.js";
 import type { DesignL4EventGraphInput } from "../prompts/design-l4-event-graph.js";
@@ -165,6 +166,117 @@ describe("buildDesignL3Prompt", () => {
 
     expect(result).toContain("unknown");
   });
+
+  it("works with event-graph L4 context via blockContext — contains block id and handler location", () => {
+    const eg: L4EventGraph = {
+      kind: "event-graph",
+      id: "chat-sync",
+      name: "Chat Sync",
+      state: { doc: { type: "CRDTDoc", description: "shared doc" } },
+      handlers: [
+        {
+          id: "on-edit",
+          event: "user.local_edit",
+          steps: [
+            { id: "s0", action: "process", blockRef: "merge-edit", next: "s1" },
+            { id: "s1", action: "process", blockRef: "broadcast-change" },
+          ],
+          dataFlows: [],
+        },
+      ],
+      contentHash: "h1",
+      revision: baseRevision,
+    };
+
+    const blockCtx = findBlockContext(eg, "broadcast-change")!;
+    expect(blockCtx).toBeDefined();
+
+    const prev = makeL3("merge-edit");
+    const input: DesignL3Input = {
+      l4Context: { l4: eg, blockContext: blockCtx, prevBlock: prev },
+      userIntent: "broadcast changes to peers",
+    };
+
+    const result = buildDesignL3Prompt(input);
+
+    expect(result).toContain("broadcast-change");
+    expect(result).toContain("broadcast changes to peers");
+    expect(result).toContain("handler");
+    expect(result).toContain("Upstream Block");
+    expect(result).toContain("merge-edit");
+  });
+
+  it("works with state-machine L4 context via blockContext — contains block id and state location, no neighbors", () => {
+    const sm: L4StateMachine = {
+      kind: "state-machine",
+      id: "order-lifecycle",
+      name: "Order Lifecycle",
+      entity: "Order",
+      initialState: "pending",
+      states: {
+        pending: {},
+        confirmed: { onEntry: { blockRef: "send-confirmation" } },
+        closed: { onEntry: { blockRef: "archive-order" } },
+      },
+      transitions: [
+        { from: "pending", to: "confirmed", event: "confirm", guard: "check-inventory" },
+        { from: "confirmed", to: "closed", event: "close" },
+      ],
+      contentHash: "h2",
+      revision: baseRevision,
+    };
+
+    const blockCtx = findBlockContext(sm, "send-confirmation")!;
+    expect(blockCtx).toBeDefined();
+    expect(blockCtx.kind).toBe("state-machine");
+    expect(blockCtx.prevBlockRef).toBeUndefined();
+    expect(blockCtx.nextBlockRef).toBeUndefined();
+
+    const input: DesignL3Input = {
+      l4Context: { l4: sm, blockContext: blockCtx },
+      userIntent: "send order confirmation email",
+    };
+
+    const result = buildDesignL3Prompt(input);
+
+    expect(result).toContain("send-confirmation");
+    expect(result).toContain("send order confirmation email");
+    expect(result).toContain("state");
+    expect(result).toContain("confirmed");
+    expect(result).not.toContain("Neighbor Context");
+  });
+
+  it("works with state-machine guard block via blockContext", () => {
+    const sm: L4StateMachine = {
+      kind: "state-machine",
+      id: "order-lifecycle",
+      name: "Order Lifecycle",
+      entity: "Order",
+      initialState: "pending",
+      states: { pending: {}, confirmed: {} },
+      transitions: [
+        { from: "pending", to: "confirmed", event: "confirm", guard: "check-inventory" },
+      ],
+      contentHash: "h3",
+      revision: baseRevision,
+    };
+
+    const blockCtx = findBlockContext(sm, "check-inventory")!;
+    expect(blockCtx).toBeDefined();
+    expect(blockCtx.location).toContain("guard");
+    expect(blockCtx.location).toContain("pending");
+    expect(blockCtx.location).toContain("confirmed");
+
+    const input: DesignL3Input = {
+      l4Context: { l4: sm, blockContext: blockCtx },
+      userIntent: "check if inventory is available",
+    };
+
+    const result = buildDesignL3Prompt(input);
+
+    expect(result).toContain("check-inventory");
+    expect(result).toContain("check if inventory is available");
+  });
 });
 
 // ── buildDesignL4Prompt ──
@@ -255,6 +367,36 @@ describe("buildDesignL4Prompt", () => {
     const result = buildDesignL4Prompt(input);
 
     expect(result).toContain("No existing L3 blocks.");
+  });
+});
+
+describe("buildDesignL4Prompt — language directive", () => {
+  it("includes language directive when language is 'zh'", () => {
+    const input: DesignL4Input = {
+      l5: makeL5(),
+      existingFlows: [],
+      existingBlocks: [],
+      userIntent: "create order processing flow",
+      language: "zh",
+    };
+
+    const result = buildDesignL4Prompt(input);
+
+    expect(result).toContain("Chinese");
+  });
+
+  it("does not include language directive when language is 'en'", () => {
+    const input: DesignL4Input = {
+      l5: makeL5(),
+      existingFlows: [],
+      existingBlocks: [],
+      userIntent: "create order processing flow",
+      language: "en",
+    };
+
+    const result = buildDesignL4Prompt(input);
+
+    expect(result).not.toContain("IMPORTANT: All human-readable text");
   });
 });
 

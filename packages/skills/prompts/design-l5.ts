@@ -1,11 +1,14 @@
 // design-l5 — L5 Blueprint 设计 prompt 模板
-// 由 slash commands 驱动，不走 SkillRegistry
+// 由 slash commands / svp prompt 驱动
 
+import { complexityHeader } from "./complexity-header.js";
+import { languageDirective } from "../../core/i18n.js";
 import type { L5Blueprint } from "../../core/l5.js";
 
 export interface DesignL5Input {
   readonly currentL5?: L5Blueprint;
   readonly userIntent: string;
+  readonly language?: string;
 }
 
 const L5_SCHEMA_EXAMPLE = `{
@@ -33,7 +36,7 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
         "\n",
       );
 
-  return [
+  return complexityHeader("heavy") + [
     `# ${action} L5 Blueprint`,
     "",
     "You are designing the top-level blueprint (L5) for an SVP project.",
@@ -72,5 +75,5 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
     "- Constraints are strings, not objects",
     "- Domain dependencies reference other domain names",
     "- Write 'placeholder' for contentHash — rehash will fix it",
-  ].join("\n");
+  ].join("\n") + languageDirective(input.language ?? "en");
 }

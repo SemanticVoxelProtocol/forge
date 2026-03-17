@@ -1,26 +1,33 @@
 // compile — L3 → L2+L1 初始编译 prompt 模板
-// 由 SkillRegistry compile skill 使用
+// 由 svp prompt compile 使用
 
-export const COMPILE_INSTRUCTIONS = [
-  "You are compiling an L3 contract into L1 source code.",
-  "",
-  "## Steps",
-  "",
-  "1. Read the L3 contract provided in the Input section",
-  "2. Create L1 source file(s) that implement the contract:",
-  "   - Function signature matches L3 input/output pins",
-  "   - Implementation satisfies all validate rules",
-  "   - Output meets all constraints",
-  "   - Internal logic follows the description",
-  "3. Run `svp link <l3-id> --files <file-paths>` to create the L2 mapping",
-  "",
-  "## Code Guidelines",
-  "",
-  "- File naming: `src/<block-id>.ts`",
-  "- Export a single main function named after the block id (camelCase)",
-  "- Input parameter types must match L3 input pins",
-  "- Return type must match L3 output pins",
-  "- Add a corresponding test file: `src/<block-id>.test.ts`",
-  "- Use TypeScript strict mode",
-  "- No external dependencies unless specified in L5 integrations",
-].join("\n");
+import { languageDirective } from "../../core/i18n.js";
+
+export function compileInstructions(language = "en"): string {
+  return [
+    "You are compiling an L3 contract into L1 source code.",
+    "",
+    "## Steps",
+    "",
+    "1. Read the L3 contract provided in the Input section",
+    "2. Create L1 source file(s) that implement the contract:",
+    "   - Function signature matches L3 input/output pins",
+    "   - Implementation satisfies all validate rules",
+    "   - Output meets all constraints",
+    "   - Internal logic follows the description",
+    "3. Run `svp link <l3-id> --files <file-paths>` to create the L2 mapping",
+    "",
+    "## Code Guidelines",
+    "",
+    "- File naming: `src/<block-id>.ts`",
+    "- Export a single main function named after the block id (camelCase)",
+    "- Input parameter types must match L3 input pins",
+    "- Return type must match L3 output pins",
+    "- Add a corresponding test file: `src/<block-id>.test.ts`",
+    "- Use TypeScript strict mode",
+    "- No external dependencies unless specified in L5 integrations",
+  ].join("\n") + languageDirective(language);
+}
+
+// Backward compat
+export const COMPILE_INSTRUCTIONS = compileInstructions();

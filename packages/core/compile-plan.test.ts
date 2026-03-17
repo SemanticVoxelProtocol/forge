@@ -1,7 +1,7 @@
 // compile-plan.ts 单元测试
 
 import { describe, it, expect } from "vitest";
-import { compilePlan } from "./compile-plan.js";
+import { compilePlan, getDefaultComplexity } from "./compile-plan.js";
 import { computeHash } from "./hash.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
@@ -101,6 +101,7 @@ describe("compilePlan", () => {
     expect(plan.tasks[0].targetLayer).toBe("l2");
     expect(plan.tasks[0].targetId).toBe("validate");
     expect(plan.tasks[0].issueCode).toBe("MISSING_L2");
+    expect(plan.tasks[0].complexity).toBe("standard");
 
     // context should reference the L3 block and the L4 flow
     const contextLayers = plan.tasks[0].context.map((c) => c.layer);
@@ -127,6 +128,7 @@ describe("compilePlan", () => {
     expect(plan.tasks[0].action).toBe("recompile");
     expect(plan.tasks[0].targetId).toBe("validate");
     expect(plan.tasks[0].issueCode).toBe("SOURCE_DRIFT");
+    expect(plan.tasks[0].complexity).toBe("standard");
   });
 
   it("detects broken L4 → L3 reference", () => {
@@ -146,6 +148,7 @@ describe("compilePlan", () => {
     expect(plan.tasks[0].targetLayer).toBe("l4");
     expect(plan.tasks[0].targetId).toBe("flow-a");
     expect(plan.tasks[0].issueCode).toBe("MISSING_BLOCK_REF");
+    expect(plan.tasks[0].complexity).toBe("light");
 
     // context should include L5 blueprint
     const contextLayers = plan.tasks[0].context.map((c) => c.layer);
@@ -603,5 +606,109 @@ describe("compilePlan — L3 context with L4 backref", () => {
     const contextLayers = task!.context.map((c) => c.layer);
     expect(contextLayers).toContain("l3");
     expect(contextLayers).not.toContain("l4");
+  });
+});
+
+describe("compilePlan — complexity", () => {
+  it("assigns correct complexity per action type", () => {
+    const l3New = makeL3("new-block", "New Block");
+
+    const l3StaleOrig = makeL3("stale-block", "Stale Block");
+    const l2Stale = makeL2(l3StaleOrig);
+    const l3StaleUpdated = makeL3("stale-block", "Stale Block", { description: "Changed" });
+
+    const l3Drift = makeL3("drift-block", "Drift Block");
+    const l2Drift: L2CodeBlock = { ...makeL2(l3Drift), signatureHash: "old" };
+
+    const l4Broken = makeL4("broken-flow", ["nonexistent"]);
+
+    const plan = compilePlan({
+      l4Flows: [l4Broken],
+      l3Blocks: [l3New, l3StaleUpdated, l3Drift],
+      l2Blocks: [l2Stale, l2Drift],
+      l1SignatureHashes: new Map([["drift-block", "new"]]),
+    });
+
+    const compileTask = plan.tasks.find((t) => t.action === "compile");
+    expect(compileTask?.complexity).toBe("standard");
+
+    const recompileTask = plan.tasks.find((t) => t.action === "recompile");
+    expect(recompileTask?.complexity).toBe("standard");
+
+    const reviewTask = plan.tasks.find((t) => t.action === "review");
+    expect(reviewTask?.complexity).toBe("standard");
+
+    const updateRefTask = plan.tasks.find((t) => t.action === "update-ref");
+    expect(updateRefTask?.complexity).toBe("light");
+  });
+
+  it("summary includes correct complexityCounts", () => {
+    const l3New = makeL3("new-block", "New Block");
+
+    const l3StaleOrig = makeL3("stale-block", "Stale Block");
+    const l2Stale = makeL2(l3StaleOrig);
+    const l3StaleUpdated = makeL3("stale-block", "Stale Block", { description: "Changed" });
+
+    const l3Drift = makeL3("drift-block", "Drift Block");
+    const l2Drift: L2CodeBlock = { ...makeL2(l3Drift), signatureHash: "old" };
+
+    const l4Broken = makeL4("broken-flow", ["nonexistent"]);
+
+    const plan = compilePlan({
+      l4Flows: [l4Broken],
+      l3Blocks: [l3New, l3StaleUpdated, l3Drift],
+      l2Blocks: [l2Stale, l2Drift],
+      l1SignatureHashes: new Map([["drift-block", "new"]]),
+    });
+
+    expect(plan.summary.complexityCounts).toEqual({
+      heavy: 0,
+      standard: 3, // compile + recompile + review
+      light: 1, // update-ref
+    });
+  });
+
+  it("returns zero complexityCounts for empty input", () => {
+    const plan = compilePlan({ l4Flows: [], l3Blocks: [], l2Blocks: [] });
+    expect(plan.summary.complexityCounts).toEqual({
+      heavy: 0,
+      standard: 0,
+      light: 0,
+    });
+  });
+});
+
+describe("compilePlan — language parameter", () => {
+  it("uses Chinese text in reason/label fields when language is 'zh'", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l4 = makeL4("flow-a", ["validate"]);
+
+    const plan = compilePlan(
+      { l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] },
+      "zh",
+    );
+
+    expect(plan.summary.compile).toBe(1);
+    const task = plan.tasks[0];
+    // Chinese locale: reason should contain Chinese characters
+    expect(task.reason).toMatch(/[\u4e00-\u9fff]/);
+  });
+});
+
+describe("getDefaultComplexity", () => {
+  it("returns standard for compile", () => {
+    expect(getDefaultComplexity("compile")).toBe("standard");
+  });
+
+  it("returns standard for recompile", () => {
+    expect(getDefaultComplexity("recompile")).toBe("standard");
+  });
+
+  it("returns standard for review", () => {
+    expect(getDefaultComplexity("review")).toBe("standard");
+  });
+
+  it("returns light for update-ref", () => {
+    expect(getDefaultComplexity("update-ref")).toBe("light");
   });
 });

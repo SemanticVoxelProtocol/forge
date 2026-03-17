@@ -4,6 +4,7 @@
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { computeHash } from "./hash.js";
+import { detectSystemLanguage } from "./i18n.js";
 import { writeL5 } from "./store.js";
 import type { L5Blueprint } from "./l5.js";
 
@@ -14,7 +15,8 @@ export interface InitOptions {
   readonly name: string;
   readonly version?: string;
   readonly intent?: string;
-  readonly host?: "claude-code";
+  readonly host?: string;
+  readonly language?: string;
 }
 
 export interface InitResult {
@@ -56,6 +58,7 @@ export async function init(root: string, options: InitOptions): Promise<InitResu
     constraints: [],
     domains: [],
     integrations: [],
+    language: options.language ?? detectSystemLanguage(),
   };
   const contentHash = computeHash(l5Base as Record<string, unknown>);
   const l5: L5Blueprint = {

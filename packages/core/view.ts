@@ -3,6 +3,7 @@
 // 纯函数，不做 IO，方便测试和复用
 
 import { computeSignature } from "./computed.js";
+import { t } from "./i18n.js";
 import { extractBlockRefs, getL4Kind } from "./l4.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
@@ -11,23 +12,24 @@ import type { L5Blueprint } from "./l5.js";
 
 // ── L5 ──
 
-export function viewL5Overview(l5: L5Blueprint): string {
+export function viewL5Overview(l5: L5Blueprint, language = "en"): string {
+  const lang = language;
   const lines: string[] = [
     `${l5.name} v${l5.version}`,
     "═".repeat(Math.max(l5.name.length + l5.version.length + 2, 20)),
     "",
-    `intent: ${l5.intent}`,
+    `${t(lang, "view.l5.intent")}: ${l5.intent}`,
   ];
 
   if (l5.constraints.length > 0) {
-    lines.push("", "constraints:");
+    lines.push("", `${t(lang, "view.l5.constraints")}:`);
     for (const c of l5.constraints) {
       lines.push(`  • ${c}`);
     }
   }
 
   if (l5.domains.length > 0) {
-    lines.push("", `domains (${String(l5.domains.length)}):`);
+    lines.push("", `${t(lang, "view.l5.domains", { count: String(l5.domains.length) })}:`);
     for (const d of l5.domains) {
       const deps = d.dependencies.length > 0 ? ` → ${d.dependencies.join(", ")}` : "";
       lines.push(`  ${d.name}${deps}`);
@@ -35,7 +37,7 @@ export function viewL5Overview(l5: L5Blueprint): string {
   }
 
   if (l5.integrations.length > 0) {
-    lines.push("", `integrations (${String(l5.integrations.length)}):`);
+    lines.push("", `${t(lang, "view.l5.integrations", { count: String(l5.integrations.length) })}:`);
     for (const i of l5.integrations) {
       lines.push(`  ${i.name} [${i.type}]`);
     }
@@ -46,23 +48,24 @@ export function viewL5Overview(l5: L5Blueprint): string {
 
 // ── L4 ──
 
-export function viewL4Overview(flows: readonly L4Artifact[]): string {
-  const lines: string[] = [`L4 Logic Chains (${String(flows.length)} artifacts)`, "─".repeat(30)];
+export function viewL4Overview(flows: readonly L4Artifact[], language = "en"): string {
+  const lang = language;
+  const lines: string[] = [t(lang, "view.l4.title", { count: String(flows.length) }), "─".repeat(30)];
 
   for (const l4 of flows) {
     const kind = getL4Kind(l4);
 
     switch (kind) {
       case "flow": {
-        lines.push(...viewFlowOverviewLines(l4 as L4Flow));
+        lines.push(...viewFlowOverviewLines(l4 as L4Flow, lang));
         break;
       }
       case "event-graph": {
-        lines.push(...viewEventGraphOverviewLines(l4 as L4EventGraph));
+        lines.push(...viewEventGraphOverviewLines(l4 as L4EventGraph, lang));
         break;
       }
       case "state-machine": {
-        lines.push(...viewStateMachineOverviewLines(l4 as L4StateMachine));
+        lines.push(...viewStateMachineOverviewLines(l4 as L4StateMachine, lang));
         break;
       }
     }
@@ -77,25 +80,27 @@ export function viewL4Detail(
   l4: L4Artifact,
   l3Blocks: readonly L3Block[],
   l5?: L5Blueprint,
+  language = "en",
 ): string {
+  const lang = language;
   const kind = getL4Kind(l4);
 
   switch (kind) {
     case "flow": {
-      return viewFlowDetail(l4 as L4Flow, l3Blocks, l5);
+      return viewFlowDetail(l4 as L4Flow, l3Blocks, l5, lang);
     }
     case "event-graph": {
-      return viewEventGraphDetail(l4 as L4EventGraph, l3Blocks, l5);
+      return viewEventGraphDetail(l4 as L4EventGraph, l3Blocks, l5, lang);
     }
     case "state-machine": {
-      return viewStateMachineDetail(l4 as L4StateMachine, l3Blocks, l5);
+      return viewStateMachineDetail(l4 as L4StateMachine, l3Blocks, l5, lang);
     }
   }
 }
 
 // ── Flow overview/detail ──
 
-function viewFlowOverviewLines(flow: L4Flow): string[] {
+function viewFlowOverviewLines(flow: L4Flow, lang: string): string[] {
   const lines: string[] = [];
   const trigger = formatTrigger(flow);
   lines.push(`${flow.id} [flow]${trigger}`);
@@ -112,40 +117,40 @@ function viewFlowOverviewLines(flow: L4Flow): string[] {
   return lines;
 }
 
-function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Blueprint): string {
-  const lines: string[] = [flow.id, "═".repeat(Math.max(flow.id.length, 12)), `kind: flow`];
+function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Blueprint, lang = "en"): string {
+  const lines: string[] = [flow.id, "═".repeat(Math.max(flow.id.length, 12)), t(lang, "view.l4.flow.kind")];
 
   const trigger = formatTrigger(flow);
   if (trigger.length > 0) {
     lines.push(`trigger:${trigger}`);
   }
 
-  lines.push("", `steps (${String(flow.steps.length)}):`);
+  lines.push("", `${t(lang, "view.l4.flow.steps", { count: String(flow.steps.length) })}:`);
 
   for (const step of flow.steps) {
     lines.push(formatStep(step));
   }
 
   if (flow.dataFlows.length > 0) {
-    lines.push("", "dataFlows:");
+    lines.push("", `${t(lang, "view.l4.flow.dataFlows")}:`);
     for (const df of flow.dataFlows) {
       lines.push(`  ${df.from} → ${df.to}`);
     }
   }
 
   if (l5 !== undefined) {
-    lines.push("", `↑ L5: ${l5.name}`);
+    lines.push("", `↑ ${t(lang, "view.common.l5Ref")}: ${l5.name}`);
   }
 
   const blockRefs = flow.steps.filter((s) => s.blockRef !== undefined).map((s) => s.blockRef!);
   const uniqueRefs = [...new Set(blockRefs)];
 
   if (uniqueRefs.length > 0) {
-    lines.push("", `↓ L3 blocks (${String(uniqueRefs.length)}):`);
+    lines.push("", `↓ ${t(lang, "view.common.l3Blocks", { count: String(uniqueRefs.length) })}:`);
     for (const ref of uniqueRefs) {
       const block = l3Blocks.find((b) => b.id === ref);
       if (block === undefined) {
-        lines.push(`  ${ref}: [not found]`);
+        lines.push(`  ${ref}: ${t(lang, "view.common.notFound")}`);
       } else {
         const sig = computeSignature(block.id, [...block.input], [...block.output]);
         lines.push(`  ${ref}: ${sig}`);
@@ -158,7 +163,7 @@ function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Bluep
 
 // ── EventGraph overview/detail ──
 
-function viewEventGraphOverviewLines(eg: L4EventGraph): string[] {
+function viewEventGraphOverviewLines(eg: L4EventGraph, lang: string): string[] {
   const lines: string[] = [];
   const stateCount = Object.keys(eg.state).length;
   const handlerCount = eg.handlers.length;
@@ -178,20 +183,21 @@ function viewEventGraphDetail(
   eg: L4EventGraph,
   l3Blocks: readonly L3Block[],
   l5?: L5Blueprint,
+  lang = "en",
 ): string {
-  const lines: string[] = [eg.id, "═".repeat(Math.max(eg.id.length, 12)), `kind: event-graph`];
+  const lines: string[] = [eg.id, "═".repeat(Math.max(eg.id.length, 12)), t(lang, "view.l4.eventGraph.kind")];
 
   // state declarations
   const stateEntries = Object.entries(eg.state);
   if (stateEntries.length > 0) {
-    lines.push("", `state (${String(stateEntries.length)} keys):`);
+    lines.push("", `${t(lang, "view.l4.eventGraph.state", { count: String(stateEntries.length) })}:`);
     for (const [key, field] of stateEntries) {
       lines.push(`  ${key}: ${field.type} — ${field.description}`);
     }
   }
 
   // handlers
-  lines.push("", `handlers (${String(eg.handlers.length)}):`);
+  lines.push("", `${t(lang, "view.l4.eventGraph.handlers", { count: String(eg.handlers.length) })}:`);
   for (const handler of eg.handlers) {
     lines.push(`  [${handler.id}] on "${handler.event}"  (${String(handler.steps.length)} steps)`);
     for (const step of handler.steps) {
@@ -205,7 +211,7 @@ function viewEventGraphDetail(
   }
 
   if (l5 !== undefined) {
-    lines.push("", `↑ L5: ${l5.name}`);
+    lines.push("", `↑ ${t(lang, "view.common.l5Ref")}: ${l5.name}`);
   }
 
   // referenced L3 blocks
@@ -217,11 +223,11 @@ function viewEventGraphDetail(
   }
 
   if (allBlockRefs.size > 0) {
-    lines.push("", `↓ L3 blocks (${String(allBlockRefs.size)}):`);
+    lines.push("", `↓ ${t(lang, "view.common.l3Blocks", { count: String(allBlockRefs.size) })}:`);
     for (const ref of allBlockRefs) {
       const block = l3Blocks.find((b) => b.id === ref);
       if (block === undefined) {
-        lines.push(`  ${ref}: [not found]`);
+        lines.push(`  ${ref}: ${t(lang, "view.common.notFound")}`);
       } else {
         const sig = computeSignature(block.id, [...block.input], [...block.output]);
         lines.push(`  ${ref}: ${sig}`);
@@ -234,7 +240,7 @@ function viewEventGraphDetail(
 
 // ── StateMachine overview/detail ──
 
-function viewStateMachineOverviewLines(sm: L4StateMachine): string[] {
+function viewStateMachineOverviewLines(sm: L4StateMachine, lang: string): string[] {
   const stateCount = Object.keys(sm.states).length;
   const transCount = sm.transitions.length;
   return [
@@ -246,18 +252,19 @@ function viewStateMachineDetail(
   sm: L4StateMachine,
   l3Blocks: readonly L3Block[],
   l5?: L5Blueprint,
+  lang = "en",
 ): string {
   const lines: string[] = [
     sm.id,
     "═".repeat(Math.max(sm.id.length, 12)),
-    `kind: state-machine`,
-    `entity: ${sm.entity}`,
-    `initialState: ${sm.initialState}`,
+    t(lang, "view.l4.stateMachine.kind"),
+    `${t(lang, "view.l4.stateMachine.entity")}: ${sm.entity}`,
+    `${t(lang, "view.l4.stateMachine.initialState")}: ${sm.initialState}`,
   ];
 
   // states
   const stateEntries = Object.entries(sm.states);
-  lines.push("", `states (${String(stateEntries.length)}):`);
+  lines.push("", `${t(lang, "view.l4.stateMachine.states", { count: String(stateEntries.length) })}:`);
   for (const [name, config] of stateEntries) {
     const parts: string[] = [name];
     if (config.onEntry !== undefined) parts.push(`onEntry → ${config.onEntry.blockRef}`);
@@ -266,14 +273,14 @@ function viewStateMachineDetail(
   }
 
   // transitions
-  lines.push("", `transitions (${String(sm.transitions.length)}):`);
-  for (const t of sm.transitions) {
-    const guard = t.guard === undefined ? "" : ` [guard: ${t.guard}]`;
-    lines.push(`  ${t.from} → ${t.to}  on "${t.event}"${guard}`);
+  lines.push("", `${t(lang, "view.l4.stateMachine.transitions", { count: String(sm.transitions.length) })}:`);
+  for (const tr of sm.transitions) {
+    const guard = tr.guard === undefined ? "" : ` [guard: ${tr.guard}]`;
+    lines.push(`  ${tr.from} → ${tr.to}  on "${tr.event}"${guard}`);
   }
 
   if (l5 !== undefined) {
-    lines.push("", `↑ L5: ${l5.name}`);
+    lines.push("", `↑ ${t(lang, "view.common.l5Ref")}: ${l5.name}`);
   }
 
   // referenced L3 blocks
@@ -282,16 +289,16 @@ function viewStateMachineDetail(
     if (config.onEntry?.blockRef !== undefined) allBlockRefs.add(config.onEntry.blockRef);
     if (config.onExit?.blockRef !== undefined) allBlockRefs.add(config.onExit.blockRef);
   }
-  for (const t of sm.transitions) {
-    if (t.guard !== undefined) allBlockRefs.add(t.guard);
+  for (const tr of sm.transitions) {
+    if (tr.guard !== undefined) allBlockRefs.add(tr.guard);
   }
 
   if (allBlockRefs.size > 0) {
-    lines.push("", `↓ L3 blocks (${String(allBlockRefs.size)}):`);
+    lines.push("", `↓ ${t(lang, "view.common.l3Blocks", { count: String(allBlockRefs.size) })}:`);
     for (const ref of allBlockRefs) {
       const block = l3Blocks.find((b) => b.id === ref);
       if (block === undefined) {
-        lines.push(`  ${ref}: [not found]`);
+        lines.push(`  ${ref}: ${t(lang, "view.common.notFound")}`);
       } else {
         const sig = computeSignature(block.id, [...block.input], [...block.output]);
         lines.push(`  ${ref}: ${sig}`);
@@ -304,8 +311,9 @@ function viewStateMachineDetail(
 
 // ── L3 ──
 
-export function viewL3Overview(blocks: readonly L3Block[]): string {
-  const lines: string[] = [`L3 Logic Blocks (${String(blocks.length)} blocks)`, "─".repeat(30)];
+export function viewL3Overview(blocks: readonly L3Block[], language = "en"): string {
+  const lang = language;
+  const lines: string[] = [t(lang, "view.l3.title", { count: String(blocks.length) }), "─".repeat(30)];
 
   const maxIdLength = Math.max(...blocks.map((b) => b.id.length), 0);
 
@@ -324,13 +332,15 @@ export function viewL3Detail(
   block: L3Block,
   flows: readonly L4Artifact[],
   l2Blocks: readonly L2CodeBlock[],
+  language = "en",
 ): string {
+  const lang = language;
   const lines: string[] = [
     block.id,
     "═".repeat(Math.max(block.id.length, 12)),
     formatShortSignature(block),
     "",
-    "pins:",
+    `${t(lang, "view.l3.pins")}:`,
   ];
 
   if (block.input.length > 0) {
@@ -352,7 +362,7 @@ export function viewL3Detail(
 
   const validateEntries = Object.entries(block.validate);
   if (validateEntries.length > 0) {
-    lines.push("", "validate:");
+    lines.push("", `${t(lang, "view.l3.validate")}:`);
     const maxKey = Math.max(...validateEntries.map(([k]) => k.length));
     for (const [key, rule] of validateEntries) {
       const padding = " ".repeat(maxKey - key.length);
@@ -361,13 +371,13 @@ export function viewL3Detail(
   }
 
   if (block.constraints.length > 0) {
-    lines.push("", "constraints:");
+    lines.push("", `${t(lang, "view.l3.constraints")}:`);
     for (const c of block.constraints) {
       lines.push(`  • ${c}`);
     }
   }
 
-  lines.push("", "description:", `  ${block.description}`);
+  lines.push("", `${t(lang, "view.l3.description")}:`, `  ${block.description}`);
 
   // ↑ L4: 哪些 artifact 引用了这个 block
   const referencingL4s = flows.filter((f) => extractBlockRefs(f).includes(block.id));
@@ -382,7 +392,7 @@ export function viewL3Detail(
 
   const l2 = l2Blocks.find((cb) => cb.blockRef === block.id);
   if (l2 !== undefined) {
-    const synced = l2.sourceHash === block.contentHash ? "synced ✓" : "drift ⚠";
+    const synced = l2.sourceHash === block.contentHash ? t(lang, "view.common.synced") : t(lang, "view.common.drift");
     lines.push(`↓ L2: ${l2.id} [${synced}]`);
   }
 
@@ -394,14 +404,16 @@ export function viewL3Detail(
 export function viewL2Overview(
   l2Blocks: readonly L2CodeBlock[],
   l3Blocks: readonly L3Block[],
+  language = "en",
 ): string {
-  const lines: string[] = [`L2 Code Blocks (${String(l2Blocks.length)} blocks)`, "─".repeat(30)];
+  const lang = language;
+  const lines: string[] = [t(lang, "view.l2.title", { count: String(l2Blocks.length) }), "─".repeat(30)];
 
   const l3Map = new Map(l3Blocks.map((b) => [b.id, b]));
 
   for (const cb of l2Blocks) {
     const l3 = l3Map.get(cb.blockRef);
-    const synced = cb.sourceHash === l3?.contentHash ? "synced" : "drift";
+    const synced = cb.sourceHash === l3?.contentHash ? t(lang, "view.common.syncedShort") : t(lang, "view.common.driftShort");
     const files = cb.files.length === 1 ? cb.files[0] : `${String(cb.files.length)} files`;
     lines.push(`${cb.id}  [${cb.language}] ${files}  (${synced})`);
   }
@@ -409,19 +421,20 @@ export function viewL2Overview(
   return lines.join("\n");
 }
 
-export function viewL2Detail(cb: L2CodeBlock, l3Blocks: readonly L3Block[]): string {
+export function viewL2Detail(cb: L2CodeBlock, l3Blocks: readonly L3Block[], language = "en"): string {
+  const lang = language;
   const l3 = l3Blocks.find((b) => b.id === cb.blockRef);
-  const synced = cb.sourceHash === l3?.contentHash ? "synced ✓" : "drift ⚠";
+  const synced = cb.sourceHash === l3?.contentHash ? t(lang, "view.common.synced") : t(lang, "view.common.drift");
 
   const lines: string[] = [
     cb.id,
     "═".repeat(Math.max(cb.id.length, 12)),
     "",
-    `language: ${cb.language}`,
-    `blockRef: ${cb.blockRef}`,
-    `status:   ${synced}`,
+    `${t(lang, "view.l2.language")}: ${cb.language}`,
+    `${t(lang, "view.l2.blockRef")}: ${cb.blockRef}`,
+    `${t(lang, "view.l2.status")}:   ${synced}`,
     "",
-    "files:",
+    `${t(lang, "view.l2.files")}:`,
   ];
 
   for (const file of cb.files) {
