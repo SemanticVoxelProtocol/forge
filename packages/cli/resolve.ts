@@ -1,15 +1,13 @@
 // ContextResolver 实现 — 把 CompileTask 的 context refs 解析为实际数据
-// 供 orchestrator 注入
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type {
-  CheckInput,
-  CompileTask,
-  ContextResolver,
-  FileContent,
-  ResolvedContext,
-} from "../core/index.js";
+import { readGraphDocs, readNodeDocs } from "../core/index.js";
+import type { CheckInput, CompileTask, FileContent, ResolvedContext } from "../core/index.js";
+
+export interface ContextResolver {
+  readonly resolve: (task: CompileTask, input: CheckInput) => Promise<ResolvedContext>;
+}
 
 /** 创建 ContextResolver（需要 project root 来读 L1 文件） */
 export function createResolver(root: string): ContextResolver {
@@ -21,6 +19,7 @@ export function createResolver(root: string): ContextResolver {
         l2?: ResolvedContext["l2"];
         l4?: ResolvedContext["l4"];
         l1Files?: FileContent[];
+        docs?: string;
       } = {};
 
       for (const ref of task.context) {
@@ -47,6 +46,17 @@ export function createResolver(root: string): ContextResolver {
       // compile/recompile 需要读 L1 源文件
       if ((task.action === "compile" || task.action === "recompile") && ctx.l2 !== undefined) {
         ctx.l1Files = await readL1Files(root, ctx.l2.files);
+      }
+
+      // 加载模块化文档（compile/recompile/review 需要 docs 上下文）
+      if (task.action === "compile" || task.action === "recompile" || task.action === "review") {
+        const l3Ref = task.context.find((r) => r.layer === "l3");
+        const l4Ref = task.context.find((r) => r.layer === "l4");
+        if (l3Ref !== undefined) {
+          ctx.docs = (await readNodeDocs(root, l3Ref.id)) ?? undefined;
+        } else if (l4Ref !== undefined) {
+          ctx.docs = (await readGraphDocs(root, l4Ref.id)) ?? undefined;
+        }
       }
 
       return ctx;

@@ -112,3 +112,23 @@ export async function writeL2(root: string, codeBlock: L2CodeBlock): Promise<voi
 export async function listL2(root: string): Promise<string[]> {
   return listIds(svpPath(root, "l2"));
 }
+
+// ── Docs ──
+
+/** 读取节点的模块化文档 nodes/<nodeId>/docs.md，不存在返回 null */
+export async function readNodeDocs(root: string, nodeId: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "nodes", nodeId, "docs.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** 读取图的模块化文档 graphs/<graphName>.docs.md，不存在返回 null */
+export async function readGraphDocs(root: string, graphName: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "graphs", `${graphName}.docs.md`), "utf8");
+  } catch {
+    return null;
+  }
+}

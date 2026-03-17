@@ -2,6 +2,7 @@
 // 检查 hash 一致性、引用完整性、漂移检测、图结构合法性
 
 import { computeHash } from "./hash.js";
+import { t } from "./i18n.js";
 import { getL4Kind } from "./l4.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
@@ -45,12 +46,13 @@ export interface CheckInput {
 
 // ── 主入口 ──
 
-export function check(input: CheckInput): CheckReport {
+export function check(input: CheckInput, language = "en"): CheckReport {
+  const lang = language;
   const issues: CheckIssue[] = [
-    ...checkHashConsistency(input),
-    ...checkReferentialIntegrity(input),
-    ...checkDrift(input),
-    ...checkGraphStructure(input),
+    ...checkHashConsistency(input, lang),
+    ...checkReferentialIntegrity(input, lang),
+    ...checkDrift(input, lang),
+    ...checkGraphStructure(input, lang),
   ];
 
   return {
@@ -64,7 +66,7 @@ export function check(input: CheckInput): CheckReport {
 
 // ── 1. Hash 一致性 ──
 
-function checkHashConsistency(input: CheckInput): CheckIssue[] {
+function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   if (input.l5 !== undefined) {
@@ -76,7 +78,17 @@ function checkHashConsistency(input: CheckInput): CheckIssue[] {
         layer: "l5",
         entityId: input.l5.id,
         code: "HASH_MISMATCH",
-        message: `L5 contentHash mismatch: stored=${input.l5.contentHash}, computed=${expected}`,
+        message: t(lang, "check.hashMismatch.l5", { stored: input.l5.contentHash, computed: expected }),
+      });
+    }
+
+    if (input.l5.language === undefined) {
+      issues.push({
+        severity: "warning",
+        layer: "l5",
+        entityId: input.l5.id,
+        code: "MISSING_LANGUAGE",
+        message: t(lang, "check.missingLanguage"),
       });
     }
   }
@@ -90,7 +102,7 @@ function checkHashConsistency(input: CheckInput): CheckIssue[] {
         layer: "l4",
         entityId: l4.id,
         code: "HASH_MISMATCH",
-        message: `L4 "${l4.name}" contentHash mismatch: stored=${l4.contentHash}, computed=${expected}`,
+        message: t(lang, "check.hashMismatch.l4", { name: l4.name, stored: l4.contentHash, computed: expected }),
       });
     }
   }
@@ -104,7 +116,7 @@ function checkHashConsistency(input: CheckInput): CheckIssue[] {
         layer: "l3",
         entityId: block.id,
         code: "HASH_MISMATCH",
-        message: `L3 "${block.name}" contentHash mismatch: stored=${block.contentHash}, computed=${expected}`,
+        message: t(lang, "check.hashMismatch.l3", { name: block.name, stored: block.contentHash, computed: expected }),
       });
     }
   }
@@ -118,7 +130,7 @@ function checkHashConsistency(input: CheckInput): CheckIssue[] {
         layer: "l2",
         entityId: cb.id,
         code: "HASH_MISMATCH",
-        message: `L2 "${cb.id}" contentHash mismatch: stored=${cb.contentHash}, computed=${expected}`,
+        message: t(lang, "check.hashMismatch.l2", { id: cb.id, stored: cb.contentHash, computed: expected }),
       });
     }
   }
@@ -128,7 +140,7 @@ function checkHashConsistency(input: CheckInput): CheckIssue[] {
 
 // ── 2. 引用完整性 ──
 
-function checkReferentialIntegrity(input: CheckInput): CheckIssue[] {
+function checkReferentialIntegrity(input: CheckInput, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   const l3Ids = new Set(input.l3Blocks.map((b) => b.id));
@@ -139,15 +151,15 @@ function checkReferentialIntegrity(input: CheckInput): CheckIssue[] {
 
     switch (kind) {
       case "flow": {
-        issues.push(...checkFlowRefs(l4 as L4Flow, l3Ids, l4Ids, input.l3Blocks));
+        issues.push(...checkFlowRefs(l4 as L4Flow, l3Ids, l4Ids, input.l3Blocks, lang));
         break;
       }
       case "event-graph": {
-        issues.push(...checkEventGraphRefs(l4 as L4EventGraph, l3Ids, input.l3Blocks));
+        issues.push(...checkEventGraphRefs(l4 as L4EventGraph, l3Ids, input.l3Blocks, lang));
         break;
       }
       case "state-machine": {
-        issues.push(...checkStateMachineRefs(l4 as L4StateMachine, l3Ids));
+        issues.push(...checkStateMachineRefs(l4 as L4StateMachine, l3Ids, lang));
         break;
       }
     }
@@ -161,7 +173,7 @@ function checkReferentialIntegrity(input: CheckInput): CheckIssue[] {
         layer: "l2",
         entityId: cb.id,
         code: "MISSING_BLOCK_REF",
-        message: `L2 "${cb.id}" references non-existent L3 block "${cb.blockRef}"`,
+        message: t(lang, "check.missingBlockRef.l2", { id: cb.id, blockRef: cb.blockRef }),
       });
     }
   }
@@ -175,6 +187,7 @@ function checkFlowRefs(
   l3Ids: Set<string>,
   l4Ids: Set<string>,
   l3Blocks: readonly L3Block[],
+  lang: string,
 ): CheckIssue[] {
   const issues: CheckIssue[] = [];
   const stepIds = new Set(flow.steps.map((s) => s.id));
@@ -186,7 +199,7 @@ function checkFlowRefs(
         layer: "l4",
         entityId: flow.id,
         code: "MISSING_BLOCK_REF",
-        message: `L4 "${flow.name}" step "${step.id}" references non-existent L3 block "${step.blockRef}"`,
+        message: t(lang, "check.missingBlockRef.l4FlowStep", { flowName: flow.name, stepId: step.id, blockRef: step.blockRef }),
       });
     }
 
@@ -196,11 +209,11 @@ function checkFlowRefs(
         layer: "l4",
         entityId: flow.id,
         code: "MISSING_FLOW_REF",
-        message: `L4 "${flow.name}" step "${step.id}" references non-existent L4 flow "${step.flowRef}"`,
+        message: t(lang, "check.missingFlowRef", { flowName: flow.name, stepId: step.id, flowRef: step.flowRef }),
       });
     }
 
-    issues.push(...checkStepInternalRefs(step, stepIds, flow));
+    issues.push(...checkStepInternalRefs(step, stepIds, flow, lang));
   }
 
   // dataFlow endpoint checks
@@ -215,6 +228,7 @@ function checkFlowRefs(
       l3Ids,
       l3Blocks,
       issues,
+      lang,
     );
     checkDataFlowEndpoint(
       df.to,
@@ -226,6 +240,7 @@ function checkFlowRefs(
       l3Ids,
       l3Blocks,
       issues,
+      lang,
     );
   }
 
@@ -237,6 +252,7 @@ function checkEventGraphRefs(
   eg: L4EventGraph,
   l3Ids: Set<string>,
   l3Blocks: readonly L3Block[],
+  lang: string,
 ): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
@@ -251,11 +267,11 @@ function checkEventGraphRefs(
           layer: "l4",
           entityId: eg.id,
           code: "MISSING_BLOCK_REF",
-          message: `L4 "${eg.name}" handler "${handler.id}" step "${step.id}" references non-existent L3 block "${step.blockRef}"`,
+          message: t(lang, "check.missingBlockRef.l4EventGraphStep", { egName: eg.name, handlerId: handler.id, stepId: step.id, blockRef: step.blockRef }),
         });
       }
 
-      issues.push(...checkStepInternalRefs(step, stepIds, { id: eg.id, name: eg.name }));
+      issues.push(...checkStepInternalRefs(step, stepIds, { id: eg.id, name: eg.name }, lang));
     }
 
     // dataFlow endpoint checks（支持 $state / $event 前缀）
@@ -269,8 +285,9 @@ function checkEventGraphRefs(
         l3Ids,
         l3Blocks,
         issues,
+        lang,
       );
-      checkEventGraphDataFlowEndpoint(df.to, "to", eg, handler, stepIds, l3Ids, l3Blocks, issues);
+      checkEventGraphDataFlowEndpoint(df.to, "to", eg, handler, stepIds, l3Ids, l3Blocks, issues, lang);
     }
   }
 
@@ -278,7 +295,7 @@ function checkEventGraphRefs(
 }
 
 /** StateMachine 引用完整性检查 */
-function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>): CheckIssue[] {
+function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   // onEntry / onExit blockRef → L3
@@ -289,7 +306,7 @@ function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>): CheckIss
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: `L4 "${sm.name}" state "${stateName}" onEntry references non-existent L3 block "${config.onEntry.blockRef}"`,
+        message: t(lang, "check.missingBlockRef.l4SmOnEntry", { smName: sm.name, stateName, blockRef: config.onEntry.blockRef }),
       });
     }
     if (config.onExit?.blockRef !== undefined && !l3Ids.has(config.onExit.blockRef)) {
@@ -298,20 +315,20 @@ function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>): CheckIss
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: `L4 "${sm.name}" state "${stateName}" onExit references non-existent L3 block "${config.onExit.blockRef}"`,
+        message: t(lang, "check.missingBlockRef.l4SmOnExit", { smName: sm.name, stateName, blockRef: config.onExit.blockRef }),
       });
     }
   }
 
   // transition guard → L3
-  for (const t of sm.transitions) {
-    if (t.guard !== undefined && !l3Ids.has(t.guard)) {
+  for (const tr of sm.transitions) {
+    if (tr.guard !== undefined && !l3Ids.has(tr.guard)) {
       issues.push({
         severity: "error",
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: `L4 "${sm.name}" transition "${t.from}" → "${t.to}" guard references non-existent L3 block "${t.guard}"`,
+        message: t(lang, "check.missingBlockRef.l4SmGuard", { smName: sm.name, from: tr.from, to: tr.to, guard: tr.guard }),
       });
     }
   }
@@ -324,6 +341,7 @@ function checkStepInternalRefs(
   step: Step,
   stepIds: Set<string>,
   parent: { id: string; name: string },
+  lang: string,
 ): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
@@ -333,7 +351,7 @@ function checkStepInternalRefs(
       layer: "l4",
       entityId: parent.id,
       code: "MISSING_STEP_REF",
-      message: `L4 "${parent.name}" step "${step.id}" next references non-existent step "${step.next}"`,
+      message: t(lang, "check.missingStepRef.next", { parentName: parent.name, stepId: step.id, next: step.next }),
     });
   }
 
@@ -345,7 +363,7 @@ function checkStepInternalRefs(
           layer: "l4",
           entityId: parent.id,
           code: "MISSING_STEP_REF",
-          message: `L4 "${parent.name}" step "${step.id}" branch references non-existent step "${branchId}"`,
+          message: t(lang, "check.missingStepRef.branch", { parentName: parent.name, stepId: step.id, branchId }),
         });
       }
     }
@@ -359,7 +377,7 @@ function checkStepInternalRefs(
           layer: "l4",
           entityId: parent.id,
           code: "MISSING_STEP_REF",
-          message: `L4 "${parent.name}" step "${step.id}" waitFor references non-existent step "${waitId}"`,
+          message: t(lang, "check.missingStepRef.wait", { parentName: parent.name, stepId: step.id, waitId }),
         });
       }
     }
@@ -379,6 +397,7 @@ function checkDataFlowEndpoint(
   l3Ids: Set<string>,
   l3Blocks: readonly L3Block[],
   issues: CheckIssue[],
+  lang: string,
 ): void {
   const dotIndex = endpoint.indexOf(".");
   if (dotIndex === -1) {
@@ -387,7 +406,7 @@ function checkDataFlowEndpoint(
       layer: "l4",
       entityId: flowId,
       code: "INVALID_DATAFLOW_FORMAT",
-      message: `L4 "${flowName}" dataFlow ${direction} "${endpoint}" is not in "stepId.pinName" format`,
+      message: t(lang, "check.invalidDataFlowFormat", { flowName, direction, endpoint }),
     });
     return;
   }
@@ -401,7 +420,7 @@ function checkDataFlowEndpoint(
       layer: "l4",
       entityId: flowId,
       code: "MISSING_STEP_REF",
-      message: `L4 "${flowName}" dataFlow ${direction} references non-existent step "${stepId}"`,
+      message: t(lang, "check.missingStepRef.dataFlow", { flowName, direction, stepId }),
     });
     return;
   }
@@ -418,7 +437,7 @@ function checkDataFlowEndpoint(
           layer: "l4",
           entityId: flowId,
           code: "MISSING_PIN",
-          message: `L4 "${flowName}" dataFlow ${direction} "${endpoint}": pin "${pinName}" not found on L3 block "${step.blockRef}"`,
+          message: t(lang, "check.missingPin", { flowName, direction, endpoint, pinName, blockRef: step.blockRef }),
         });
       }
     }
@@ -435,6 +454,7 @@ function checkEventGraphDataFlowEndpoint(
   l3Ids: Set<string>,
   l3Blocks: readonly L3Block[],
   issues: CheckIssue[],
+  lang: string,
 ): void {
   const dotIndex = endpoint.indexOf(".");
   if (dotIndex === -1) {
@@ -443,7 +463,7 @@ function checkEventGraphDataFlowEndpoint(
       layer: "l4",
       entityId: eg.id,
       code: "INVALID_DATAFLOW_FORMAT",
-      message: `L4 "${eg.name}" handler "${handler.id}" dataFlow ${direction} "${endpoint}" is not in valid format`,
+      message: t(lang, "check.invalidDataFlowFormat.eventGraph", { egName: eg.name, handlerId: handler.id, direction, endpoint }),
     });
     return;
   }
@@ -459,7 +479,7 @@ function checkEventGraphDataFlowEndpoint(
         layer: "l4",
         entityId: eg.id,
         code: "MISSING_STATE_REF",
-        message: `L4 "${eg.name}" handler "${handler.id}" dataFlow ${direction} references undeclared state key "${field}"`,
+        message: t(lang, "check.missingStateRef", { egName: eg.name, handlerId: handler.id, direction, field }),
       });
     }
     return;
@@ -481,12 +501,13 @@ function checkEventGraphDataFlowEndpoint(
     l3Ids,
     l3Blocks,
     issues,
+    lang,
   );
 }
 
 // ── 3. 漂移检测 ──
 
-function checkDrift(input: CheckInput): CheckIssue[] {
+function checkDrift(input: CheckInput, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   // L2 sourceHash vs L3 contentHash
@@ -501,7 +522,7 @@ function checkDrift(input: CheckInput): CheckIssue[] {
         layer: "l2",
         entityId: cb.id,
         code: "SOURCE_DRIFT",
-        message: `L2 "${cb.id}" sourceHash (${cb.sourceHash}) does not match L3 "${cb.blockRef}" contentHash (${l3Hash}): L3 has changed since last compilation`,
+        message: t(lang, "check.sourceDrift", { id: cb.id, sourceHash: cb.sourceHash, blockRef: cb.blockRef, l3Hash }),
       });
     }
 
@@ -514,7 +535,7 @@ function checkDrift(input: CheckInput): CheckIssue[] {
           layer: "l2",
           entityId: cb.id,
           code: "CONTENT_DRIFT",
-          message: `L2 "${cb.id}" signatureHash mismatch: L1 exported signatures have changed since last sync`,
+          message: t(lang, "check.contentDrift", { id: cb.id }),
         });
       }
     }
@@ -525,7 +546,7 @@ function checkDrift(input: CheckInput): CheckIssue[] {
 
 // ── 4. 图结构合法性 ──
 
-function checkGraphStructure(input: CheckInput): CheckIssue[] {
+function checkGraphStructure(input: CheckInput, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   for (const l4 of input.l4Flows) {
@@ -533,15 +554,15 @@ function checkGraphStructure(input: CheckInput): CheckIssue[] {
 
     switch (kind) {
       case "flow": {
-        issues.push(...checkFlowGraphStructure(l4 as L4Flow));
+        issues.push(...checkFlowGraphStructure(l4 as L4Flow, lang));
         break;
       }
       case "event-graph": {
-        issues.push(...checkEventGraphStructure(l4 as L4EventGraph));
+        issues.push(...checkEventGraphStructure(l4 as L4EventGraph, lang));
         break;
       }
       case "state-machine": {
-        issues.push(...checkStateMachineStructure(l4 as L4StateMachine));
+        issues.push(...checkStateMachineStructure(l4 as L4StateMachine, lang));
         break;
       }
     }
@@ -551,15 +572,15 @@ function checkGraphStructure(input: CheckInput): CheckIssue[] {
 }
 
 /** Flow 图结构检查 */
-function checkFlowGraphStructure(flow: L4Flow): CheckIssue[] {
+function checkFlowGraphStructure(flow: L4Flow, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
   if (flow.steps.length === 0) return issues;
 
   const stepMap = new Map(flow.steps.map((s) => [s.id, s]));
 
   issues.push(
-    ...detectNextCycles(flow.id, flow.name, flow.steps, stepMap),
-    ...detectOrphanSteps(flow.id, flow.name, flow.steps, stepMap),
+    ...detectNextCycles(flow.id, flow.name, flow.steps, stepMap, lang),
+    ...detectOrphanSteps(flow.id, flow.name, flow.steps, stepMap, lang),
     ...flow.steps
       .filter((step) => step.flowRef === flow.id)
       .map(
@@ -568,7 +589,7 @@ function checkFlowGraphStructure(flow: L4Flow): CheckIssue[] {
           layer: "l4",
           entityId: flow.id,
           code: "SELF_REFERENCING_FLOW",
-          message: `L4 "${flow.name}" step "${step.id}" calls itself (recursive flow reference)`,
+          message: t(lang, "check.selfReferencingFlow", { flowName: flow.name, stepId: step.id }),
         }),
       ),
   );
@@ -577,7 +598,7 @@ function checkFlowGraphStructure(flow: L4Flow): CheckIssue[] {
 }
 
 /** EventGraph 图结构检查 — 每个 handler 内部独立检查 */
-function checkEventGraphStructure(eg: L4EventGraph): CheckIssue[] {
+function checkEventGraphStructure(eg: L4EventGraph, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
 
   // handler event 唯一性
@@ -589,7 +610,7 @@ function checkEventGraphStructure(eg: L4EventGraph): CheckIssue[] {
         layer: "l4",
         entityId: eg.id,
         code: "DUPLICATE_EVENT",
-        message: `L4 "${eg.name}" has duplicate event handler for "${handler.event}"`,
+        message: t(lang, "check.duplicateEvent", { egName: eg.name, event: handler.event }),
       });
     }
     seenEvents.add(handler.event);
@@ -598,8 +619,8 @@ function checkEventGraphStructure(eg: L4EventGraph): CheckIssue[] {
     if (handler.steps.length > 0) {
       const stepMap = new Map(handler.steps.map((s) => [s.id, s]));
       issues.push(
-        ...detectNextCycles(eg.id, `${eg.name}/${handler.id}`, handler.steps, stepMap),
-        ...detectOrphanSteps(eg.id, `${eg.name}/${handler.id}`, handler.steps, stepMap),
+        ...detectNextCycles(eg.id, `${eg.name}/${handler.id}`, handler.steps, stepMap, lang),
+        ...detectOrphanSteps(eg.id, `${eg.name}/${handler.id}`, handler.steps, stepMap, lang),
       );
     }
   }
@@ -611,7 +632,7 @@ function checkEventGraphStructure(eg: L4EventGraph): CheckIssue[] {
       layer: "l4",
       entityId: eg.id,
       code: "EMPTY_STATE",
-      message: `L4 "${eg.name}" event-graph has no state declarations`,
+      message: t(lang, "check.emptyState", { egName: eg.name }),
     });
   }
 
@@ -619,7 +640,7 @@ function checkEventGraphStructure(eg: L4EventGraph): CheckIssue[] {
 }
 
 /** StateMachine 图结构检查 */
-function checkStateMachineStructure(sm: L4StateMachine): CheckIssue[] {
+function checkStateMachineStructure(sm: L4StateMachine, lang: string): CheckIssue[] {
   const issues: CheckIssue[] = [];
   const stateNames = new Set(Object.keys(sm.states));
 
@@ -630,28 +651,28 @@ function checkStateMachineStructure(sm: L4StateMachine): CheckIssue[] {
       layer: "l4",
       entityId: sm.id,
       code: "INVALID_INITIAL_STATE",
-      message: `L4 "${sm.name}" initialState "${sm.initialState}" not found in states`,
+      message: t(lang, "check.invalidInitialState", { smName: sm.name, initialState: sm.initialState }),
     });
   }
 
   // transition from/to 必须在 states 中
-  for (const t of sm.transitions) {
-    if (!stateNames.has(t.from)) {
+  for (const tr of sm.transitions) {
+    if (!stateNames.has(tr.from)) {
       issues.push({
         severity: "error",
         layer: "l4",
         entityId: sm.id,
         code: "INVALID_TRANSITION",
-        message: `L4 "${sm.name}" transition from "${t.from}" references non-existent state`,
+        message: t(lang, "check.invalidTransition.from", { smName: sm.name, from: tr.from }),
       });
     }
-    if (!stateNames.has(t.to)) {
+    if (!stateNames.has(tr.to)) {
       issues.push({
         severity: "error",
         layer: "l4",
         entityId: sm.id,
         code: "INVALID_TRANSITION",
-        message: `L4 "${sm.name}" transition to "${t.to}" references non-existent state`,
+        message: t(lang, "check.invalidTransition.to", { smName: sm.name, to: tr.to }),
       });
     }
   }
@@ -664,10 +685,10 @@ function checkStateMachineStructure(sm: L4StateMachine): CheckIssue[] {
 
     while (queue.length > 0) {
       const current = queue.shift()!;
-      for (const t of sm.transitions) {
-        if (t.from === current && !reachable.has(t.to)) {
-          reachable.add(t.to);
-          queue.push(t.to);
+      for (const tr of sm.transitions) {
+        if (tr.from === current && !reachable.has(tr.to)) {
+          reachable.add(tr.to);
+          queue.push(tr.to);
         }
       }
     }
@@ -679,7 +700,7 @@ function checkStateMachineStructure(sm: L4StateMachine): CheckIssue[] {
           layer: "l4",
           entityId: sm.id,
           code: "UNREACHABLE_STATE",
-          message: `L4 "${sm.name}" state "${stateName}" is not reachable from initialState "${sm.initialState}"`,
+          message: t(lang, "check.unreachableState", { smName: sm.name, stateName, initialState: sm.initialState }),
         });
       }
     }
@@ -694,6 +715,7 @@ function detectNextCycles(
   entityName: string,
   steps: readonly Step[],
   stepMap: Map<string, Step>,
+  lang: string,
 ): CheckIssue[] {
   const issues: CheckIssue[] = [];
   const visited = new Set<string>();
@@ -711,7 +733,7 @@ function detectNextCycles(
           layer: "l4",
           entityId,
           code: "NEXT_CYCLE",
-          message: `L4 "${entityName}" has a cycle in next chain involving step "${current}"`,
+          message: t(lang, "check.nextCycle", { entityName, current }),
         });
         break;
       }
@@ -734,6 +756,7 @@ function detectOrphanSteps(
   entityName: string,
   steps: readonly Step[],
   stepMap: Map<string, Step>,
+  lang: string,
 ): CheckIssue[] {
   const issues: CheckIssue[] = [];
   const reachable = new Set<string>();
@@ -778,7 +801,7 @@ function detectOrphanSteps(
         layer: "l4",
         entityId,
         code: "ORPHAN_STEP",
-        message: `L4 "${entityName}" step "${step.id}" is not reachable from the first step`,
+        message: t(lang, "check.orphanStep", { entityName, stepId: step.id }),
       });
     }
   }

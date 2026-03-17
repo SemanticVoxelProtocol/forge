@@ -18,6 +18,7 @@ export interface ResolvedContext {
   readonly l2?: L2CodeBlock;
   readonly l4?: L4Artifact;
   readonly l1Files?: readonly FileContent[];
+  readonly docs?: string;
 }
 
 /** L1 源文件内容 */
@@ -73,14 +74,6 @@ export interface SkillResultWithFiles extends SkillResult {
   readonly files: readonly FileArtifact[];
 }
 
-// ── Skill 接口 ──
-
-/** Skill 定义：一个 action 对应一个 skill */
-export interface Skill {
-  readonly action: TaskAction;
-  readonly execute: (input: SkillInput) => Promise<SkillResult | SkillResultWithFiles>;
-}
-
 // ── 默认配置 ──
 
 export const DEFAULT_SKILL_CONFIG: SkillConfig = {
@@ -94,12 +87,3 @@ export const REVIEW_SKILL_CONFIG: SkillConfig = {
   ...DEFAULT_SKILL_CONFIG,
   requireHumanApproval: true,
 };
-
-// ── Skill 注册表 ──
-
-export type SkillRegistry = ReadonlyMap<TaskAction, Skill>;
-
-/** 从 Skill 数组构建注册表 */
-export function createSkillRegistry(skills: readonly Skill[]): SkillRegistry {
-  return new Map(skills.map((s) => [s.action, s]));
-}

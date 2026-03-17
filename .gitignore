@@ -21,10 +21,13 @@
 !examples/**
 !scripts/
 !scripts/**
+!tests/
+!tests/**
 !.github/
 !.github/**
 
 # Re-ignore generated/temp files within allowed dirs
+tests/e2e/report-*
 *.swp
 *.kate-swp
 *.swo

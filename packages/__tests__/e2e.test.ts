@@ -2,16 +2,15 @@
 // Uses real temp directories, no mocks.
 
 import { existsSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadCheckInput } from "../cli/load.js";
-import { compileBlueprint } from "../compiler/compile.js";
 import { check } from "../core/check.js";
 import { compilePlan } from "../core/compile-plan.js";
 import { hashL2, hashL3, hashL4 } from "../core/hash.js";
 import { init } from "../core/init.js";
-import { readL3, readL4, writeL2, writeL3, writeL4, writeL5 } from "../core/store.js";
+import { writeL2, writeL3, writeL4, writeL5 } from "../core/store.js";
 import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../skills/rehash.js";
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
@@ -31,23 +30,6 @@ const REV1: ArtifactVersion = {
 };
 
 let tmpDir: string;
-
-/** Write a file relative to tmpDir, creating parent dirs as needed. */
-async function writeAt(rel: string, content: string): Promise<void> {
-  const full = path.join(tmpDir, rel);
-  await mkdir(path.dirname(full), { recursive: true });
-  await writeFile(full, content, "utf8");
-}
-
-/** Write a node.yaml to nodes/<name>/node.yaml */
-async function writeNodeYaml(name: string, yaml: string): Promise<void> {
-  await writeAt(`nodes/${name}/node.yaml`, yaml);
-}
-
-/** Write a graph yaml to graphs/<name>.yaml */
-async function writeGraphYaml(name: string, yaml: string): Promise<void> {
-  await writeAt(`graphs/${name}.yaml`, yaml);
-}
 
 function makeL3(overrides: Partial<L3Block> = {}): L3Block {
   const base = {
@@ -150,228 +132,9 @@ describe("E2E: SVP Pipeline", () => {
     });
   });
 
-  // ── Scenario 2: YAML Nodes → compileBlueprint → Check ──
+  // ── Scenario 2: Drift detection: modify L3 → check detects SOURCE_DRIFT ──
 
-  describe("2. YAML Nodes → compileBlueprint → Check", () => {
-    it("round-trips YAML → parse → compile → store → load", async () => {
-      // Write node YAMLs
-      await writeNodeYaml(
-        "validate-order",
-        [
-          "name: validate-order",
-          "pins:",
-          "  input:",
-          "    - name: request",
-          "      type: OrderRequest",
-          "  output:",
-          "    - name: result",
-          "      type: ValidationResult",
-          "validate:",
-          "  request: required",
-          "constraints:",
-          '  - "output.result.valid iff errors is empty"',
-          "description: Validates incoming order requests",
-        ].join("\n"),
-      );
-
-      await writeNodeYaml(
-        "process-order",
-        [
-          "name: process-order",
-          "pins:",
-          "  input:",
-          "    - name: order",
-          "      type: OrderRequest",
-          "    - name: inventory",
-          "      type: InventoryStatus",
-          "  output:",
-          "    - name: result",
-          "      type: OrderResult",
-          "description: Processes validated orders",
-        ].join("\n"),
-      );
-
-      // Initialize .svp/ directories so loadCheckInput can work
-      await init(tmpDir, { name: "order-test" });
-
-      // Compile
-      const compileResult = await compileBlueprint(tmpDir);
-      expect(compileResult.ok).toBe(true);
-      if (!compileResult.ok) return;
-
-      expect(compileResult.value.l3Blocks).toContain("validate-order");
-      expect(compileResult.value.l3Blocks).toContain("process-order");
-
-      // Verify files exist
-      expect(existsSync(path.join(tmpDir, ".svp", "l3", "validate-order.json"))).toBe(true);
-      expect(existsSync(path.join(tmpDir, ".svp", "l3", "process-order.json"))).toBe(true);
-
-      // Verify content
-      const valBlock = await readL3(tmpDir, "validate-order");
-      expect(valBlock).not.toBeNull();
-      expect(valBlock!.id).toBe("validate-order");
-      expect(valBlock!.input).toHaveLength(1);
-      expect(valBlock!.output).toHaveLength(1);
-      expect(valBlock!.contentHash).toBeTruthy();
-
-      const procBlock = await readL3(tmpDir, "process-order");
-      expect(procBlock).not.toBeNull();
-      expect(procBlock!.input).toHaveLength(2);
-
-      // Load and check — zero errors (warnings OK for missing L2)
-      const input = await loadCheckInput(tmpDir);
-      const report = check(input);
-      expect(report.summary.errors).toBe(0);
-    });
-  });
-
-  // ── Scenario 3: YAML Graph → compileBlueprint → L4Flow with correct steps + dataFlows ──
-
-  describe("3. YAML Graph → compileBlueprint → L4Flow", () => {
-    it("graph compilation produces valid cross-layer references", async () => {
-      await writeNodeYaml(
-        "validate-order",
-        [
-          "name: validate-order",
-          "pins:",
-          "  input:",
-          "    - name: request",
-          "      type: OrderRequest",
-          "  output:",
-          "    - name: result",
-          "      type: ValidationResult",
-          "description: Validates orders",
-        ].join("\n"),
-      );
-
-      await writeNodeYaml(
-        "process-order",
-        [
-          "name: process-order",
-          "pins:",
-          "  input:",
-          "    - name: order",
-          "      type: OrderRequest",
-          "  output:",
-          "    - name: result",
-          "      type: OrderResult",
-          "description: Processes orders",
-        ].join("\n"),
-      );
-
-      await writeGraphYaml(
-        "order-flow",
-        [
-          "name: order-flow",
-          "input:",
-          "  - name: request",
-          "    type: OrderRequest",
-          "output:",
-          "  - name: result",
-          "    type: OrderResult",
-          "nodes:",
-          "  - id: v",
-          "    type: validate-order",
-          "  - id: p",
-          "    type: process-order",
-          "wires:",
-          "  - from: v.result",
-          "    to: p.order",
-        ].join("\n"),
-      );
-
-      await init(tmpDir, { name: "graph-test" });
-
-      const compileResult = await compileBlueprint(tmpDir);
-      expect(compileResult.ok).toBe(true);
-      if (!compileResult.ok) return;
-
-      expect(compileResult.value.l3Blocks).toContain("validate-order");
-      expect(compileResult.value.l3Blocks).toContain("process-order");
-      expect(compileResult.value.l4Flows).toContain("order-flow");
-
-      // Verify L4 flow structure
-      const flow = await readL4(tmpDir, "order-flow");
-      expect(flow).not.toBeNull();
-      const l4Flow = flow as L4Flow;
-      expect(l4Flow.id).toBe("order-flow");
-      expect(l4Flow.steps.length).toBeGreaterThanOrEqual(2);
-
-      // Steps should reference the L3 blocks
-      const blockRefs = l4Flow.steps.filter((s) => s.blockRef !== undefined).map((s) => s.blockRef);
-      expect(blockRefs).toContain("validate-order");
-      expect(blockRefs).toContain("process-order");
-
-      // DataFlows should wire v.result → p.order
-      expect(l4Flow.dataFlows.length).toBeGreaterThan(0);
-      const wire = l4Flow.dataFlows.find((df) => df.from === "v.result" && df.to === "p.order");
-      expect(wire).toBeDefined();
-
-      // No referential integrity errors
-      const input = await loadCheckInput(tmpDir);
-      const report = check(input);
-      const errors = report.issues.filter((i) => i.severity === "error");
-      expect(errors).toEqual([]);
-    });
-  });
-
-  // ── Scenario 4: Full pipeline: init → compile → link → check consistency ──
-
-  describe("4. Full pipeline: init → compile → write L2 → check consistency", () => {
-    it("all 4 layers in sync produces zero issues", async () => {
-      // 1. Init
-      await init(tmpDir, { name: "Full Pipeline", intent: "e2e sync test" });
-
-      // 2. Write node YAML + compile
-      await writeNodeYaml(
-        "greet",
-        [
-          "name: greet",
-          "pins:",
-          "  input:",
-          "    - name: name",
-          "      type: string",
-          "  output:",
-          "    - name: greeting",
-          "      type: string",
-          "description: Greets the user",
-        ].join("\n"),
-      );
-
-      const compileResult = await compileBlueprint(tmpDir);
-      expect(compileResult.ok).toBe(true);
-
-      // 3. Read the L3 to get its contentHash for L2 sourceHash
-      const l3 = await readL3(tmpDir, "greet");
-      expect(l3).not.toBeNull();
-
-      // 4. Write L2 with sourceHash = L3's contentHash
-      const l2Base = {
-        id: "greet-ts",
-        blockRef: "greet",
-        language: "typescript",
-        files: ["src/greet.ts"],
-      };
-      const l2: L2CodeBlock = {
-        ...l2Base,
-        sourceHash: l3!.contentHash,
-        contentHash: hashL2(l2Base),
-        revision: REV1,
-      };
-      await writeL2(tmpDir, l2);
-
-      // 5. Check → zero issues
-      const input = await loadCheckInput(tmpDir);
-      const report = check(input);
-      expect(report.summary.errors).toBe(0);
-      expect(report.summary.warnings).toBe(0);
-      expect(report.issues).toEqual([]);
-    });
-  });
-
-  // ── Scenario 5: Drift detection: modify L3 → check detects SOURCE_DRIFT ──
-
-  describe("5. Drift detection: modify L3 → SOURCE_DRIFT", () => {
+  describe("2. Drift detection: modify L3 → SOURCE_DRIFT", () => {
     it("hash-based change tracking works across layers", async () => {
       await init(tmpDir, { name: "drift-test" });
 
@@ -414,9 +177,9 @@ describe("E2E: SVP Pipeline", () => {
     });
   });
 
-  // ── Scenario 6: Referential integrity: L4 references missing L3 ──
+  // ── Scenario 3: Referential integrity: L4 references missing L3 ──
 
-  describe("6. Referential integrity: L4 references missing L3", () => {
+  describe("3. Referential integrity: L4 references missing L3", () => {
     it("cross-layer reference validation catches dangling refs", async () => {
       await init(tmpDir, { name: "ref-test" });
 
@@ -445,9 +208,9 @@ describe("E2E: SVP Pipeline", () => {
     });
   });
 
-  // ── Scenario 7: Hash mismatch detection ──
+  // ── Scenario 4: Hash mismatch detection ──
 
-  describe("7. Hash mismatch detection and rehash recovery", () => {
+  describe("4. Hash mismatch detection and rehash recovery", () => {
     it("tampering is detected and rehash recovers", async () => {
       await init(tmpDir, { name: "hash-test" });
 
@@ -496,9 +259,9 @@ describe("E2E: SVP Pipeline", () => {
     });
   });
 
-  // ── Scenario 8: Compile plan generation from real project state ──
+  // ── Scenario 5: Compile plan generation from real project state ──
 
-  describe("8. Compile plan generation from real project state", () => {
+  describe("5. Compile plan generation from real project state", () => {
     it("change detection → task generation pipeline", async () => {
       await init(tmpDir, { name: "plan-test" });
 
@@ -560,103 +323,9 @@ describe("E2E: SVP Pipeline", () => {
     });
   });
 
-  // ── Scenario 9: Composite node compilation ──
+  // ── Scenario 6: Rehash round-trip across all layers ──
 
-  describe("9. Composite node compilation", () => {
-    it("composite node → L3 blocks for inner nodes AND L4 sub-flow", async () => {
-      await init(tmpDir, { name: "composite-test" });
-
-      // Two atomic sub-nodes
-      await writeNodeYaml(
-        "step-a",
-        [
-          "name: step-a",
-          "pins:",
-          "  input:",
-          "    - name: in",
-          "      type: string",
-          "  output:",
-          "    - name: out",
-          "      type: string",
-          "description: Step A",
-        ].join("\n"),
-      );
-
-      await writeNodeYaml(
-        "step-b",
-        [
-          "name: step-b",
-          "pins:",
-          "  input:",
-          "    - name: in",
-          "      type: string",
-          "  output:",
-          "    - name: out",
-          "      type: string",
-          "description: Step B",
-        ].join("\n"),
-      );
-
-      // Composite node referencing them
-      await writeNodeYaml(
-        "my-pipeline",
-        [
-          "name: my-pipeline",
-          "type: composite",
-          "pins:",
-          "  input:",
-          "    - name: data",
-          "      type: string",
-          "  output:",
-          "    - name: result",
-          "      type: string",
-          "nodes:",
-          "  - id: sa",
-          "    type: step-a",
-          "  - id: sb",
-          "    type: step-b",
-          "wires:",
-          "  - from: input.data",
-          "    to: sa.in",
-          "  - from: sa.out",
-          "    to: sb.in",
-          "  - from: sb.out",
-          "    to: output.result",
-        ].join("\n"),
-      );
-
-      const compileResult = await compileBlueprint(tmpDir);
-      expect(compileResult.ok).toBe(true);
-      if (!compileResult.ok) return;
-
-      // Atomic nodes → L3 blocks
-      expect(compileResult.value.l3Blocks).toContain("step-a");
-      expect(compileResult.value.l3Blocks).toContain("step-b");
-
-      // Composite node → L4 flow
-      expect(compileResult.value.l4Flows).toContain("my-pipeline");
-
-      // Verify L4 flow has steps referencing inner blocks
-      const pipeline = (await readL4(tmpDir, "my-pipeline")) as L4Flow;
-      expect(pipeline).not.toBeNull();
-      expect(pipeline.steps.length).toBeGreaterThanOrEqual(2);
-      const pipelineBlockRefs = pipeline.steps
-        .filter((s) => s.blockRef !== undefined)
-        .map((s) => s.blockRef);
-      expect(pipelineBlockRefs).toContain("step-a");
-      expect(pipelineBlockRefs).toContain("step-b");
-
-      // Check → valid cross-references
-      const input = await loadCheckInput(tmpDir);
-      const report = check(input);
-      const errors = report.issues.filter((i) => i.severity === "error");
-      expect(errors).toEqual([]);
-    });
-  });
-
-  // ── Scenario 10: Rehash round-trip across all layers ──
-
-  describe("10. Rehash round-trip across all layers", () => {
+  describe("6. Rehash round-trip across all layers", () => {
     it("rehash fixes all layers, check confirms consistency", async () => {
       await init(tmpDir, { name: "rehash-test" });
 

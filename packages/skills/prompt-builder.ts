@@ -3,8 +3,9 @@
 // 纯函数，不做 IO
 
 import { viewL2Detail, viewL3Detail, viewL4Detail, viewL5Overview } from "../core/view.js";
-import type { TaskAction } from "../core/compile-plan.js";
+import type { Complexity, TaskAction } from "../core/compile-plan.js";
 import type { SkillInput } from "../core/skill.js";
+import { getLanguage, languageDirective } from "../core/i18n.js";
 
 export interface StructuredPrompt {
   readonly role: string;
@@ -13,6 +14,7 @@ export interface StructuredPrompt {
   readonly input: string;
   readonly outputSpec: string;
   readonly rules: string;
+  readonly complexity: Complexity;
 }
 
 // ── 角色定义 ──
@@ -36,6 +38,7 @@ const OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Function signatures must match L3 input/output pins exactly",
     "- Implementation must satisfy all validate rules and constraints",
     "- Internal logic should follow the description",
+    "- If Documentation is provided, use it for design intent, edge cases, and error strategy",
     "- After writing files, run: svp link <l3-id> --files <paths>",
     "- File naming: src/<block-id>.ts (or appropriate for language)",
   ].join("\n"),
@@ -78,6 +81,8 @@ const COMMON_RULES = [
 /** 从 SkillInput 构建结构化 Prompt */
 export function buildPrompt(input: SkillInput): StructuredPrompt {
   const { task } = input;
+  const lang = getLanguage(input.resolved.l5);
+  const langDirective = languageDirective(lang);
 
   return {
     role: ROLES[task.action],
@@ -85,13 +90,18 @@ export function buildPrompt(input: SkillInput): StructuredPrompt {
     task: `[${task.action}] ${task.reason}`,
     input: buildInput(input),
     outputSpec: OUTPUT_SPECS[task.action],
-    rules: COMMON_RULES,
+    rules: COMMON_RULES + langDirective,
+    complexity: task.complexity,
   };
 }
 
 /** 渲染 StructuredPrompt 为 markdown 文本（喂给 AI） */
 export function renderPrompt(prompt: StructuredPrompt): string {
   return [
+    `---`,
+    `complexity: ${prompt.complexity}`,
+    `---`,
+    "",
     `# ${prompt.role}`,
     "",
     "## Context",
@@ -165,6 +175,11 @@ function buildCompileInput(input: SkillInput): string[] {
     parts.push("### L3 Contract", "", viewL3Detail(resolved.l3, flows, []));
   }
 
+  // 模块化文档
+  if (resolved.docs !== undefined) {
+    parts.push("", "### Documentation", "", resolved.docs);
+  }
+
   return parts;
 }
 
@@ -193,6 +208,11 @@ function buildRecompileInput(input: SkillInput): string[] {
     }
   }
 
+  // 模块化文档
+  if (resolved.docs !== undefined) {
+    parts.push("", "### Documentation", "", resolved.docs);
+  }
+
   return parts;
 }
 
@@ -219,6 +239,11 @@ function buildReviewInput(input: SkillInput): string[] {
     for (const file of resolved.l1Files) {
       parts.push("", `#### ${file.path}`, "```", file.content, "```");
     }
+  }
+
+  // 模块化文档
+  if (resolved.docs !== undefined) {
+    parts.push("", "### Documentation", "", resolved.docs);
   }
 
   return parts;

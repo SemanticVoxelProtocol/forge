@@ -53,6 +53,7 @@ function makeL5(overrides: Partial<L5Blueprint> = {}): L5Blueprint {
     constraints: [],
     domains: [{ name: "order", description: "订单域", dependencies: [] }],
     integrations: [],
+    language: "en",
     ...overrides,
   };
   const { revision: _r, ...hashInput } = base;

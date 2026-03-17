@@ -1,6 +1,8 @@
 // design-l4 — L4 Flow 设计 prompt 模板
-// 由 slash commands 驱动，不走 SkillRegistry
+// 由 slash commands / svp prompt 驱动
 
+import { complexityHeader } from "./complexity-header.js";
+import { languageDirective } from "../../core/i18n.js";
 import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
 import { viewL5Overview } from "../../core/view.js";
 import type { L3Block } from "../../core/l3.js";
@@ -13,6 +15,7 @@ export interface DesignL4Input {
   readonly existingBlocks: readonly L3Block[];
   readonly userIntent: string;
   readonly targetFlowId?: string;
+  readonly language?: string;
 }
 
 const L4_SCHEMA_EXAMPLE = `{
@@ -57,7 +60,7 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
           )
           .join("\n");
 
-  return [
+  return complexityHeader("heavy") + [
     `# ${action} L4 Flow`,
     "",
     "You are designing a flow (L4) that orchestrates L3 logic blocks.",
@@ -107,5 +110,5 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
     "- Fan-out uses `parallel` action, join uses `wait` action",
     "- Write 'placeholder' for contentHash — rehash will fix it",
     "- Do NOT create L3 blocks here — only reference them by id",
-  ].join("\n");
+  ].join("\n") + languageDirective(input.language ?? "en");
 }

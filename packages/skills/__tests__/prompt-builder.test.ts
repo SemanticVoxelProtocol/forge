@@ -80,6 +80,7 @@ function makeInput(action: CompileTask["action"], resolved: ResolvedContext): Sk
     reason: `${action} validate-order`,
     issueCode: "TEST",
     context: [],
+    complexity: action === "update-ref" ? "light" : "standard",
   };
   return { task, resolved, config: defaultConfig };
 }
@@ -156,6 +157,115 @@ describe("buildPrompt", () => {
     expect(prompt.context).toContain("No project-level context");
     expect(prompt.input).toBe("");
   });
+
+  it("includes Documentation section when docs is provided (compile)", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+      l4: makeL4(),
+      docs: "## Intent\nValidate all order fields.\n\n## Edge Cases\n- Empty items array",
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Documentation");
+    expect(prompt.input).toContain("## Intent");
+    expect(prompt.input).toContain("Empty items array");
+  });
+
+  it("includes Documentation section when docs is provided (recompile)", () => {
+    const input = makeInput("recompile", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l4: makeL4(),
+      l1Files: [{ path: "src/validate-order.ts", content: "export function validate() {}" }],
+      docs: "## Error Strategy\nCollect all errors before returning.",
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Documentation");
+    expect(prompt.input).toContain("Collect all errors");
+  });
+
+  it("includes Documentation section when docs is provided (review)", () => {
+    const input = makeInput("review", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l1Files: [{ path: "src/validate-order.ts", content: "// drifted code" }],
+      docs: "## Integration Notes\nUpstream sends raw HTTP body.",
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Documentation");
+    expect(prompt.input).toContain("Upstream sends raw HTTP body");
+  });
+
+  it("does not include Documentation section when docs is absent", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+      l4: makeL4(),
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).not.toContain("### Documentation");
+  });
+
+  it("compile output spec mentions Documentation", () => {
+    const input = makeInput("compile", { l3: makeL3() });
+    const prompt = buildPrompt(input);
+
+    expect(prompt.outputSpec).toContain("Documentation");
+  });
+
+  it("includes complexity from task", () => {
+    const input = makeInput("compile", { l3: makeL3() });
+    const prompt = buildPrompt(input);
+
+    expect(prompt.complexity).toBe("standard");
+  });
+
+  it("passes light complexity for update-ref", () => {
+    const input = makeInput("update-ref", { l4: makeL4(), l5: makeL5() });
+    const prompt = buildPrompt(input);
+
+    expect(prompt.complexity).toBe("light");
+  });
+});
+
+describe("buildPrompt — language directive", () => {
+  it("includes language directive in rules when L5 has language 'zh'", () => {
+    const l5WithZh: ReturnType<typeof makeL5> = {
+      ...makeL5(),
+      language: "zh",
+    };
+    const input = makeInput("compile", {
+      l5: l5WithZh,
+      l3: makeL3(),
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.rules).toContain("Chinese");
+  });
+
+  it("does not include language directive in rules when L5 has language 'en'", () => {
+    const l5WithEn: ReturnType<typeof makeL5> = {
+      ...makeL5(),
+      language: "en",
+    };
+    const input = makeInput("compile", {
+      l5: l5WithEn,
+      l3: makeL3(),
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.rules).not.toContain("IMPORTANT: All human-readable text");
+  });
 });
 
 describe("renderPrompt", () => {
@@ -174,6 +284,30 @@ describe("renderPrompt", () => {
     expect(md).toContain("## Input");
     expect(md).toContain("## Output Spec");
     expect(md).toContain("## Rules");
+  });
+
+  it("prepends YAML front-matter with complexity", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+    });
+
+    const prompt = buildPrompt(input);
+    const md = renderPrompt(prompt);
+
+    expect(md).toMatch(/^---\ncomplexity: standard\n---/);
+  });
+
+  it("renders light complexity for update-ref", () => {
+    const input = makeInput("update-ref", {
+      l4: makeL4(),
+      l5: makeL5(),
+    });
+
+    const prompt = buildPrompt(input);
+    const md = renderPrompt(prompt);
+
+    expect(md).toMatch(/^---\ncomplexity: light\n---/);
   });
 
   it("produces non-empty sections", () => {

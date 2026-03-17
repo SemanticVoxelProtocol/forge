@@ -1,5 +1,7 @@
 // design-l4-event-graph — L4 EventGraph 设计 prompt 模板
 
+import { complexityHeader } from "./complexity-header.js";
+import { languageDirective } from "../../core/i18n.js";
 import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
 import { viewL5Overview } from "../../core/view.js";
 import type { L3Block } from "../../core/l3.js";
@@ -12,6 +14,7 @@ export interface DesignL4EventGraphInput {
   readonly existingBlocks: readonly L3Block[];
   readonly userIntent: string;
   readonly targetId?: string;
+  readonly language?: string;
 }
 
 const EVENT_GRAPH_SCHEMA_EXAMPLE = `{
@@ -194,7 +197,7 @@ export function buildDesignL4EventGraphPrompt(input: DesignL4EventGraphInput): s
           )
           .join("\n");
 
-  return [
+  return complexityHeader("heavy") + [
     `# ${action} L4 EventGraph`,
     "",
     "You are designing an event-graph (L4) for event-driven / reactive systems.",
@@ -254,5 +257,5 @@ export function buildDesignL4EventGraphPrompt(input: DesignL4EventGraphInput): s
     "- `$state.key` must reference a declared state key",
     "- Write 'placeholder' for contentHash — rehash will fix it",
     "- Do NOT create L3 blocks here — only reference them by id",
-  ].join("\n");
+  ].join("\n") + languageDirective(input.language ?? "en");
 }

@@ -152,6 +152,95 @@ export function extractBlockRefs(l4: L4Artifact): string[] {
   return [...refs];
 }
 
+// ── Block Context（定位 block 在任意 L4 变体中的位置）──
+
+export interface BlockContext {
+  readonly kind: "flow" | "event-graph" | "state-machine";
+  readonly blockId: string;
+  readonly prevBlockRef?: string; // predecessor blockRef (if sequential)
+  readonly nextBlockRef?: string; // successor blockRef (if sequential)
+  readonly location: string; // e.g. "step 1 in flow", "handler on-execute step 0", "state closed onEntry"
+}
+
+/** 在任意 L4 变体中定位 blockId，返回位置上下文（含前后邻居） */
+export function findBlockContext(l4: L4Artifact, blockId: string): BlockContext | undefined {
+  const kind = getL4Kind(l4);
+
+  switch (kind) {
+    case "flow": {
+      const flow = l4 as L4Flow;
+      for (let i = 0; i < flow.steps.length; i++) {
+        const step = flow.steps[i];
+        if (step.blockRef === blockId) {
+          const prevStep = i > 0 ? flow.steps[i - 1] : undefined;
+          const nextStep = i < flow.steps.length - 1 ? flow.steps[i + 1] : undefined;
+          return {
+            kind: "flow",
+            blockId,
+            prevBlockRef: prevStep?.blockRef,
+            nextBlockRef: nextStep?.blockRef,
+            location: `step ${String(i)} in flow "${flow.id}"`,
+          };
+        }
+      }
+      break;
+    }
+    case "event-graph": {
+      const eg = l4 as L4EventGraph;
+      for (const handler of eg.handlers) {
+        for (let i = 0; i < handler.steps.length; i++) {
+          const step = handler.steps[i];
+          if (step.blockRef === blockId) {
+            const prevStep = i > 0 ? handler.steps[i - 1] : undefined;
+            const nextStep = i < handler.steps.length - 1 ? handler.steps[i + 1] : undefined;
+            return {
+              kind: "event-graph",
+              blockId,
+              prevBlockRef: prevStep?.blockRef,
+              nextBlockRef: nextStep?.blockRef,
+              location: `handler "${handler.id}" step ${String(i)} (event: ${handler.event})`,
+            };
+          }
+        }
+      }
+      break;
+    }
+    case "state-machine": {
+      const sm = l4 as L4StateMachine;
+      // Search states onEntry/onExit
+      for (const [stateName, config] of Object.entries(sm.states)) {
+        if (config.onEntry?.blockRef === blockId) {
+          return {
+            kind: "state-machine",
+            blockId,
+            location: `state "${stateName}" onEntry`,
+          };
+        }
+        if (config.onExit?.blockRef === blockId) {
+          return {
+            kind: "state-machine",
+            blockId,
+            location: `state "${stateName}" onExit`,
+          };
+        }
+      }
+      // Search transition guards
+      for (const t of sm.transitions) {
+        if (t.guard === blockId) {
+          return {
+            kind: "state-machine",
+            blockId,
+            location: `transition "${t.from}" → "${t.to}" guard (event: ${t.event})`,
+          };
+        }
+      }
+      break;
+    }
+  }
+
+  return undefined;
+}
+
 // 计算属性，不存储：
 // - dataType: 从引用的 pin 类型算出来
 // - 聚合了哪些 L3 blocks: 从 extractBlockRefs 收集

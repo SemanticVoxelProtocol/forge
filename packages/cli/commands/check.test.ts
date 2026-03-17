@@ -79,6 +79,7 @@ function makeL5(overrides: Partial<L5Blueprint> = {}): L5Blueprint {
     constraints: ["Must handle 1000 orders/sec"],
     domains: [{ name: "order", description: "订单域", dependencies: [] }],
     integrations: [{ name: "stripe", type: "api", description: "Payment gateway" }],
+    language: "en",
     ...overrides,
   };
   const contentHash = computeHash(base as Record<string, unknown>);

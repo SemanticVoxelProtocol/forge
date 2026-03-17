@@ -417,7 +417,7 @@ describe("svp prompt", () => {
       ]);
 
       expect(exitCode).toBe(1);
-      expect(stdout).toContain('L4 flow "nonexistent" not found');
+      expect(stdout).toContain('L4 artifact "nonexistent" not found');
     });
 
     it("errors when step index out of range", async () => {

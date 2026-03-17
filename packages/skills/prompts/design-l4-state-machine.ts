@@ -1,5 +1,7 @@
 // design-l4-state-machine — L4 StateMachine 设计 prompt 模板
 
+import { complexityHeader } from "./complexity-header.js";
+import { languageDirective } from "../../core/i18n.js";
 import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
 import { viewL5Overview } from "../../core/view.js";
 import type { L3Block } from "../../core/l3.js";
@@ -12,6 +14,7 @@ export interface DesignL4StateMachineInput {
   readonly existingBlocks: readonly L3Block[];
   readonly userIntent: string;
   readonly targetId?: string;
+  readonly language?: string;
 }
 
 const STATE_MACHINE_SCHEMA_EXAMPLE = `{
@@ -180,7 +183,7 @@ export function buildDesignL4StateMachinePrompt(input: DesignL4StateMachineInput
           )
           .join("\n");
 
-  return [
+  return complexityHeader("heavy") + [
     `# ${action} L4 StateMachine`,
     "",
     "You are designing a state machine (L4) for entity lifecycle management.",
@@ -241,5 +244,5 @@ export function buildDesignL4StateMachinePrompt(input: DesignL4StateMachineInput
     "- Every state should be reachable from `initialState` via transitions",
     "- Write 'placeholder' for contentHash — rehash will fix it",
     "- Do NOT create L3 blocks here — only reference them by id",
-  ].join("\n");
+  ].join("\n") + languageDirective(input.language ?? "en");
 }
