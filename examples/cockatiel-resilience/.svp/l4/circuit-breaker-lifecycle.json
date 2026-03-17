@@ -1,0 +1,33 @@
+{
+  "kind": "state-machine",
+  "id": "circuit-breaker-lifecycle",
+  "name": "熔断器生命周期状态机",
+  "entity": "CircuitBreaker",
+  "initialState": "关闭",
+  "states": {
+    "关闭": {
+      "onEntry": { "blockRef": "reset-breaker-counters" }
+    },
+    "断开": {
+      "onEntry": { "blockRef": "emit-break-event" }
+    },
+    "半开": {
+      "onEntry": { "blockRef": "emit-half-open-event" }
+    },
+    "已隔离": {
+      "onEntry": { "blockRef": "emit-isolate-event" }
+    }
+  },
+  "transitions": [
+    { "from": "关闭", "to": "断开", "event": "失败阈值超限", "guard": "check-breaker-threshold" },
+    { "from": "断开", "to": "半开", "event": "半开定时器到期", "guard": "check-backoff-duration" },
+    { "from": "半开", "to": "关闭", "event": "探测调用成功" },
+    { "from": "半开", "to": "断开", "event": "探测调用失败" },
+    { "from": "关闭", "to": "已隔离", "event": "手动隔离" },
+    { "from": "断开", "to": "已隔离", "event": "手动隔离" },
+    { "from": "半开", "to": "已隔离", "event": "手动隔离" },
+    { "from": "已隔离", "to": "关闭", "event": "所有隔离句柄已释放" }
+  ],
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "check-backoff-duration",
+  "name": "检查退避时长",
+  "input": [
+    { "name": "openedAt", "type": "number" },
+    { "name": "backoffMs", "type": "number" }
+  ],
+  "output": [
+    { "name": "timerExpired", "type": "boolean" }
+  ],
+  "constraints": [
+    "当前时间减去 openedAt 大于 backoffMs 时返回 true",
+    "退避时长由 backoff 策略决定"
+  ],
+  "description": "判断 open 状态下的退避定时器是否已到期，作为 open→half-open 转换的守卫。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

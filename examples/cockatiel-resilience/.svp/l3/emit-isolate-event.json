@@ -1,0 +1,15 @@
+{
+  "id": "emit-isolate-event",
+  "name": "发射隔离事件",
+  "input": [
+    { "name": "breaker", "type": "CircuitBreakerState" }
+  ],
+  "output": [],
+  "constraints": [
+    "发射 onIsolate 事件",
+    "拒绝所有后续请求直到隔离句柄释放"
+  ],
+  "description": "进入 isolated 状态时发射事件，手动隔离熔断器拒绝一切调用。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

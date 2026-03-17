@@ -1,0 +1,57 @@
+{
+  "kind": "event-graph",
+  "id": "retry-execution",
+  "name": "重试策略事件图",
+  "state": {
+    "attempt": { "type": "number", "description": "当前重试次数（从 0 开始）" },
+    "backoff": { "type": "IBackoff | undefined", "description": "当前退避状态，用于计算下次延迟" },
+    "lastResult": { "type": "FailureOrSuccess<T>", "description": "最近一次调用的结果" }
+  },
+  "handlers": [
+    {
+      "id": "on-execute",
+      "event": "policy.execute",
+      "steps": [
+        { "id": "invoke-fn", "action": "process", "blockRef": "invoke-with-filter", "next": "check-result" },
+        { "id": "check-result", "action": "process", "blockRef": "classify-result", "next": null }
+      ],
+      "dataFlows": [
+        { "from": "$event.fn", "to": "invoke-fn.fn" },
+        { "from": "$event.signal", "to": "invoke-fn.signal" },
+        { "from": "$state.attempt", "to": "invoke-fn.attempt" },
+        { "from": "invoke-fn.result", "to": "check-result.result" },
+        { "from": "invoke-fn.result", "to": "$state.lastResult" }
+      ]
+    },
+    {
+      "id": "on-retry-needed",
+      "event": "result.should_retry",
+      "steps": [
+        { "id": "compute-delay", "action": "process", "blockRef": "compute-backoff-delay", "next": "wait-delay" },
+        { "id": "wait-delay", "action": "process", "blockRef": "delay-with-unref", "next": "emit-retry" },
+        { "id": "emit-retry", "action": "process", "blockRef": "emit-retry-event", "next": null }
+      ],
+      "dataFlows": [
+        { "from": "$state.backoff", "to": "compute-delay.currentBackoff" },
+        { "from": "$state.attempt", "to": "compute-delay.attempt" },
+        { "from": "$state.lastResult", "to": "compute-delay.result" },
+        { "from": "compute-delay.nextBackoff", "to": "$state.backoff" },
+        { "from": "compute-delay.delayMs", "to": "wait-delay.duration" },
+        { "from": "compute-delay.delayMs", "to": "emit-retry.delay" },
+        { "from": "$state.attempt", "to": "emit-retry.attempt" }
+      ]
+    },
+    {
+      "id": "on-give-up",
+      "event": "result.max_attempts_exceeded",
+      "steps": [
+        { "id": "emit-give-up", "action": "process", "blockRef": "emit-give-up-event", "next": null }
+      ],
+      "dataFlows": [
+        { "from": "$state.lastResult", "to": "emit-give-up.result" }
+      ]
+    }
+  ],
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

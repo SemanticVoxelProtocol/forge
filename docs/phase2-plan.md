@@ -1,5 +1,7 @@
 # SVP Phase 2: AI Skill 实现 & Claude Code 集成 — 完整计划 (v2 - 用户确认完整)
 
+> **注意**：本文档是 Phase 2 的历史规划文档，当时仅支持 Claude Code。实际实现已扩展为支持 6 种 AI 编码工具（Claude Code、Cursor、Windsurf、Kimi Code、Codex、GitHub Copilot）的插件化 adapter 系统。当前架构详见 `packages/skills/adapters/` 和 `docs/project-introduction.md` 第 7.4 节。
+
 ## Context
 
 ### 现状

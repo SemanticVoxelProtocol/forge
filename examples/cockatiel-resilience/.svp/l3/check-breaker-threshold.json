@@ -1,0 +1,18 @@
+{
+  "id": "check-breaker-threshold",
+  "name": "检查熔断阈值",
+  "input": [
+    { "name": "failureCount", "type": "number" },
+    { "name": "threshold", "type": "number" }
+  ],
+  "output": [
+    { "name": "shouldBreak", "type": "boolean" }
+  ],
+  "constraints": [
+    "当连续失败次数达到阈值时返回 true",
+    "支持连续计数、计数窗口、采样三种策略"
+  ],
+  "description": "评估当前失败统计是否达到熔断条件，作为 closed→open 转换的守卫。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

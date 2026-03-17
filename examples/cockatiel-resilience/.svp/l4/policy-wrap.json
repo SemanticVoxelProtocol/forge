@@ -1,0 +1,21 @@
+{
+  "id": "policy-wrap",
+  "name": "可组合策略管道",
+  "trigger": { "type": "api", "config": { "method": "execute", "path": "wrap(...policies).execute(fn)" } },
+  "steps": [
+    { "id": "filter-error", "action": "process", "blockRef": "apply-error-filter", "next": "invoke-outer" },
+    { "id": "invoke-outer", "action": "process", "blockRef": "execute-with-retry", "next": "invoke-middle" },
+    { "id": "invoke-middle", "action": "process", "blockRef": "execute-with-breaker", "next": "invoke-inner" },
+    { "id": "invoke-inner", "action": "process", "blockRef": "execute-with-timeout", "next": "merge-context" },
+    { "id": "merge-context", "action": "process", "blockRef": "merge-policy-context", "next": null }
+  ],
+  "dataFlows": [
+    { "from": "filter-error.handledErrors", "to": "invoke-outer.errorFilter" },
+    { "from": "filter-error.handledResults", "to": "invoke-outer.resultFilter" },
+    { "from": "invoke-outer.innerFn", "to": "invoke-middle.fn" },
+    { "from": "invoke-middle.innerFn", "to": "invoke-inner.fn" },
+    { "from": "invoke-inner.result", "to": "merge-context.policyResult" }
+  ],
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "greet",
+  "blockRef": "greet",
+  "language": "typescript",
+  "files": [
+    "src/greet.ts"
+  ],
+  "sourceHash": "c2787878cb585722",
+  "contentHash": "d86f3f7c74e0592f",
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "ai",
+      "action": "compile"
+    },
+    "timestamp": "2026-03-17T16:50:45.846Z"
+  }
+}

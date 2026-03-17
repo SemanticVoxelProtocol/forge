@@ -1,0 +1,25 @@
+{
+  "id": "apply-error-filter",
+  "name": "应用错误过滤器",
+  "input": [
+    { "name": "errorHandlers", "type": "ErrorHandlerConfig[]" },
+    { "name": "resultHandlers", "type": "ResultHandlerConfig[]", "optional": true }
+  ],
+  "output": [
+    { "name": "handledErrors", "type": "ErrorFilter" },
+    { "name": "handledResults", "type": "ResultFilter" }
+  ],
+  "validate": {
+    "errorHandlers": "数组，最少 1 项；每项是谓词函数或含 test 方法的对象",
+    "resultHandlers": "如提供则为数组；每项是谓词函数或含 test 方法的对象"
+  },
+  "constraints": [
+    "output.handledErrors(err) 当至少一个 errorHandler 匹配时返回 true",
+    "output.handledResults(result) 当至少一个 resultHandler 匹配时返回 true",
+    "resultHandlers 缺省或为空时 handledResults 始终返回 false",
+    "handledErrors 和 handledResults 均为无副作用的纯函数"
+  ],
+  "description": "将所有配置的错误谓词以 OR 逻辑合并为单一 handledErrors 函数。对结果谓词施加同样的 OR 合并生成 handledResults。未提供结果谓词时，handledResults 永远返回 false。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

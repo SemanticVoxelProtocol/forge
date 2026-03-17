@@ -1,0 +1,32 @@
+{
+  "id": "cockatiel",
+  "name": "Cockatiel 弹性库",
+  "version": "0.1.0",
+  "intent": "提供可组合的容错策略（重试、熔断器、超时、隔离舱、降级），包装异步操作使分布式调用具备自愈能力。策略以过滤器形式拦截 execute() 调用，施加弹性逻辑后传递结果或错误。",
+  "constraints": [
+    "所有策略实现 IPolicy<Context, AltReturn> 统一 execute() 接口",
+    "策略通过 wrap() 组合——顺序决定嵌套层级（外层重试，内层超时）",
+    "熔断器状态可通过 toJSON/initialState 序列化，支持无服务器场景持久化",
+    "退避和熔断策略通过工厂接口可插拔",
+    "AbortSignal 在整个策略链中传播，实现协作式取消",
+    "零外部依赖——纯 TypeScript + Node.js 内置模块"
+  ],
+  "domains": [
+    { "name": "策略核心", "description": "策略组合与错误/结果过滤", "dependencies": [] },
+    { "name": "熔断器", "description": "熔断器状态机：关闭/断开/半开", "dependencies": ["策略核心", "熔断策略", "退避"] },
+    { "name": "重试", "description": "带可插拔退避策略的重试循环", "dependencies": ["策略核心", "退避"] },
+    { "name": "超时", "description": "基于 AbortSignal 的协作式与强制超时", "dependencies": ["策略核心"] },
+    { "name": "隔离舱", "description": "并发控制：槽池 + 溢出队列", "dependencies": ["策略核心"] },
+    { "name": "退避", "description": "退避时长策略：常数、指数、可迭代、委托", "dependencies": [] },
+    { "name": "熔断策略", "description": "熔断判定策略：连续失败、计数窗口、采样", "dependencies": [] }
+  ],
+  "integrations": [],
+  "language": "zh",
+  "contentHash": "placeholder",
+  "revision": {
+    "rev": 2,
+    "parentRev": 1,
+    "source": { "type": "manual" },
+    "timestamp": "2026-03-17T06:15:00.000Z"
+  }
+}

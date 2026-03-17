@@ -1,0 +1,15 @@
+{
+  "id": "emit-break-event",
+  "name": "发射熔断事件",
+  "input": [
+    { "name": "breaker", "type": "CircuitBreakerState" }
+  ],
+  "output": [],
+  "constraints": [
+    "发射 onBreak 事件通知监听者",
+    "记录断开时间戳用于退避计算"
+  ],
+  "description": "进入 open 状态时发射 onBreak 事件，通知外部熔断器已断开。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

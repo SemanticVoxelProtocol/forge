@@ -1,0 +1,15 @@
+{
+  "id": "emit-half-open-event",
+  "name": "发射半开事件",
+  "input": [
+    { "name": "breaker", "type": "CircuitBreakerState" }
+  ],
+  "output": [],
+  "constraints": [
+    "发射 onHalfOpen 事件",
+    "允许一个探测请求通过"
+  ],
+  "description": "进入 half-open 状态时发射事件，准备执行探测调用以判断后端是否恢复。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

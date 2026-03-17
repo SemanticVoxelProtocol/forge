@@ -1,0 +1,17 @@
+{
+  "id": "reset-breaker-counters",
+  "name": "重置熔断计数器",
+  "input": [
+    { "name": "breaker", "type": "CircuitBreakerState" }
+  ],
+  "output": [
+    { "name": "breaker", "type": "CircuitBreakerState" }
+  ],
+  "constraints": [
+    "将连续失败计数归零",
+    "保留 backoff 迭代器状态不变"
+  ],
+  "description": "进入 closed 状态时重置熔断器的失败计数和窗口统计。",
+  "contentHash": "placeholder",
+  "revision": { "rev": 1, "parentRev": null, "source": { "type": "init" }, "timestamp": "2026-03-17T06:15:00.000Z" }
+}

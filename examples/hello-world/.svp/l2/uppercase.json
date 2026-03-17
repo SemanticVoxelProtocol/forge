@@ -1,0 +1,19 @@
+{
+  "id": "uppercase",
+  "blockRef": "uppercase",
+  "language": "typescript",
+  "files": [
+    "src/uppercase.ts"
+  ],
+  "sourceHash": "71cf829a8d639a8a",
+  "contentHash": "654f510d0bf7076a",
+  "revision": {
+    "rev": 1,
+    "parentRev": null,
+    "source": {
+      "type": "ai",
+      "action": "compile"
+    },
+    "timestamp": "2026-03-17T16:50:46.646Z"
+  }
+}

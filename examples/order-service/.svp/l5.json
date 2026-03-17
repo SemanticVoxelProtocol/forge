@@ -1,0 +1,43 @@
+{
+  "id": "order-service",
+  "name": "Order Service",
+  "version": "0.1.0",
+  "intent": "An order processing service: validate incoming orders, check inventory availability, and process confirmed orders. Demonstrates a multi-step pipeline with data flow between blocks.",
+  "constraints": [
+    "Orders must pass validation before inventory check",
+    "Inventory check must confirm availability before processing",
+    "Each step produces structured results consumed by the next step"
+  ],
+  "domains": [
+    {
+      "name": "validation",
+      "description": "Order input validation and sanitization",
+      "dependencies": []
+    },
+    {
+      "name": "inventory",
+      "description": "Stock availability checking",
+      "dependencies": [
+        "validation"
+      ]
+    },
+    {
+      "name": "processing",
+      "description": "Order fulfillment and confirmation",
+      "dependencies": [
+        "inventory"
+      ]
+    }
+  ],
+  "integrations": [],
+  "language": "en",
+  "contentHash": "1fa53bf8bc1664d4",
+  "revision": {
+    "rev": 3,
+    "parentRev": 2,
+    "source": {
+      "type": "human"
+    },
+    "timestamp": "2026-03-17T16:51:58.491Z"
+  }
+}

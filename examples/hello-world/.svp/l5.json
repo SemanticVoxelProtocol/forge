@@ -1,0 +1,35 @@
+{
+  "id": "hello-world",
+  "name": "Hello World",
+  "version": "0.1.0",
+  "intent": "A minimal greeting service: accept a name, produce a greeting message, and transform it to uppercase. Demonstrates the simplest possible SVP five-layer stack.",
+  "constraints": [
+    "Pure functions only — no side effects, no I/O",
+    "Default name is \"World\" when input is empty"
+  ],
+  "domains": [
+    {
+      "name": "greeting",
+      "description": "Name-to-greeting transformation",
+      "dependencies": []
+    },
+    {
+      "name": "formatting",
+      "description": "String formatting utilities (uppercase)",
+      "dependencies": [
+        "greeting"
+      ]
+    }
+  ],
+  "integrations": [],
+  "language": "en",
+  "contentHash": "877bbd67f3099617",
+  "revision": {
+    "rev": 3,
+    "parentRev": 2,
+    "source": {
+      "type": "human"
+    },
+    "timestamp": "2026-03-17T16:51:57.193Z"
+  }
+}

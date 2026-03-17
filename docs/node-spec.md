@@ -34,11 +34,11 @@ AI 是编译器，不是 parser。`"request.items: array, min 1, max 50"` 这种
 ## 原子节点
 
 ```yaml
-name: string                    # 节点标识
+name: string # 节点标识
 
 # ── 形式化层 ──
 
-pins:                           # 数据形状
+pins: # 数据形状
   input:
     - name: string
       type: string
@@ -47,19 +47,19 @@ pins:                           # 数据形状
     - name: string
       type: string
 
-validate:                       # 输入约束
+validate: # 输入约束
   field.path: rule [, rule ...]
 
-constraints:                    # 输出约束 + 不变量
+constraints: # 输出约束 + 不变量
   - assertion
 
 # ── 自由层 ──
 
-description: string             # 中间逻辑（自然语言）
+description: string # 中间逻辑（自然语言）
 
 # ── 可选 ──
 
-config:                         # 运行时可调参数
+config: # 运行时可调参数
   key: { type, default }
 ```
 
@@ -107,20 +107,20 @@ validate:
 
 **规则列表：**
 
-| 规则 | 含义 | 示例 |
-|---|---|---|
-| required | 不能为空/undefined | `user_id: required` |
-| optional | 可以为空 | `coupon: optional` |
-| 类型名 | 类型校验 | `age: number` |
-| uuid | UUID 格式 | `id: uuid` |
-| email | 邮箱格式 | `email: email` |
-| url | URL 格式 | `link: url` |
-| min N | 最小值/最小长度 | `items: array, min 1` |
-| max N | 最大值/最大长度 | `name: string, max 100` |
-| > N, >= N, < N, <= N | 数值比较 | `quantity: number, > 0` |
-| == V | 精确相等 | `available: == true` |
-| pattern /regex/ | 正则匹配 | `zip: pattern /^\d{6}$/` |
-| one of [a, b, c] | 枚举 | `status: one of [active, inactive]` |
+| 规则                 | 含义               | 示例                                |
+| -------------------- | ------------------ | ----------------------------------- |
+| required             | 不能为空/undefined | `user_id: required`                 |
+| optional             | 可以为空           | `coupon: optional`                  |
+| 类型名               | 类型校验           | `age: number`                       |
+| uuid                 | UUID 格式          | `id: uuid`                          |
+| email                | 邮箱格式           | `email: email`                      |
+| url                  | URL 格式           | `link: url`                         |
+| min N                | 最小值/最小长度    | `items: array, min 1`               |
+| max N                | 最大值/最大长度    | `name: string, max 100`             |
+| > N, >= N, < N, <= N | 数值比较           | `quantity: number, > 0`             |
+| == V                 | 精确相等           | `available: == true`                |
+| pattern /regex/      | 正则匹配           | `zip: pattern /^\d{6}$/`            |
+| one of [a, b, c]     | 枚举               | `status: one of [active, inactive]` |
 
 每条规则有唯一解释，不存在歧义。
 
@@ -144,17 +144,17 @@ constraints:
 
 **语法（受限的断言语言）：**
 
-| 语法 | 含义 | 示例 |
-|---|---|---|
-| X >= Y, X == Y, ... | 比较 | `total >= 0` |
-| X is type | 类型断言 | `order_id is uuid` |
-| X is empty / not empty | 空值断言 | `errors is not empty` |
-| if P then Q | 蕴含 | `if success then order_id is not empty` |
-| P iff Q | 当且仅当 | `valid iff errors is empty` |
-| count of X == N | 计数 | `count of output.items == count of input.items` |
-| X contains Y | 包含 | `errors contains all failed checks` |
-| all X satisfy P | 全称 | `all items[].quantity > 0` |
-| any X satisfies P | 存在 | `any items[].price > 100` |
+| 语法                   | 含义     | 示例                                            |
+| ---------------------- | -------- | ----------------------------------------------- |
+| X >= Y, X == Y, ...    | 比较     | `total >= 0`                                    |
+| X is type              | 类型断言 | `order_id is uuid`                              |
+| X is empty / not empty | 空值断言 | `errors is not empty`                           |
+| if P then Q            | 蕴含     | `if success then order_id is not empty`         |
+| P iff Q                | 当且仅当 | `valid iff errors is empty`                     |
+| count of X == N        | 计数     | `count of output.items == count of input.items` |
+| X contains Y           | 包含     | `errors contains all failed checks`             |
+| all X satisfy P        | 全称     | `all items[].quantity > 0`                      |
+| any X satisfies P      | 存在     | `any items[].price > 100`                       |
 
 constraints 可以引用 input 和 output，表达输入输出之间的关系。
 
@@ -264,12 +264,67 @@ wires:
 
 ---
 
+## 模块化文档 (docs.md)
+
+每个节点目录和图文件可以附带一个可选的 `docs.md` 文件，提供超出 `description` 字段的丰富上下文。
+
+### 文件位置
+
+```
+nodes/my-node/
+├── node.yaml          # 契约（pins, validate, constraints, description）
+└── docs.md            # 模块化文档（可选）
+
+graphs/
+├── main.yaml          # 图定义
+└── main.docs.md       # 图级文档（可选）
+```
+
+### 与 description 的关系
+
+- **description** 是摘要（1-4 句话），嵌入 L3Block，参与编译流程
+- **docs.md** 是详述，独立文件，按需加载，不影响 contentHash
+
+### 推荐结构
+
+```markdown
+## Intent
+
+设计意图和业务背景。
+
+## Edge Cases
+
+- 边界情况 1
+- 边界情况 2
+
+## Error Strategy
+
+错误处理策略和降级方案。
+
+## Integration Notes
+
+与其他节点/外部服务的集成约定。
+
+## Examples
+
+输入输出示例。
+```
+
+### 加载行为
+
+- `svp prompt compile/recompile/review` 时自动加载并注入 prompt
+- subagent 只拉自己需要的 docs，不加载全量
+- 不影响 `contentHash` 计算——docs 是编译辅助信息，不是契约的一部分
+
+---
+
 ## 目录约定
 
 ```
 nodes/
 ├── my-node/
-│   └── node.yaml              # 原子节点
+│   ├── node.yaml              # 原子节点
+│   └── docs.md                # 模块化文档（可选）
 ├── my-pipeline/
 │   ├── node.yaml              # 复合节点（type: composite）
 │   └── nodes/                 # 子节点
@@ -279,7 +334,8 @@ nodes/
 │           └── node.yaml
 
 graphs/
-└── main.yaml                  # 顶层连线图
+├── main.yaml                  # 顶层连线图
+└── main.docs.md               # 图级文档（可选）
 
 types/
 └── *.ts                       # 引脚类型定义
@@ -289,19 +345,19 @@ types/
 
 ## 编译映射总结
 
-| svp-blueprint | L3Block 字段 | 说明 |
-|---|---|---|
-| name | id | 直接映射 |
-| pins.input | input: Pin[] | 直接映射 |
-| pins.output | output: Pin[] | 直接映射 |
-| validate | validate: Record<string, string> | 直接映射 |
-| constraints | constraints: string[] | 直接映射 |
-| description | description: string | 直接映射 |
-| （计算）| signature | 从 input/output 生成，不存储 |
+| svp-blueprint | L3Block 字段                     | 说明                         |
+| ------------- | -------------------------------- | ---------------------------- |
+| name          | id                               | 直接映射                     |
+| pins.input    | input: Pin[]                     | 直接映射                     |
+| pins.output   | output: Pin[]                    | 直接映射                     |
+| validate      | validate: Record<string, string> | 直接映射                     |
+| constraints   | constraints: string[]            | 直接映射                     |
+| description   | description: string              | 直接映射                     |
+| （计算）      | signature                        | 从 input/output 生成，不存储 |
 
-| svp-blueprint | L4Flow 字段 | 说明 |
-|---|---|---|
-| 复合节点 nodes | steps: Step[] | 子节点 → 步骤 |
-| wires | steps[].next + dataFlows | 连线 → 执行顺序 + 数据流 |
-| 扇出 | action: "parallel" 步骤 | 一出多入 → 并行 |
-| 汇聚 | action: "wait" 步骤 | 多出一入 → 等待 |
+| svp-blueprint  | L4Flow 字段              | 说明                     |
+| -------------- | ------------------------ | ------------------------ |
+| 复合节点 nodes | steps: Step[]            | 子节点 → 步骤            |
+| wires          | steps[].next + dataFlows | 连线 → 执行顺序 + 数据流 |
+| 扇出           | action: "parallel" 步骤  | 一出多入 → 并行          |
+| 汇聚           | action: "wait" 步骤      | 多出一入 → 等待          |

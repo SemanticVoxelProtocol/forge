@@ -191,6 +191,21 @@ wires:
 
 类型定义放在 `types/` 目录，是标准 TypeScript interface。Pin.type 直接引用这些类型名称。
 
+## 蓝图查看器
+
+`svp blueprint` 命令是 svp-blueprint 的只读可视化入口——读取 `.svp/` 下已编译的 L3/L4 JSON，生成自包含 HTML 节点图在浏览器中查看。
+
+设计要点：
+
+- **UE Blueprint 风格暗色主题**：深色背景 + 点阵网格，节点卡片用深色调，减少视觉疲劳
+- **节点即契约盒**：每个节点显示 L3 block 的 name、description（2 行截断）、pins（按类型着色），点击展开查看 validate 和 constraints
+- **类型着色系统**：pin 圆点和数据流连线的颜色由类型名 hash 生成（HSL），同类型 pin 自动同色
+- **执行流标记**：节点头部左右各有三角形执行引脚（类似 UE Blueprint 的 exec pin），表示执行流方向
+- **三种 L4 变体**：Flow（主要，节点图）、EventGraph（事件处理器列表）、StateMachine（状态节点 + 转换边）
+- **零依赖自包含**：单个 HTML 文件内联所有 CSS/JS/数据，无需服务器，离线可用
+
+查看器不做编辑——编辑仍然通过 YAML 文件 + `svp compile-blueprint` 完成。查看器是数据的一种只读渲染视图。
+
 ## 不做什么
 
 - **不做 AI 编译**：svp-blueprint 只负责生成 L4Flow/L3Block 的 JSON，后续 L3→L2→L1 由用户的 AI 编码工具（Claude Code 等）配合 SVP skills 完成
