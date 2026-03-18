@@ -23,20 +23,20 @@ export type VersionSource =
 // ── Package version (single source of truth: package.json) ──
 
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 function findPackageJson(): { version: string } {
-  let dir = dirname(fileURLToPath(import.meta.url));
+  let dir = path.dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 10; i++) {
     try {
-      const content = readFileSync(resolve(dir, "package.json"), "utf-8");
+      const content = readFileSync(path.resolve(dir, "package.json"), "utf8");
       const pkg = JSON.parse(content) as { name?: string; version: string };
       if (pkg.name === "@svporg/forge") return pkg;
     } catch {
       // not found at this level, keep going
     }
-    dir = dirname(dir);
+    dir = path.dirname(dir);
   }
   return { version: "0.0.0" };
 }
