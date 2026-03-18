@@ -1,5 +1,5 @@
 // compile — L3 → L2+L1 初始编译 prompt 模板
-// 由 svp prompt compile 使用
+// 由 forge prompt compile 使用
 
 import { languageDirective } from "../../core/i18n.js";
 
@@ -15,7 +15,7 @@ export function compileInstructions(language = "en"): string {
     "   - Implementation satisfies all validate rules",
     "   - Output meets all constraints",
     "   - Internal logic follows the description",
-    "3. Run `svp link <l3-id> --files <file-paths>` to create the L2 mapping",
+    "3. Run `forge link <l3-id> --files <file-paths>` to create the L2 mapping",
     "",
     "## Code Guidelines",
     "",

@@ -1,5 +1,5 @@
 // claude-md — CLAUDE.md SVP section 生成
-// svp init --host claude-code 时追加到 CLAUDE.md
+// forge init --host claude-code 时追加到 CLAUDE.md
 //
 // DEPRECATED: This module is a backward-compatible re-export.
 // New code should use adapters/claude-code.ts directly.

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { findBlockContext } from "../../core/l4.js";
 import { buildDesignL3Prompt } from "../prompts/design-l3.js";
 import { buildDesignL4EventGraphPrompt } from "../prompts/design-l4-event-graph.js";
 import { buildDesignL4StateMachinePrompt } from "../prompts/design-l4-state-machine.js";
 import { buildDesignL4Prompt } from "../prompts/design-l4.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4EventGraph, L4Flow, L4StateMachine } from "../../core/l4.js";
-import { findBlockContext } from "../../core/l4.js";
 import type { L5Blueprint } from "../../core/l5.js";
 import type { DesignL3Input } from "../prompts/design-l3.js";
 import type { DesignL4EventGraphInput } from "../prompts/design-l4-event-graph.js";

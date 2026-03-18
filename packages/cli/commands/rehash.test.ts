@@ -1,4 +1,4 @@
-// svp rehash CLI 命令的集成测试
+// forge rehash CLI 命令的集成测试
 
 import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -156,7 +156,7 @@ async function runRehash(
 
 // ── Tests ──
 
-describe("svp rehash", () => {
+describe("forge rehash", () => {
   let testRoot: string;
 
   beforeEach(async () => {

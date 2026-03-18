@@ -3,13 +3,13 @@
 export type { HostId, HostAdapter, SkillFile } from "./types.js";
 export { detectHost, detectHosts } from "./detect.js";
 
-import type { HostId, HostAdapter } from "./types.js";
 import { claudeCodeAdapter } from "./claude-code.js";
-import { kimiCodeAdapter } from "./kimi-code.js";
 import { codexAdapter } from "./codex.js";
 import { cursorAdapter } from "./cursor.js";
-import { windsurfAdapter } from "./windsurf.js";
 import { githubCopilotAdapter } from "./github-copilot.js";
+import { kimiCodeAdapter } from "./kimi-code.js";
+import { windsurfAdapter } from "./windsurf.js";
+import type { HostId, HostAdapter } from "./types.js";
 
 const adapters: Record<HostId, HostAdapter> = {
   "claude-code": claudeCodeAdapter,
@@ -21,8 +21,8 @@ const adapters: Record<HostId, HostAdapter> = {
 };
 
 export function getAdapter(host: HostId): HostAdapter {
-  const adapter = adapters[host];
-  if (!adapter) {
+  const adapter = (adapters as Record<string, HostAdapter | undefined>)[host];
+  if (adapter === undefined) {
     throw new Error(`Unknown host: ${host}`);
   }
   return adapter;

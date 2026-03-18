@@ -1,8 +1,8 @@
 // design-l5 — L5 Blueprint 设计 prompt 模板
-// 由 slash commands / svp prompt 驱动
+// 由 slash commands / forge prompt 驱动
 
-import { complexityHeader } from "./complexity-header.js";
 import { languageDirective } from "../../core/i18n.js";
+import { complexityHeader } from "./complexity-header.js";
 import type { L5Blueprint } from "../../core/l5.js";
 
 export interface DesignL5Input {
@@ -65,8 +65,8 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
     L5_SCHEMA_EXAMPLE,
     "```",
     "",
-    "After writing, run `svp rehash l5` to fix the contentHash.",
-    "Then show `svp view l5` to the user for confirmation.",
+    "After writing, run `forge rehash l5` to fix the contentHash.",
+    "Then show `forge view l5` to the user for confirmation.",
     "",
     "## Rules",
     "",

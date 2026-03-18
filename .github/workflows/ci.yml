@@ -44,3 +44,7 @@ jobs:
         run: test -f dist/packages/cli/index.js
       - name: Smoke test
         run: node dist/packages/cli/index.js --help
+      - name: CLI check (hello-world)
+        run: node dist/packages/cli/index.js check -r examples/hello-world
+      - name: CLI check (order-service)
+        run: node dist/packages/cli/index.js check -r examples/order-service

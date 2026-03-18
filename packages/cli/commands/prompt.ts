@@ -1,9 +1,10 @@
-// svp prompt — 生成上下文感知的 AI 提示词
+// forge prompt — 生成上下文感知的 AI 提示词
 // 7 个子命令：compile, recompile, review, update-ref, design-l5, design-l4, design-l3
 // 读 .svp/ 状态 → 解析上下文 → 调用 prompt builder → stdout 输出 markdown
 
-import { extractBlockRefs, findBlockContext, getL4Kind } from "../../core/l4.js";
+import { getDefaultComplexity } from "../../core/compile-plan.js";
 import { getLanguage } from "../../core/i18n.js";
+import { extractBlockRefs, findBlockContext, getL4Kind } from "../../core/l4.js";
 import { DEFAULT_SKILL_CONFIG } from "../../core/skill.js";
 import { buildPrompt, renderPrompt } from "../../skills/prompt-builder.js";
 import { buildDesignL3Prompt } from "../../skills/prompts/design-l3.js";
@@ -13,14 +14,13 @@ import { buildDesignL4Prompt } from "../../skills/prompts/design-l4.js";
 import { buildDesignL5Prompt } from "../../skills/prompts/design-l5.js";
 import { loadCheckInput } from "../load.js";
 import { createResolver } from "../resolve.js";
-import { getDefaultComplexity } from "../../core/compile-plan.js";
 import type { CompileTask, ContextRef, TaskAction } from "../../core/compile-plan.js";
 import type { L3Block } from "../../core/l3.js";
-import type { L4Artifact, L4Flow } from "../../core/l4.js";
+import type { L4Flow } from "../../core/l4.js";
 import type { SkillInput } from "../../core/skill.js";
 import type { Command } from "commander";
 
-/** 注册 svp prompt 子命令组 */
+/** 注册 forge prompt 子命令组 */
 export function registerPrompt(program: Command): void {
   const prompt = program
     .command("prompt")
@@ -87,7 +87,7 @@ function registerTaskPrompt(parent: Command, action: TaskAction, config: TaskPro
       try {
         input = await loadCheckInput(root, { computeSignatures: action === "review" });
       } catch {
-        console.error(`Error: cannot load .svp/ data from "${root}". Run \`svp init\` first.`);
+        console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -166,7 +166,7 @@ function registerUpdateRef(parent: Command): void {
       try {
         input = await loadCheckInput(root);
       } catch {
-        console.error(`Error: cannot load .svp/ data from "${root}". Run \`svp init\` first.`);
+        console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -265,14 +265,14 @@ function registerDesignL4(parent: Command): void {
         try {
           input = await loadCheckInput(root);
         } catch {
-          console.error(`Error: cannot load .svp/ data from "${root}". Run \`svp init\` first.`);
+          console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
           process.exitCode = 1;
           return;
         }
 
         if (input.l5 === undefined) {
           console.error(
-            "Error: L5 blueprint not found. Design L5 first with `svp prompt design-l5`.",
+            "Error: L5 blueprint not found. Design L5 first with `forge prompt design-l5`.",
           );
           process.exitCode = 1;
           return;
@@ -333,7 +333,7 @@ function registerDesignL3(parent: Command): void {
         try {
           input = await loadCheckInput(root);
         } catch {
-          console.error(`Error: cannot load .svp/ data from "${root}". Run \`svp init\` first.`);
+          console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
           process.exitCode = 1;
           return;
         }
@@ -391,12 +391,12 @@ function registerDesignL3(parent: Command): void {
         }
 
         // Resolve neighbor L3 blocks from blockContext
-        const prevBlock = blockContext.prevBlockRef !== undefined
-          ? input.l3Blocks.find((b) => b.id === blockContext.prevBlockRef)
-          : undefined;
-        const nextBlock = blockContext.nextBlockRef !== undefined
-          ? input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef)
-          : undefined;
+        const prevBlock = blockContext.prevBlockRef === undefined
+          ? undefined
+          : input.l3Blocks.find((b) => b.id === blockContext.prevBlockRef);
+        const nextBlock = blockContext.nextBlockRef === undefined
+          ? undefined
+          : input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef);
         const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
 
         const prompt = buildDesignL3Prompt({

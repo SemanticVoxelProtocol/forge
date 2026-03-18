@@ -2,12 +2,12 @@
 // svp-workflow.ts — E2E test: full SVP design→implement workflow via Claude Code CLI
 //
 // Runs the complete SVP pipeline on a throwaway project:
-//   Phase 1: Setup      → svp init
-//   Phase 2: Design L5  → svp prompt design-l5 → claude -p → verify l5.json
-//   Phase 3: Design L4  → svp prompt design-l4 → claude -p → verify l4/*.json
-//   Phase 4: Design L3  → svp prompt design-l3 (per step) → claude -p → verify l3/*.json
-//   Phase 5: Check      → svp check → cross-layer consistency
-//   Phase 6: Compile    → svp prompt compile (per l3) → claude -p → verify l2/*.json + sources
+//   Phase 1: Setup      → forge init
+//   Phase 2: Design L5  → forge prompt design-l5 → claude -p → verify l5.json
+//   Phase 3: Design L4  → forge prompt design-l4 → claude -p → verify l4/*.json
+//   Phase 4: Design L3  → forge prompt design-l3 (per step) → claude -p → verify l3/*.json
+//   Phase 5: Check      → forge check → cross-layer consistency
+//   Phase 6: Compile    → forge prompt compile (per l3) → claude -p → verify l2/*.json + sources
 //   Phase 7: Report     → markdown summary
 //
 // Usage:
@@ -74,7 +74,7 @@ function phase1_setup(opts: CLIOptions): PhaseResult {
   const projectDir = mkdtempSync(path.join(tmpdir(), "svp-e2e-"));
   const stepTimer = timer();
 
-  // Run svp init
+  // Run forge init
   const initResult = runSvp(
     `init -n string-transformer -r "${projectDir}" -i "${PROJECT_INTENT}"`,
     projectDir,
@@ -84,9 +84,9 @@ function phase1_setup(opts: CLIOptions): PhaseResult {
   const errors: string[] = [];
 
   if (!initResult.ok) {
-    errors.push(`svp init failed: ${initResult.stderr}`);
+    errors.push(`forge init failed: ${initResult.stderr}`);
   } else {
-    details.push("svp init completed");
+    details.push("forge init completed");
   }
 
   // Verify directory structure
@@ -102,7 +102,7 @@ function phase1_setup(opts: CLIOptions): PhaseResult {
   }
 
   steps.push({
-    name: "svp init + verify structure",
+    name: "forge init + verify structure",
     ok: initResult.ok && errors.length === 0,
     durationMs: stepTimer(),
     details,
@@ -134,7 +134,7 @@ function phase2_designL5(projectDir: string, opts: CLIOptions): PhaseResult {
 
   if (!promptResult.ok) {
     steps.push({
-      name: "svp prompt design-l5",
+      name: "forge prompt design-l5",
       ok: false,
       durationMs: stepTimer(),
       details: [],
@@ -148,7 +148,7 @@ function phase2_designL5(projectDir: string, opts: CLIOptions): PhaseResult {
   const model = mapModel(complexity, opts.allSonnet);
 
   steps.push({
-    name: "svp prompt design-l5",
+    name: "forge prompt design-l5",
     ok: true,
     durationMs: stepTimer(),
     details: [
@@ -241,7 +241,7 @@ function phase3_designL4(projectDir: string, opts: CLIOptions): PhaseResult {
 
   if (!promptResult.ok) {
     steps.push({
-      name: "svp prompt design-l4",
+      name: "forge prompt design-l4",
       ok: false,
       durationMs: stepTimer(),
       details: [],
@@ -255,7 +255,7 @@ function phase3_designL4(projectDir: string, opts: CLIOptions): PhaseResult {
   const model = mapModel(complexity, opts.allSonnet);
 
   steps.push({
-    name: "svp prompt design-l4",
+    name: "forge prompt design-l4",
     ok: true,
     durationMs: stepTimer(),
     details: [
@@ -446,7 +446,7 @@ function phase4_designL3(projectDir: string, opts: CLIOptions): PhaseResult {
 
     if (!promptResult.ok) {
       steps.push({
-        name: `svp prompt design-l3 ${blockId}`,
+        name: `forge prompt design-l3 ${blockId}`,
         ok: false,
         durationMs: stepTimer(),
         details: [],
@@ -515,13 +515,13 @@ function phase5_check(projectDir: string): PhaseResult {
   const rehashTimer = timer();
   const rehashResult = runSvp(`rehash -r "${projectDir}"`, projectDir);
   steps.push({
-    name: "svp rehash",
+    name: "forge rehash",
     ok: rehashResult.ok,
     durationMs: rehashTimer(),
     details: rehashResult.ok
       ? [`Rehash completed: ${rehashResult.stdout.trim().split("\n").length} line(s) output`]
       : [],
-    errors: rehashResult.ok ? [] : [`svp rehash failed: ${rehashResult.stderr}`],
+    errors: rehashResult.ok ? [] : [`forge rehash failed: ${rehashResult.stderr}`],
   });
 
   const stepTimer = timer();
@@ -532,7 +532,7 @@ function phase5_check(projectDir: string): PhaseResult {
   let checkOk = result.ok;
 
   if (!result.ok && result.stderr) {
-    errors.push(`svp check failed: ${result.stderr}`);
+    errors.push(`forge check failed: ${result.stderr}`);
   }
 
   // Parse JSON output
@@ -566,7 +566,7 @@ function phase5_check(projectDir: string): PhaseResult {
   }
 
   steps.push({
-    name: "svp check --json",
+    name: "forge check --json",
     ok: checkOk,
     durationMs: stepTimer(),
     details,
@@ -620,7 +620,7 @@ function phase6_compile(projectDir: string, opts: CLIOptions): PhaseResult {
         ok: false,
         durationMs: stepTimer(),
         details: [],
-        errors: [`svp prompt compile failed: ${promptResult.stderr}`],
+        errors: [`forge prompt compile failed: ${promptResult.stderr}`],
       });
       continue;
     }

@@ -1,4 +1,4 @@
-// svp init CLI 命令的集成测试
+// forge init CLI 命令的集成测试
 
 import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -67,7 +67,7 @@ async function fileExists(p: string): Promise<boolean> {
 
 // ── Tests ──
 
-describe("svp init", () => {
+describe("forge init", () => {
   let testRoot: string;
 
   beforeEach(async () => {

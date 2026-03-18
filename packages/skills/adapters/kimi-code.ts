@@ -1,6 +1,5 @@
 // adapters/kimi-code — Kimi Code host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   genericModelTierLine,
@@ -8,6 +7,7 @@ import {
   genericContextOptions,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const kimiCodeAdapter: HostAdapter = {
   id: "kimi-code",

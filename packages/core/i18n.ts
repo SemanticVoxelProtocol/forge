@@ -10,7 +10,7 @@ type MessageParams = Record<string, string | number>;
 /** 查找翻译，英文兜底，支持 {param} 插值 */
 export function t(lang: string, key: string, params?: MessageParams): string {
   const catalog = messages[lang] ?? messages.en;
-  let template = catalog[key] ?? messages.en[key] ?? key;
+  let template = (catalog[key] as string | undefined) ?? (messages.en[key] as string | undefined) ?? key;
   if (params !== undefined) {
     for (const [k, v] of Object.entries(params)) {
       template = template.replaceAll(`{${k}}`, String(v));
@@ -21,13 +21,13 @@ export function t(lang: string, key: string, params?: MessageParams): string {
 
 /** 检测系统语言（取 LANG/LC_ALL 前两位，如 "zh_CN.UTF-8" → "zh"） */
 export function detectSystemLanguage(): string {
-  const raw = (typeof process !== "undefined" && (process.env.LC_ALL || process.env.LANG)) || "";
-  const match = raw.match(/^([a-z]{2})/i);
+  const raw = typeof process === "undefined" ? "" : (process.env.LC_ALL ?? process.env.LANG ?? "");
+  const match = /^([a-z]{2})/i.exec(raw);
   return match ? match[1].toLowerCase() : "en";
 }
 
 /** 从 L5 提取语言，缺省检测系统语言 */
-export function getLanguage(l5?: Pick<L5Blueprint, "language"> | undefined): string {
+export function getLanguage(l5?: Pick<L5Blueprint, "language">  ): string {
   return l5?.language ?? detectSystemLanguage();
 }
 
@@ -179,23 +179,23 @@ const messages: Record<string, Record<string, string>> = {
 
     // ── cli.* ──
     "cli.init.alreadyExists":
-      ".svp/ directory already exists. Use `svp check` to validate or `svp view` to inspect.",
+      ".svp/ directory already exists. Use `forge check` to validate or `forge view` to inspect.",
     "cli.init.initialized": "Initialized .svp/ in {root}",
     "cli.init.dirStructure": "Directory structure:",
     "cli.init.nextEdit":
       "Next: edit .svp/l5.json to add domains, constraints, and integrations.",
-    "cli.init.nextSvp": "Next: use /svp to start the interactive SVP workflow.",
+    "cli.init.nextSvp": "Next: use /forge to start the interactive SVP workflow.",
     "cli.init.slashCommands":
       "{host}: {count} skill files → {skillDir}/",
     "cli.init.claudeMdSection": "{host}: SVP section → {contextFile}",
     "cli.init.claudeMdSkipped":
       "{host}: {contextFile} already contains SVP section (skipped)",
     "cli.error.loadFailed":
-      'Error: cannot load .svp/ data from "{root}". Run `svp init` first.',
+      'Error: cannot load .svp/ data from "{root}". Run `forge init` first.',
     "cli.error.l3NotFound": 'Error: L3 block "{id}" not found in .svp/l3/',
     "cli.error.l4NotFound": 'Error: L4 flow "{id}" not found in .svp/l4/',
     "cli.error.l5NotFound":
-      "Error: L5 blueprint not found. Design L5 first with `svp prompt design-l5`.",
+      "Error: L5 blueprint not found. Design L5 first with `forge prompt design-l5`.",
     "cli.error.invalidKind":
       'Error: invalid --kind "{kind}". Must be flow, event-graph, or state-machine.',
     "cli.error.stepOutOfRange":
@@ -327,23 +327,23 @@ const messages: Record<string, Record<string, string>> = {
 
     // ── cli.* ──
     "cli.init.alreadyExists":
-      ".svp/ 目录已存在。使用 `svp check` 校验或 `svp view` 查看。",
+      ".svp/ 目录已存在。使用 `forge check` 校验或 `forge view` 查看。",
     "cli.init.initialized": "已在 {root} 初始化 .svp/",
     "cli.init.dirStructure": "目录结构：",
     "cli.init.nextEdit":
       "下一步：编辑 .svp/l5.json 添加领域、约束和集成。",
-    "cli.init.nextSvp": "下一步：使用 /svp 启动交互式 SVP 工作流。",
+    "cli.init.nextSvp": "下一步：使用 /forge 启动交互式 SVP 工作流。",
     "cli.init.slashCommands":
       "{host}: {count} 个 skill 文件 → {skillDir}/",
     "cli.init.claudeMdSection": "{host}: SVP 部分 → {contextFile}",
     "cli.init.claudeMdSkipped":
       "{host}: {contextFile} 已包含 SVP 部分（已跳过）",
     "cli.error.loadFailed":
-      '错误：无法从 "{root}" 加载 .svp/ 数据。请先运行 `svp init`。',
+      '错误：无法从 "{root}" 加载 .svp/ 数据。请先运行 `forge init`。',
     "cli.error.l3NotFound": '错误：在 .svp/l3/ 中未找到 L3 block "{id}"',
     "cli.error.l4NotFound": '错误：在 .svp/l4/ 中未找到 L4 flow "{id}"',
     "cli.error.l5NotFound":
-      "错误：未找到 L5 blueprint。请先使用 `svp prompt design-l5` 设计 L5。",
+      "错误：未找到 L5 blueprint。请先使用 `forge prompt design-l5` 设计 L5。",
     "cli.error.invalidKind":
       '错误：无效的 --kind "{kind}"。必须为 flow、event-graph 或 state-machine。',
     "cli.error.stepOutOfRange":

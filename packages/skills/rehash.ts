@@ -1,5 +1,5 @@
 // rehash — 重算 contentHash + 更新 revision
-// AI 写完 JSON 后运行 svp rehash，自动修正 hash
+// AI 写完 JSON 后运行 forge rehash，自动修正 hash
 // 纯函数，不做 IO
 
 import { hashL2, hashL3, hashL4, hashL5 } from "../core/hash.js";

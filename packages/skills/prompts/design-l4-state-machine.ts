@@ -1,9 +1,9 @@
 // design-l4-state-machine — L4 StateMachine 设计 prompt 模板
 
-import { complexityHeader } from "./complexity-header.js";
 import { languageDirective } from "../../core/i18n.js";
 import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
 import { viewL5Overview } from "../../core/view.js";
+import { complexityHeader } from "./complexity-header.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Artifact } from "../../core/l4.js";
 import type { L5Blueprint } from "../../core/l5.js";
@@ -231,8 +231,8 @@ export function buildDesignL4StateMachinePrompt(input: DesignL4StateMachineInput
     STATE_MACHINE_SCHEMA_EXAMPLE,
     "```",
     "",
-    "After writing, run `svp rehash l4` to fix contentHash.",
-    "Then show `svp view l4` to the user for confirmation.",
+    "After writing, run `forge rehash l4` to fix contentHash.",
+    "Then show `forge view l4` to the user for confirmation.",
     "",
     "## Rules",
     "",

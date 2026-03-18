@@ -1,4 +1,4 @@
-// svp prompt CLI 命令的集成测试
+// forge prompt CLI 命令的集成测试
 // 创建临时 .svp/ 目录，写入测试数据，验证 prompt 输出
 
 import { mkdir, rm } from "node:fs/promises";
@@ -126,7 +126,7 @@ async function runPrompt(
 
 // ── Tests ──
 
-describe("svp prompt", () => {
+describe("forge prompt", () => {
   let testRoot: string;
 
   beforeEach(async () => {
@@ -163,7 +163,7 @@ describe("svp prompt", () => {
       expect(stdout).toContain("validate-order");
       expect(stdout).toContain("L3 Contract");
       expect(stdout).toContain("Output Spec");
-      expect(stdout).toContain("svp link");
+      expect(stdout).toContain("forge link");
     });
 
     it("includes L4 flow context when block is referenced", async () => {

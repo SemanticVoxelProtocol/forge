@@ -1,5 +1,5 @@
 // update-ref — L4 断引用修复 prompt 模板
-// 由 svp prompt update-ref 使用
+// 由 forge prompt update-ref 使用
 
 import { languageDirective } from "../../core/i18n.js";
 
@@ -18,18 +18,18 @@ export function updateRefInstructions(language = "en"): string {
     "   - Infer input/output pins from the L4 dataFlows (upstream output → this block's input)",
     "   - Write a minimal but useful contract (validate, constraints, description)",
     "   - Write to `.svp/l3/<block-id>.json`",
-    "   - Run `svp rehash l3/<id>` to fix contentHash",
+    "   - Run `forge rehash l3/<id>` to fix contentHash",
     "4. If fixing the L4 reference:",
     "   - Update the step's `blockRef` to point to the correct existing L3 block",
     "   - Update `dataFlows` if pin names differ",
-    "   - Run `svp rehash l4` to fix contentHash",
+    "   - Run `forge rehash l4` to fix contentHash",
     "",
     "## Important",
     "",
     "- Prefer creating the missing L3 if the intent is clear from context",
     "- Only fix the reference if it's clearly a typo or rename",
     "- Do NOT modify other steps — only fix the broken reference",
-    "- After any change, run `svp check` to verify the fix",
+    "- After any change, run `forge check` to verify the fix",
   ].join("\n") + languageDirective(language);
 }
 

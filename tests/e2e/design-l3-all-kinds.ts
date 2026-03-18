@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // design-l3-all-kinds.ts — E2E test: design-l3 for all L4 kinds (flow, event-graph, state-machine)
 //
-// Runs `svp prompt design-l3` against an existing project, then pipes each prompt to Claude
+// Runs `forge prompt design-l3` against an existing project, then pipes each prompt to Claude
 // to actually generate L3 blocks. Verifies that valid L3 JSON is produced for every blockRef
 // across all three L4 kinds.
 //

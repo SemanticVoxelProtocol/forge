@@ -1,4 +1,4 @@
-// svp compile-plan — 变更检测 + 重编译任务生成
+// forge compile-plan — 变更检测 + 重编译任务生成
 // 基于 check 的漂移检测，生成结构化的任务清单给 AI subagent
 // 纯函数，不做 IO
 
@@ -45,12 +45,14 @@ export interface CompilePlan {
 /** Default complexity for a given task action */
 export function getDefaultComplexity(action: TaskAction): Complexity {
   switch (action) {
-    case "update-ref":
+    case "update-ref": {
       return "light";
+    }
     case "compile":
     case "recompile":
-    case "review":
+    case "review": {
       return "standard";
+    }
   }
 }
 
