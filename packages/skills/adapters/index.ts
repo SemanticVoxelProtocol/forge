@@ -8,6 +8,7 @@ import { codexAdapter } from "./codex.js";
 import { cursorAdapter } from "./cursor.js";
 import { githubCopilotAdapter } from "./github-copilot.js";
 import { kimiCodeAdapter } from "./kimi-code.js";
+import { kodeAdapter } from "./kode.js";
 import { windsurfAdapter } from "./windsurf.js";
 import type { HostId, HostAdapter } from "./types.js";
 
@@ -18,6 +19,7 @@ const adapters: Record<HostId, HostAdapter> = {
   cursor: cursorAdapter,
   windsurf: windsurfAdapter,
   "github-copilot": githubCopilotAdapter,
+  kode: kodeAdapter,
 };
 
 export function getAdapter(host: HostId): HostAdapter {

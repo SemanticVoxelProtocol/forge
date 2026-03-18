@@ -6,7 +6,8 @@ export type HostId =
   | "codex"
   | "cursor"
   | "windsurf"
-  | "github-copilot";
+  | "github-copilot"
+  | "kode";
 
 export interface HostAdapter {
   readonly id: HostId;
