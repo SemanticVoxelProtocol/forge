@@ -8,6 +8,7 @@
 !README.md
 !CONTRIBUTING.md
 !CODE_OF_CONDUCT.md
+!AI_POLICY.md
 !LICENSE
 !tsconfig.json
 !package.json
@@ -22,6 +23,8 @@
 !scripts/**
 !tests/
 !tests/**
+!i18n/
+!i18n/**
 !.github/
 !.github/**
 

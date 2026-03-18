@@ -1,103 +1,103 @@
 # Contributing to SVP Forge
 
-感谢你对 SVP Forge 的关注！以下指南帮助你高效参与贡献。
+[中文版](./i18n/zh/CONTRIBUTING.md)
+
+Thank you for your interest in SVP Forge! This guide helps you contribute effectively.
 
 ## Code of Conduct
 
-请阅读并遵守我们的 [Code of Conduct](./CODE_OF_CONDUCT.md)。
+Please read and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-## 如何贡献
+## How to Contribute
 
-### 报告 Bug
+### Reporting Bugs
 
-1. 先搜索 [已有 Issues](https://github.com/SemanticVoxelProtocol/forge/issues) 确认没有重复
-2. 使用 Bug Report 模板创建 Issue
-3. 提供：复现步骤、期望行为、实际行为、环境信息（Node 版本、OS）
+1. Search [existing Issues](https://github.com/SemanticVoxelProtocol/forge/issues) first to avoid duplicates
+2. Use the Bug Report template to create an Issue
+3. Include: reproduction steps, expected behavior, actual behavior, environment info (Node version, OS)
 
-### 提议新功能
+### Suggesting Features
 
-1. 创建 Feature Request Issue 描述需求
-2. 说明：要解决的问题、建议的方案、可能的替代方案
-3. 非平凡的 API 变更建议先在 Issue 中讨论，达成共识后再开发
+1. Create a Feature Request Issue describing the need
+2. Explain: the problem to solve, proposed solution, possible alternatives
+3. Non-trivial API changes should be discussed in an Issue before development
 
-### 提交代码
+### Submitting Code
 
-欢迎通过 Pull Request 贡献代码，包括 bug 修复、新功能、文档改进和测试补充。
+We welcome Pull Requests for bug fixes, new features, documentation improvements, and test coverage.
 
-## 开发环境
+## Development Setup
 
-### 前置要求
+### Prerequisites
 
-- Node.js >= 22（见 `.node-version`）
+- Node.js >= 22 (see `.node-version`)
 - npm
 
-### 安装与构建
+### Install & Build
 
 ```bash
-# 克隆仓库
+# Clone the repo
 git clone https://github.com/SemanticVoxelProtocol/forge.git
 cd forge
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 构建
+# Build
 npm run build
 
-# 运行测试
+# Run tests
 npm test
 
-# 完整检查（TypeScript + ESLint + Prettier）
+# Full check (TypeScript + ESLint + Prettier)
 npm run check
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 packages/
-  cli/        CLI 命令（forge check, init, prompt, ...）
-  core/       核心逻辑（check, hash, store, view, i18n）
-  skills/     AI 工具适配器和 prompt 生成
-examples/     示例项目（hello-world, order-service, ...）
-tests/e2e/    端到端测试
-docs/         文档
+  cli/        CLI commands (forge check, init, prompt, ...)
+  core/       Core logic (check, hash, store, view, i18n)
+  skills/     AI tool adapters and prompt generation
+tests/e2e/    End-to-end tests
 ```
 
-## Pull Request 流程
+## Pull Request Workflow
 
-### 分支策略
+### Branch Strategy
 
-- `main` — 稳定分支，所有发布从此分支打 tag
-- `dev` — 开发分支，日常开发合入此分支
-- 功能分支从 `dev` 创建，命名：`feat/描述`、`fix/描述`、`docs/描述`
+- `main` — Stable branch, all releases are tagged from here
+- `dev` — Development branch, day-to-day work merges here
+- Feature branches are created from `dev`, named: `feat/description`, `fix/description`, `docs/description`
 
-### PR 步骤
+### PR Steps
 
-1. Fork 仓库，从 `dev` 创建功能分支
-2. 每个 PR 只解决一个问题（不要混合多个无关改动）
-3. 为新功能和 bug 修复添加测试
-4. 本地运行完整检查：
+1. Fork the repo and create a feature branch from `dev`
+2. Keep each PR focused on a single concern (don't mix unrelated changes)
+3. Add tests for new features and bug fixes
+4. Run the full check suite locally:
    ```bash
    npm run check   # tsc --noEmit + eslint + prettier --check
    npm test         # vitest
    ```
-5. PR 标题遵循 Conventional Commits 格式（见下方）
-6. 关联 Issue：`Fixes #123` 或 `Closes #123`
-7. 开启 "Allow edits from maintainers"
+5. Follow Conventional Commits format for the PR title (see below)
+6. Reference the related Issue: `Fixes #123` or `Closes #123`
+7. Enable "Allow edits from maintainers"
 
-### PR 检查清单
+### PR Checklist
 
-- [ ] 代码通过 `npm run check`
-- [ ] 测试通过 `npm test`
-- [ ] 新功能/bug 修复包含测试
-- [ ] 文档已更新（如涉及用户可见变更）
-- [ ] PR 标题符合 Conventional Commits
+- [ ] Code passes `npm run check`
+- [ ] Tests pass with `npm test`
+- [ ] New features/bug fixes include tests
+- [ ] Documentation updated (if user-facing changes)
+- [ ] PR title follows Conventional Commits
 
-## Commit 规范
+## Commit Conventions
 
-遵循 [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)。
+We follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 
-### 格式
+### Format
 
 ```
 <type>[optional scope]: <description>
@@ -107,50 +107,50 @@ docs/         文档
 [optional footer(s)]
 ```
 
-### 类型
+### Types
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat(cli): add view command` |
-| `fix` | Bug 修复 | `fix(core): handle empty hash input` |
-| `docs` | 仅文档 | `docs: update tutorial` |
-| `style` | 格式调整，无逻辑变化 | `style: fix indentation` |
-| `refactor` | 重构，非 feat/fix | `refactor(store): simplify read logic` |
-| `perf` | 性能优化 | `perf(hash): cache computed values` |
-| `test` | 测试相关 | `test(check): add edge case coverage` |
-| `build` | 构建系统 | `build: update tsconfig target` |
-| `ci` | CI 配置 | `ci: add Node 24 to matrix` |
-| `chore` | 杂项维护 | `chore: update dependencies` |
+| Type | Description | Example |
+|------|-------------|---------|
+| `feat` | New feature | `feat(cli): add view command` |
+| `fix` | Bug fix | `fix(core): handle empty hash input` |
+| `docs` | Documentation only | `docs: update tutorial` |
+| `style` | Formatting, no logic change | `style: fix indentation` |
+| `refactor` | Refactor, not feat/fix | `refactor(store): simplify read logic` |
+| `perf` | Performance improvement | `perf(hash): cache computed values` |
+| `test` | Test-related | `test(check): add edge case coverage` |
+| `build` | Build system | `build: update tsconfig target` |
+| `ci` | CI configuration | `ci: add Node 24 to matrix` |
+| `chore` | Maintenance | `chore: update dependencies` |
 
-### 规则
+### Rules
 
-- 使用祈使句现在时：`add feature` 而非 `added` 或 `adds`
-- 首字母小写，末尾不加句号
-- 标题行不超过 72 字符
-- 破坏性变更在类型后加 `!`：`feat!: remove deprecated API`
+- Use imperative present tense: `add feature` not `added` or `adds`
+- Lowercase first letter, no trailing period
+- Subject line max 72 characters
+- Breaking changes: add `!` after type: `feat!: remove deprecated API`
 
-## 编码规范
+## Coding Standards
 
-- **TypeScript** — 所有源码必须有类型标注
-- **ESLint** — `npm run lint`（配置见 `eslint.config.ts`）
-- **Prettier** — `npm run format`（提交前自动格式化）
-- **测试** — 使用 Vitest，bug 修复和新功能必须附带测试
-- 提交前运行 `npm run check` 确保一切正常
+- **TypeScript** — All source files must be typed
+- **ESLint** — `npm run lint` (config in `eslint.config.ts`)
+- **Prettier** — `npm run format` (auto-format before committing)
+- **Testing** — Vitest; bug fixes and new features must include tests
+- Run `npm run check` before submitting to ensure everything passes
 
-## 发布流程
+## Release Process
 
-> 此部分仅面向维护者。
+> This section is for maintainers only.
 
-发布通过 CI 自动完成：
+Releases are automated via CI:
 
-1. 确保 `main` 分支 CI 全绿
-2. 更新版本号：`npm version patch|minor|major`
-3. 推送 tag：`git push --follow-tags`
-4. CI 自动通过 npm Trusted Publishing 发布到 npm
+1. Ensure CI is green on `main`
+2. Bump version: `npm version patch|minor|major`
+3. Push tag: `git push --follow-tags`
+4. CI auto-publishes to npm via Trusted Publishing
 
-## 需要帮助？
+## Need Help?
 
-- 浏览标记为 [`good first issue`](https://github.com/SemanticVoxelProtocol/forge/labels/good%20first%20issue) 的 Issue
-- 在 Issue 或 Discussion 中提问
+- Browse Issues labeled [`good first issue`](https://github.com/SemanticVoxelProtocol/forge/labels/good%20first%20issue)
+- Ask questions in Issues or Discussions
 
-再次感谢你的贡献！
+Thank you for contributing!
