@@ -43,6 +43,12 @@ All AI-generated or AI-assisted output is reviewed, tested, and validated by hum
 - **AI-generated issue reports** — If you didn't encounter the bug yourself, don't file it. AI-hallucinated bug reports waste everyone's time.
 - **Autonomous agents without oversight** — Do not point an autonomous AI agent at our issue tracker or submit bot-generated PRs without human review.
 
+## A Note for Human Developers
+
+While we embrace AI, we especially value and encourage contributions from human developers — particularly those who are learning. Issues labeled [`good first issue`](https://github.com/SemanticVoxelProtocol/forge/labels/good%20first%20issue) are reserved for human contributors looking to get started. We will not accept AI-generated PRs for these issues, as they exist to provide learning opportunities.
+
+If you're new to open source or to SVP, don't hesitate to ask questions in Issues or Discussions. Maintainers are happy to help you through your first contribution. Understanding matters more than velocity.
+
 ## Disclosure
 
 We encourage (but do not require) disclosure of AI assistance. If you choose to disclose, use one of the following formats in your commit message footer:

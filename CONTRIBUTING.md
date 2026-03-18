@@ -8,6 +8,10 @@ Thank you for your interest in SVP Forge! This guide helps you contribute effect
 
 Please read and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
+## AI Policy
+
+We embrace AI-assisted contributions. Please read our [AI Policy](./AI_POLICY.md) for guidelines on using AI tools when contributing.
+
 ## How to Contribute
 
 ### Reporting Bugs

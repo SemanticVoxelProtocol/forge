@@ -75,6 +75,12 @@ npm run check    # tsc + eslint + prettier
 - [交互架构](docs/interaction.md) — 逐层渗透模型、虚拟文件树、聚焦视图、编译计划
 - [check 错误码](docs/check-reference.md) — forge check 的所有错误/警告及修复建议
 
+## 社区
+
+- [贡献指南](CONTRIBUTING.md)
+- [行为准则](CODE_OF_CONDUCT.md)
+- [AI 政策](AI_POLICY.md)
+
 ## 目录
 
 ```

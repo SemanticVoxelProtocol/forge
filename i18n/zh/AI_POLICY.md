@@ -41,6 +41,12 @@ SVP Forge 在 AI 编码助手（包括 Claude、GPT 等）的帮助下开发。A
 - **AI 生成的 Issue** — 如果你没有亲自遇到这个 bug，不要提交。AI 幻觉出的 bug 报告浪费所有人的时间。
 - **无人监督的自主代理** — 不要将自主 AI 代理指向我们的 Issue 跟踪器，也不要在没有人工审查的情况下提交机器人生成的 PR。
 
+## 致人类开发者
+
+尽管我们拥抱 AI，但我们尤其重视和鼓励来自人类开发者的贡献——特别是正在学习中的开发者。标记为 [`good first issue`](https://github.com/SemanticVoxelProtocol/forge/labels/good%20first%20issue) 的 Issue 专门留给想要入门的人类贡献者，我们不会接受针对这些 Issue 的 AI 生成 PR，因为它们的存在就是为了提供学习机会。
+
+如果你是开源或 SVP 的新手，请随时在 Issue 或 Discussion 中提问。维护者很乐意帮助你完成第一次贡献。理解比速度更重要。
+
 ## 披露
 
 我们鼓励（但不强制要求）披露 AI 辅助。如果你选择披露，请在 commit 消息的 footer 中使用以下格式之一：
