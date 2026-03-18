@@ -1,4 +1,4 @@
-// svp check — 层间一致性校验
+// forge check — 层间一致性校验
 // 检查 hash 一致性、引用完整性、漂移检测、图结构合法性
 
 import { computeHash } from "./hash.js";
@@ -78,7 +78,10 @@ function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
         layer: "l5",
         entityId: input.l5.id,
         code: "HASH_MISMATCH",
-        message: t(lang, "check.hashMismatch.l5", { stored: input.l5.contentHash, computed: expected }),
+        message: t(lang, "check.hashMismatch.l5", {
+          stored: input.l5.contentHash,
+          computed: expected,
+        }),
       });
     }
 
@@ -102,7 +105,11 @@ function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
         layer: "l4",
         entityId: l4.id,
         code: "HASH_MISMATCH",
-        message: t(lang, "check.hashMismatch.l4", { name: l4.name, stored: l4.contentHash, computed: expected }),
+        message: t(lang, "check.hashMismatch.l4", {
+          name: l4.name,
+          stored: l4.contentHash,
+          computed: expected,
+        }),
       });
     }
   }
@@ -116,7 +123,11 @@ function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
         layer: "l3",
         entityId: block.id,
         code: "HASH_MISMATCH",
-        message: t(lang, "check.hashMismatch.l3", { name: block.name, stored: block.contentHash, computed: expected }),
+        message: t(lang, "check.hashMismatch.l3", {
+          name: block.name,
+          stored: block.contentHash,
+          computed: expected,
+        }),
       });
     }
   }
@@ -130,7 +141,11 @@ function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
         layer: "l2",
         entityId: cb.id,
         code: "HASH_MISMATCH",
-        message: t(lang, "check.hashMismatch.l2", { id: cb.id, stored: cb.contentHash, computed: expected }),
+        message: t(lang, "check.hashMismatch.l2", {
+          id: cb.id,
+          stored: cb.contentHash,
+          computed: expected,
+        }),
       });
     }
   }
@@ -199,7 +214,11 @@ function checkFlowRefs(
         layer: "l4",
         entityId: flow.id,
         code: "MISSING_BLOCK_REF",
-        message: t(lang, "check.missingBlockRef.l4FlowStep", { flowName: flow.name, stepId: step.id, blockRef: step.blockRef }),
+        message: t(lang, "check.missingBlockRef.l4FlowStep", {
+          flowName: flow.name,
+          stepId: step.id,
+          blockRef: step.blockRef,
+        }),
       });
     }
 
@@ -209,7 +228,11 @@ function checkFlowRefs(
         layer: "l4",
         entityId: flow.id,
         code: "MISSING_FLOW_REF",
-        message: t(lang, "check.missingFlowRef", { flowName: flow.name, stepId: step.id, flowRef: step.flowRef }),
+        message: t(lang, "check.missingFlowRef", {
+          flowName: flow.name,
+          stepId: step.id,
+          flowRef: step.flowRef,
+        }),
       });
     }
 
@@ -267,7 +290,12 @@ function checkEventGraphRefs(
           layer: "l4",
           entityId: eg.id,
           code: "MISSING_BLOCK_REF",
-          message: t(lang, "check.missingBlockRef.l4EventGraphStep", { egName: eg.name, handlerId: handler.id, stepId: step.id, blockRef: step.blockRef }),
+          message: t(lang, "check.missingBlockRef.l4EventGraphStep", {
+            egName: eg.name,
+            handlerId: handler.id,
+            stepId: step.id,
+            blockRef: step.blockRef,
+          }),
         });
       }
 
@@ -287,7 +315,17 @@ function checkEventGraphRefs(
         issues,
         lang,
       );
-      checkEventGraphDataFlowEndpoint(df.to, "to", eg, handler, stepIds, l3Ids, l3Blocks, issues, lang);
+      checkEventGraphDataFlowEndpoint(
+        df.to,
+        "to",
+        eg,
+        handler,
+        stepIds,
+        l3Ids,
+        l3Blocks,
+        issues,
+        lang,
+      );
     }
   }
 
@@ -306,7 +344,11 @@ function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>, lang: str
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: t(lang, "check.missingBlockRef.l4SmOnEntry", { smName: sm.name, stateName, blockRef: config.onEntry.blockRef }),
+        message: t(lang, "check.missingBlockRef.l4SmOnEntry", {
+          smName: sm.name,
+          stateName,
+          blockRef: config.onEntry.blockRef,
+        }),
       });
     }
     if (config.onExit?.blockRef !== undefined && !l3Ids.has(config.onExit.blockRef)) {
@@ -315,7 +357,11 @@ function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>, lang: str
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: t(lang, "check.missingBlockRef.l4SmOnExit", { smName: sm.name, stateName, blockRef: config.onExit.blockRef }),
+        message: t(lang, "check.missingBlockRef.l4SmOnExit", {
+          smName: sm.name,
+          stateName,
+          blockRef: config.onExit.blockRef,
+        }),
       });
     }
   }
@@ -328,7 +374,12 @@ function checkStateMachineRefs(sm: L4StateMachine, l3Ids: Set<string>, lang: str
         layer: "l4",
         entityId: sm.id,
         code: "MISSING_BLOCK_REF",
-        message: t(lang, "check.missingBlockRef.l4SmGuard", { smName: sm.name, from: tr.from, to: tr.to, guard: tr.guard }),
+        message: t(lang, "check.missingBlockRef.l4SmGuard", {
+          smName: sm.name,
+          from: tr.from,
+          to: tr.to,
+          guard: tr.guard,
+        }),
       });
     }
   }
@@ -351,7 +402,11 @@ function checkStepInternalRefs(
       layer: "l4",
       entityId: parent.id,
       code: "MISSING_STEP_REF",
-      message: t(lang, "check.missingStepRef.next", { parentName: parent.name, stepId: step.id, next: step.next }),
+      message: t(lang, "check.missingStepRef.next", {
+        parentName: parent.name,
+        stepId: step.id,
+        next: step.next,
+      }),
     });
   }
 
@@ -363,7 +418,11 @@ function checkStepInternalRefs(
           layer: "l4",
           entityId: parent.id,
           code: "MISSING_STEP_REF",
-          message: t(lang, "check.missingStepRef.branch", { parentName: parent.name, stepId: step.id, branchId }),
+          message: t(lang, "check.missingStepRef.branch", {
+            parentName: parent.name,
+            stepId: step.id,
+            branchId,
+          }),
         });
       }
     }
@@ -377,7 +436,11 @@ function checkStepInternalRefs(
           layer: "l4",
           entityId: parent.id,
           code: "MISSING_STEP_REF",
-          message: t(lang, "check.missingStepRef.wait", { parentName: parent.name, stepId: step.id, waitId }),
+          message: t(lang, "check.missingStepRef.wait", {
+            parentName: parent.name,
+            stepId: step.id,
+            waitId,
+          }),
         });
       }
     }
@@ -437,7 +500,13 @@ function checkDataFlowEndpoint(
           layer: "l4",
           entityId: flowId,
           code: "MISSING_PIN",
-          message: t(lang, "check.missingPin", { flowName, direction, endpoint, pinName, blockRef: step.blockRef }),
+          message: t(lang, "check.missingPin", {
+            flowName,
+            direction,
+            endpoint,
+            pinName,
+            blockRef: step.blockRef,
+          }),
         });
       }
     }
@@ -463,7 +532,12 @@ function checkEventGraphDataFlowEndpoint(
       layer: "l4",
       entityId: eg.id,
       code: "INVALID_DATAFLOW_FORMAT",
-      message: t(lang, "check.invalidDataFlowFormat.eventGraph", { egName: eg.name, handlerId: handler.id, direction, endpoint }),
+      message: t(lang, "check.invalidDataFlowFormat.eventGraph", {
+        egName: eg.name,
+        handlerId: handler.id,
+        direction,
+        endpoint,
+      }),
     });
     return;
   }
@@ -479,7 +553,12 @@ function checkEventGraphDataFlowEndpoint(
         layer: "l4",
         entityId: eg.id,
         code: "MISSING_STATE_REF",
-        message: t(lang, "check.missingStateRef", { egName: eg.name, handlerId: handler.id, direction, field }),
+        message: t(lang, "check.missingStateRef", {
+          egName: eg.name,
+          handlerId: handler.id,
+          direction,
+          field,
+        }),
       });
     }
     return;
@@ -522,7 +601,12 @@ function checkDrift(input: CheckInput, lang: string): CheckIssue[] {
         layer: "l2",
         entityId: cb.id,
         code: "SOURCE_DRIFT",
-        message: t(lang, "check.sourceDrift", { id: cb.id, sourceHash: cb.sourceHash, blockRef: cb.blockRef, l3Hash }),
+        message: t(lang, "check.sourceDrift", {
+          id: cb.id,
+          sourceHash: cb.sourceHash,
+          blockRef: cb.blockRef,
+          l3Hash,
+        }),
       });
     }
 
@@ -651,7 +735,10 @@ function checkStateMachineStructure(sm: L4StateMachine, lang: string): CheckIssu
       layer: "l4",
       entityId: sm.id,
       code: "INVALID_INITIAL_STATE",
-      message: t(lang, "check.invalidInitialState", { smName: sm.name, initialState: sm.initialState }),
+      message: t(lang, "check.invalidInitialState", {
+        smName: sm.name,
+        initialState: sm.initialState,
+      }),
     });
   }
 
@@ -700,7 +787,11 @@ function checkStateMachineStructure(sm: L4StateMachine, lang: string): CheckIssu
           layer: "l4",
           entityId: sm.id,
           code: "UNREACHABLE_STATE",
-          message: t(lang, "check.unreachableState", { smName: sm.name, stateName, initialState: sm.initialState }),
+          message: t(lang, "check.unreachableState", {
+            smName: sm.name,
+            stateName,
+            initialState: sm.initialState,
+          }),
         });
       }
     }

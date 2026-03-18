@@ -1,6 +1,5 @@
 // adapters/github-copilot — GitHub Copilot host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   genericModelTierLine,
@@ -8,6 +7,7 @@ import {
   genericContextOptions,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const githubCopilotAdapter: HostAdapter = {
   id: "github-copilot",
@@ -18,7 +18,12 @@ export const githubCopilotAdapter: HostAdapter = {
   },
 
   generateSkillFiles(language = "en"): readonly SkillFile[] {
-    return [{ relativePath: "svp.prompt.md", content: buildSkillFileContent(language, genericModelTierLine(language)) }];
+    return [
+      {
+        relativePath: "svp.prompt.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language)),
+      },
+    ];
   },
 
   contextFilePath() {

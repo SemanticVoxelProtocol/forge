@@ -1,4 +1,4 @@
-// svp view — 虚拟文件树渲染
+// forge view — 虚拟文件树渲染
 // 把五层数据模型渲染为 AI 友好的文本视图
 // 纯函数，不做 IO，方便测试和复用
 
@@ -37,7 +37,10 @@ export function viewL5Overview(l5: L5Blueprint, language = "en"): string {
   }
 
   if (l5.integrations.length > 0) {
-    lines.push("", `${t(lang, "view.l5.integrations", { count: String(l5.integrations.length) })}:`);
+    lines.push(
+      "",
+      `${t(lang, "view.l5.integrations", { count: String(l5.integrations.length) })}:`,
+    );
     for (const i of l5.integrations) {
       lines.push(`  ${i.name} [${i.type}]`);
     }
@@ -50,7 +53,10 @@ export function viewL5Overview(l5: L5Blueprint, language = "en"): string {
 
 export function viewL4Overview(flows: readonly L4Artifact[], language = "en"): string {
   const lang = language;
-  const lines: string[] = [t(lang, "view.l4.title", { count: String(flows.length) }), "─".repeat(30)];
+  const lines: string[] = [
+    t(lang, "view.l4.title", { count: String(flows.length) }),
+    "─".repeat(30),
+  ];
 
   for (const l4 of flows) {
     const kind = getL4Kind(l4);
@@ -100,7 +106,7 @@ export function viewL4Detail(
 
 // ── Flow overview/detail ──
 
-function viewFlowOverviewLines(flow: L4Flow, lang: string): string[] {
+function viewFlowOverviewLines(flow: L4Flow, _lang: string): string[] {
   const lines: string[] = [];
   const trigger = formatTrigger(flow);
   lines.push(`${flow.id} [flow]${trigger}`);
@@ -117,8 +123,17 @@ function viewFlowOverviewLines(flow: L4Flow, lang: string): string[] {
   return lines;
 }
 
-function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Blueprint, lang = "en"): string {
-  const lines: string[] = [flow.id, "═".repeat(Math.max(flow.id.length, 12)), t(lang, "view.l4.flow.kind")];
+function viewFlowDetail(
+  flow: L4Flow,
+  l3Blocks: readonly L3Block[],
+  l5?: L5Blueprint,
+  lang = "en",
+): string {
+  const lines: string[] = [
+    flow.id,
+    "═".repeat(Math.max(flow.id.length, 12)),
+    t(lang, "view.l4.flow.kind"),
+  ];
 
   const trigger = formatTrigger(flow);
   if (trigger.length > 0) {
@@ -163,7 +178,7 @@ function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Bluep
 
 // ── EventGraph overview/detail ──
 
-function viewEventGraphOverviewLines(eg: L4EventGraph, lang: string): string[] {
+function viewEventGraphOverviewLines(eg: L4EventGraph, _lang: string): string[] {
   const lines: string[] = [];
   const stateCount = Object.keys(eg.state).length;
   const handlerCount = eg.handlers.length;
@@ -185,19 +200,29 @@ function viewEventGraphDetail(
   l5?: L5Blueprint,
   lang = "en",
 ): string {
-  const lines: string[] = [eg.id, "═".repeat(Math.max(eg.id.length, 12)), t(lang, "view.l4.eventGraph.kind")];
+  const lines: string[] = [
+    eg.id,
+    "═".repeat(Math.max(eg.id.length, 12)),
+    t(lang, "view.l4.eventGraph.kind"),
+  ];
 
   // state declarations
   const stateEntries = Object.entries(eg.state);
   if (stateEntries.length > 0) {
-    lines.push("", `${t(lang, "view.l4.eventGraph.state", { count: String(stateEntries.length) })}:`);
+    lines.push(
+      "",
+      `${t(lang, "view.l4.eventGraph.state", { count: String(stateEntries.length) })}:`,
+    );
     for (const [key, field] of stateEntries) {
       lines.push(`  ${key}: ${field.type} — ${field.description}`);
     }
   }
 
   // handlers
-  lines.push("", `${t(lang, "view.l4.eventGraph.handlers", { count: String(eg.handlers.length) })}:`);
+  lines.push(
+    "",
+    `${t(lang, "view.l4.eventGraph.handlers", { count: String(eg.handlers.length) })}:`,
+  );
   for (const handler of eg.handlers) {
     lines.push(`  [${handler.id}] on "${handler.event}"  (${String(handler.steps.length)} steps)`);
     for (const step of handler.steps) {
@@ -240,7 +265,7 @@ function viewEventGraphDetail(
 
 // ── StateMachine overview/detail ──
 
-function viewStateMachineOverviewLines(sm: L4StateMachine, lang: string): string[] {
+function viewStateMachineOverviewLines(sm: L4StateMachine, _lang: string): string[] {
   const stateCount = Object.keys(sm.states).length;
   const transCount = sm.transitions.length;
   return [
@@ -264,7 +289,10 @@ function viewStateMachineDetail(
 
   // states
   const stateEntries = Object.entries(sm.states);
-  lines.push("", `${t(lang, "view.l4.stateMachine.states", { count: String(stateEntries.length) })}:`);
+  lines.push(
+    "",
+    `${t(lang, "view.l4.stateMachine.states", { count: String(stateEntries.length) })}:`,
+  );
   for (const [name, config] of stateEntries) {
     const parts: string[] = [name];
     if (config.onEntry !== undefined) parts.push(`onEntry → ${config.onEntry.blockRef}`);
@@ -273,7 +301,10 @@ function viewStateMachineDetail(
   }
 
   // transitions
-  lines.push("", `${t(lang, "view.l4.stateMachine.transitions", { count: String(sm.transitions.length) })}:`);
+  lines.push(
+    "",
+    `${t(lang, "view.l4.stateMachine.transitions", { count: String(sm.transitions.length) })}:`,
+  );
   for (const tr of sm.transitions) {
     const guard = tr.guard === undefined ? "" : ` [guard: ${tr.guard}]`;
     lines.push(`  ${tr.from} → ${tr.to}  on "${tr.event}"${guard}`);
@@ -313,7 +344,10 @@ function viewStateMachineDetail(
 
 export function viewL3Overview(blocks: readonly L3Block[], language = "en"): string {
   const lang = language;
-  const lines: string[] = [t(lang, "view.l3.title", { count: String(blocks.length) }), "─".repeat(30)];
+  const lines: string[] = [
+    t(lang, "view.l3.title", { count: String(blocks.length) }),
+    "─".repeat(30),
+  ];
 
   const maxIdLength = Math.max(...blocks.map((b) => b.id.length), 0);
 
@@ -392,7 +426,10 @@ export function viewL3Detail(
 
   const l2 = l2Blocks.find((cb) => cb.blockRef === block.id);
   if (l2 !== undefined) {
-    const synced = l2.sourceHash === block.contentHash ? t(lang, "view.common.synced") : t(lang, "view.common.drift");
+    const synced =
+      l2.sourceHash === block.contentHash
+        ? t(lang, "view.common.synced")
+        : t(lang, "view.common.drift");
     lines.push(`↓ L2: ${l2.id} [${synced}]`);
   }
 
@@ -407,13 +444,19 @@ export function viewL2Overview(
   language = "en",
 ): string {
   const lang = language;
-  const lines: string[] = [t(lang, "view.l2.title", { count: String(l2Blocks.length) }), "─".repeat(30)];
+  const lines: string[] = [
+    t(lang, "view.l2.title", { count: String(l2Blocks.length) }),
+    "─".repeat(30),
+  ];
 
   const l3Map = new Map(l3Blocks.map((b) => [b.id, b]));
 
   for (const cb of l2Blocks) {
     const l3 = l3Map.get(cb.blockRef);
-    const synced = cb.sourceHash === l3?.contentHash ? t(lang, "view.common.syncedShort") : t(lang, "view.common.driftShort");
+    const synced =
+      cb.sourceHash === l3?.contentHash
+        ? t(lang, "view.common.syncedShort")
+        : t(lang, "view.common.driftShort");
     const files = cb.files.length === 1 ? cb.files[0] : `${String(cb.files.length)} files`;
     lines.push(`${cb.id}  [${cb.language}] ${files}  (${synced})`);
   }
@@ -421,10 +464,17 @@ export function viewL2Overview(
   return lines.join("\n");
 }
 
-export function viewL2Detail(cb: L2CodeBlock, l3Blocks: readonly L3Block[], language = "en"): string {
+export function viewL2Detail(
+  cb: L2CodeBlock,
+  l3Blocks: readonly L3Block[],
+  language = "en",
+): string {
   const lang = language;
   const l3 = l3Blocks.find((b) => b.id === cb.blockRef);
-  const synced = cb.sourceHash === l3?.contentHash ? t(lang, "view.common.synced") : t(lang, "view.common.drift");
+  const synced =
+    cb.sourceHash === l3?.contentHash
+      ? t(lang, "view.common.synced")
+      : t(lang, "view.common.drift");
 
   const lines: string[] = [
     cb.id,

@@ -1,6 +1,5 @@
 // adapters/cursor — Cursor host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   genericModelTierLine,
@@ -8,6 +7,7 @@ import {
   genericContextOptions,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const cursorAdapter: HostAdapter = {
   id: "cursor",
@@ -18,7 +18,12 @@ export const cursorAdapter: HostAdapter = {
   },
 
   generateSkillFiles(language = "en"): readonly SkillFile[] {
-    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, genericModelTierLine(language)) }];
+    return [
+      {
+        relativePath: "svp.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language)),
+      },
+    ];
   },
 
   contextFilePath() {
@@ -39,6 +44,8 @@ export const cursorAdapter: HostAdapter = {
       "",
     ].join("\n");
 
-    return frontmatter + generateContextBody(projectName, language, genericContextOptions(language));
+    return (
+      frontmatter + generateContextBody(projectName, language, genericContextOptions(language))
+    );
   },
 };

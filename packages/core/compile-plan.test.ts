@@ -683,15 +683,12 @@ describe("compilePlan — language parameter", () => {
     const l3 = makeL3("validate", "Validate");
     const l4 = makeL4("flow-a", ["validate"]);
 
-    const plan = compilePlan(
-      { l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] },
-      "zh",
-    );
+    const plan = compilePlan({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] }, "zh");
 
     expect(plan.summary.compile).toBe(1);
     const task = plan.tasks[0];
     // Chinese locale: reason should contain Chinese characters
-    expect(task.reason).toMatch(/[\u4e00-\u9fff]/);
+    expect(task.reason).toMatch(/[\u4E00-\u9FFF]/);
   });
 });
 

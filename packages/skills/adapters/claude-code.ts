@@ -1,12 +1,12 @@
 // adapters/claude-code — Claude Code host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   generateContextBody,
   defaultSlashCommands,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const claudeCodeAdapter: HostAdapter = {
   id: "claude-code",

@@ -6,7 +6,7 @@ import type { HostId } from "./types.js";
 
 /** Marker paths mapped to their host IDs (checked in order).
  *  `kind` determines whether to check for a directory or a file. */
-const HOST_MARKERS: readonly { marker: string; kind: "dir" | "file"; host: HostId }[] = [
+const HOST_MARKERS: ReadonlyArray<{ marker: string; kind: "dir" | "file"; host: HostId }> = [
   { marker: ".claude", kind: "dir", host: "claude-code" },
   { marker: ".cursor", kind: "dir", host: "cursor" },
   { marker: ".windsurf", kind: "dir", host: "windsurf" },

@@ -1,4 +1,4 @@
-// svp init CLI 命令的集成测试
+// forge init CLI 命令的集成测试
 
 import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -67,7 +67,7 @@ async function fileExists(p: string): Promise<boolean> {
 
 // ── Tests ──
 
-describe("svp init", () => {
+describe("forge init", () => {
   let testRoot: string;
 
   beforeEach(async () => {
@@ -457,12 +457,7 @@ describe("svp init", () => {
   });
 
   it("i18n shows correct host name for cursor", async () => {
-    const { stdout, exitCode } = await runInit(testRoot, [
-      "--name",
-      "My App",
-      "--host",
-      "cursor",
-    ]);
+    const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "cursor"]);
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Cursor");

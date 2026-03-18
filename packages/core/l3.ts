@@ -7,7 +7,7 @@ export interface L3Block {
   readonly id: string;
   readonly name: string;
 
-  // 拓扑骨架（结构化，svp check 校验类型匹配和引用有效性）
+  // 拓扑骨架（结构化，forge check 校验类型匹配和引用有效性）
   readonly input: readonly Pin[];
   readonly output: readonly Pin[];
 

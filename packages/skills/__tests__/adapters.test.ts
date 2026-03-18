@@ -4,8 +4,8 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getAdapter, getAllAdapterIds } from "../adapters/index.js";
 import { detectHost, detectHosts } from "../adapters/detect.js";
+import { getAdapter, getAllAdapterIds } from "../adapters/index.js";
 import type { HostId } from "../adapters/types.js";
 
 // ── Registry tests ──
@@ -41,7 +41,7 @@ describe("adapter interface conformance", () => {
   const allIds = getAllAdapterIds();
 
   for (const hostId of allIds) {
-    describe(`${hostId}`, () => {
+    describe(hostId, () => {
       const adapter = getAdapter(hostId);
 
       it("produces non-empty skill files (en)", () => {
@@ -103,24 +103,24 @@ describe("adapter interface conformance", () => {
 
 // ── Workflow content consistency tests ──
 
+/** Extract the workflow section (everything after the last "---" separator) */
+function extractWorkflow(content: string): string {
+  const parts = content.split("\n---\n");
+  return parts.at(-1)!.trim();
+}
+
 describe("adapter workflow content consistency", () => {
   const allIds = getAllAdapterIds();
 
-  /** Extract the workflow section (everything after the last "---" separator) */
-  function extractWorkflow(content: string): string {
-    const parts = content.split("\n---\n");
-    return parts[parts.length - 1]!.trim();
-  }
-
   for (const lang of ["en", "zh"] as const) {
     it(`all adapters share identical workflow content (${lang})`, () => {
-      const reference = getAdapter(allIds[0]!).generateSkillFiles(lang)[0]!.content;
+      const reference = getAdapter(allIds[0]).generateSkillFiles(lang)[0].content;
       const refWorkflow = extractWorkflow(reference);
 
       for (const id of allIds.slice(1)) {
-        const content = getAdapter(id).generateSkillFiles(lang)[0]!.content;
+        const content = getAdapter(id).generateSkillFiles(lang)[0].content;
         const workflow = extractWorkflow(content);
-        expect(workflow, `${id} (${lang}) workflow differs from ${allIds[0]!}`).toBe(refWorkflow);
+        expect(workflow, `${id} (${lang}) workflow differs from ${allIds[0]}`).toBe(refWorkflow);
       }
     });
   }

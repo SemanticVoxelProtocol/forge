@@ -1,9 +1,9 @@
 // design-l3 — L3 Contract 设计 prompt 模板
-// 由 slash commands / svp prompt 驱动
+// 由 slash commands / forge prompt 驱动
 
-import { complexityHeader } from "./complexity-header.js";
 import { languageDirective } from "../../core/i18n.js";
 import { viewL4Detail } from "../../core/view.js";
+import { complexityHeader } from "./complexity-header.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Artifact, L4Flow, BlockContext } from "../../core/l4.js";
 
@@ -111,58 +111,62 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
     ? "No existing L3 block. Creating new contract."
     : ["### Current L3 Block", "```json", JSON.stringify(existingBlock, null, 2), "```"].join("\n");
 
-  return complexityHeader("standard") + [
-    `# ${action} L3 Contract: ${blockId}`,
-    "",
-    "You are designing a contract box (L3) — the specification for a single logic unit.",
-    "L3 is the interface between human intent and AI implementation.",
-    "",
-    `## L4 Context (${location})`,
-    "",
-    l4View,
-    "",
-    ...(neighborSection.length > 0 ? ["## Neighbor Context", "", ...neighborSection, ""] : []),
-    "## User Intent",
-    "",
-    input.userIntent,
-    "",
-    "## Current State",
-    "",
-    currentSection,
-    "",
-    "## Instructions",
-    "",
-    "Design the contract box with:",
-    "- **input pins**: Each has `name`, `type` (TypeScript interface name), optional `optional?: true`",
-    "- **output pins**: Same format as input",
-    "- **validate**: Input constraints as natural language rules",
-    "  - Key = field path (e.g., `request.items`)",
-    "  - Value = natural language rule (e.g., `array, min 1, max 50`)",
-    "- **constraints**: Output assertions as natural language",
-    "  - Each string asserts a relationship about the output",
-    "- **description**: Natural language describing the internal logic",
-    "",
-    "The three parts work together:",
-    "- **validate** constrains INPUT",
-    "- **constraints** constrains OUTPUT",
-    "- **description** covers the MIDDLE (transformation logic)",
-    "",
-    "Write to `.svp/l3/<block-id>.json` using this schema:",
-    "",
-    "```json",
-    L3_SCHEMA_EXAMPLE,
-    "```",
-    "",
-    "After writing, run `svp rehash l3/${blockId}` to fix contentHash.",
-    "Then show `svp view l3/${blockId}` to the user for confirmation.",
-    "",
-    "## Rules",
-    "",
-    "- Pin types reference TypeScript interface names from the project's types/ directory",
-    '- validate uses natural language, not code: `"array, min 1"` not `"Array.isArray && length >= 1"`',
-    "- constraints use natural language assertions about output",
-    "- description explains HOW to transform input to output",
-    "- Ensure pin types are compatible with upstream/downstream blocks",
-    "- Write 'placeholder' for contentHash — rehash will fix it",
-  ].join("\n") + languageDirective(input.language ?? "en");
+  return (
+    complexityHeader("standard") +
+    [
+      `# ${action} L3 Contract: ${blockId}`,
+      "",
+      "You are designing a contract box (L3) — the specification for a single logic unit.",
+      "L3 is the interface between human intent and AI implementation.",
+      "",
+      `## L4 Context (${location})`,
+      "",
+      l4View,
+      "",
+      ...(neighborSection.length > 0 ? ["## Neighbor Context", "", ...neighborSection, ""] : []),
+      "## User Intent",
+      "",
+      input.userIntent,
+      "",
+      "## Current State",
+      "",
+      currentSection,
+      "",
+      "## Instructions",
+      "",
+      "Design the contract box with:",
+      "- **input pins**: Each has `name`, `type` (TypeScript interface name), optional `optional?: true`",
+      "- **output pins**: Same format as input",
+      "- **validate**: Input constraints as natural language rules",
+      "  - Key = field path (e.g., `request.items`)",
+      "  - Value = natural language rule (e.g., `array, min 1, max 50`)",
+      "- **constraints**: Output assertions as natural language",
+      "  - Each string asserts a relationship about the output",
+      "- **description**: Natural language describing the internal logic",
+      "",
+      "The three parts work together:",
+      "- **validate** constrains INPUT",
+      "- **constraints** constrains OUTPUT",
+      "- **description** covers the MIDDLE (transformation logic)",
+      "",
+      "Write to `.svp/l3/<block-id>.json` using this schema:",
+      "",
+      "```json",
+      L3_SCHEMA_EXAMPLE,
+      "```",
+      "",
+      "After writing, run `forge rehash l3/${blockId}` to fix contentHash.",
+      "Then show `forge view l3/${blockId}` to the user for confirmation.",
+      "",
+      "## Rules",
+      "",
+      "- Pin types reference TypeScript interface names from the project's types/ directory",
+      '- validate uses natural language, not code: `"array, min 1"` not `"Array.isArray && length >= 1"`',
+      "- constraints use natural language assertions about output",
+      "- description explains HOW to transform input to output",
+      "- Ensure pin types are compatible with upstream/downstream blocks",
+      "- Write 'placeholder' for contentHash — rehash will fix it",
+    ].join("\n") +
+    languageDirective(input.language ?? "en")
+  );
 }

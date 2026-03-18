@@ -68,7 +68,7 @@ describe("t()", () => {
 
 describe("getLanguage()", () => {
   it("returns 'en' when no L5 provided", () => {
-    expect(getLanguage(undefined)).toBe("en");
+    expect(getLanguage()).toBe("en");
   });
 
   it("returns L5.language when present", () => {
@@ -77,7 +77,7 @@ describe("getLanguage()", () => {
   });
 
   it("returns 'en' when L5.language is undefined", () => {
-    const l5 = makeL5(undefined);
+    const l5 = makeL5();
     expect(getLanguage(l5)).toBe("en");
   });
 });

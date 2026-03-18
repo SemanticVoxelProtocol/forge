@@ -1,5 +1,5 @@
 // link — 创建 L2CodeBlock（L3 和 L1 之间的桥接层）
-// AI 生成 L1 源代码后，运行 svp link 创建 L2 映射
+// AI 生成 L1 源代码后，运行 forge link 创建 L2 映射
 // 纯函数，不做 IO
 
 import { hashL2 } from "../core/hash.js";

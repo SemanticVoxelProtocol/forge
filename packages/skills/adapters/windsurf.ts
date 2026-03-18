@@ -1,6 +1,5 @@
 // adapters/windsurf — Windsurf host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   genericModelTierLine,
@@ -8,6 +7,7 @@ import {
   genericContextOptions,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const windsurfAdapter: HostAdapter = {
   id: "windsurf",
@@ -18,7 +18,12 @@ export const windsurfAdapter: HostAdapter = {
   },
 
   generateSkillFiles(language = "en"): readonly SkillFile[] {
-    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, genericModelTierLine(language)) }];
+    return [
+      {
+        relativePath: "svp.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language)),
+      },
+    ];
   },
 
   contextFilePath() {

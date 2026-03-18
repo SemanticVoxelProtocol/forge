@@ -1,10 +1,10 @@
 // design-l4 — L4 Flow 设计 prompt 模板
-// 由 slash commands / svp prompt 驱动
+// 由 slash commands / forge prompt 驱动
 
-import { complexityHeader } from "./complexity-header.js";
 import { languageDirective } from "../../core/i18n.js";
 import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
 import { viewL5Overview } from "../../core/view.js";
+import { complexityHeader } from "./complexity-header.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Artifact } from "../../core/l4.js";
 import type { L5Blueprint } from "../../core/l5.js";
@@ -60,55 +60,59 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
           )
           .join("\n");
 
-  return complexityHeader("heavy") + [
-    `# ${action} L4 Flow`,
-    "",
-    "You are designing a flow (L4) that orchestrates L3 logic blocks.",
-    "Each flow defines steps, their execution order, and data flow between them.",
-    "",
-    "## Project Context (L5)",
-    "",
-    l5View,
-    "",
-    "## User Intent",
-    "",
-    input.userIntent,
-    "",
-    "## Existing Flows",
-    "",
-    existingFlowsSection,
-    "",
-    "## Existing L3 Blocks (available for reuse)",
-    "",
-    existingBlocksSection,
-    "",
-    "## Instructions",
-    "",
-    "Design the flow with:",
-    "- **steps**: Each step has id, action, and navigation (next/branches/waitFor)",
-    "  - `process`: References an L3 block via `blockRef` (can reference blocks that don't exist yet)",
-    "  - `call`: References another L4 flow via `flowRef`",
-    "  - `parallel`: Fan-out with `branches` array of step ids",
-    "  - `wait`: Join point with `waitFor` array of step ids",
-    '- **dataFlows**: Connect output pins to input pins: `"stepId.pinName"` → `"stepId.pinName"`',
-    "- **trigger** (optional): HTTP, event, schedule, or manual",
-    "",
-    "Write to `.svp/l4/<flow-id>.json` using this schema:",
-    "",
-    "```json",
-    L4_SCHEMA_EXAMPLE,
-    "```",
-    "",
-    "After writing, run `svp rehash l4` to fix contentHash.",
-    "Then show `svp view l4` to the user for confirmation.",
-    "",
-    "## Rules",
-    "",
-    "- Every `process` step MUST have a `blockRef`",
-    "- Step ids must be unique within the flow",
-    '- dataFlows use format `"stepId.pinName"`',
-    "- Fan-out uses `parallel` action, join uses `wait` action",
-    "- Write 'placeholder' for contentHash — rehash will fix it",
-    "- Do NOT create L3 blocks here — only reference them by id",
-  ].join("\n") + languageDirective(input.language ?? "en");
+  return (
+    complexityHeader("heavy") +
+    [
+      `# ${action} L4 Flow`,
+      "",
+      "You are designing a flow (L4) that orchestrates L3 logic blocks.",
+      "Each flow defines steps, their execution order, and data flow between them.",
+      "",
+      "## Project Context (L5)",
+      "",
+      l5View,
+      "",
+      "## User Intent",
+      "",
+      input.userIntent,
+      "",
+      "## Existing Flows",
+      "",
+      existingFlowsSection,
+      "",
+      "## Existing L3 Blocks (available for reuse)",
+      "",
+      existingBlocksSection,
+      "",
+      "## Instructions",
+      "",
+      "Design the flow with:",
+      "- **steps**: Each step has id, action, and navigation (next/branches/waitFor)",
+      "  - `process`: References an L3 block via `blockRef` (can reference blocks that don't exist yet)",
+      "  - `call`: References another L4 flow via `flowRef`",
+      "  - `parallel`: Fan-out with `branches` array of step ids",
+      "  - `wait`: Join point with `waitFor` array of step ids",
+      '- **dataFlows**: Connect output pins to input pins: `"stepId.pinName"` → `"stepId.pinName"`',
+      "- **trigger** (optional): HTTP, event, schedule, or manual",
+      "",
+      "Write to `.svp/l4/<flow-id>.json` using this schema:",
+      "",
+      "```json",
+      L4_SCHEMA_EXAMPLE,
+      "```",
+      "",
+      "After writing, run `forge rehash l4` to fix contentHash.",
+      "Then show `forge view l4` to the user for confirmation.",
+      "",
+      "## Rules",
+      "",
+      "- Every `process` step MUST have a `blockRef`",
+      "- Step ids must be unique within the flow",
+      '- dataFlows use format `"stepId.pinName"`',
+      "- Fan-out uses `parallel` action, join uses `wait` action",
+      "- Write 'placeholder' for contentHash — rehash will fix it",
+      "- Do NOT create L3 blocks here — only reference them by id",
+    ].join("\n") +
+    languageDirective(input.language ?? "en")
+  );
 }

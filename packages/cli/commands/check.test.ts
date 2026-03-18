@@ -1,4 +1,4 @@
-// svp check CLI 命令的集成测试
+// forge check CLI 命令的集成测试
 // 创建临时 .svp/ 目录，写入测试数据，调用 check 命令逻辑
 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -100,7 +100,7 @@ function makeL2(l3: L3Block, overrides: Partial<L2CodeBlock> = {}): L2CodeBlock 
 
 // ── 集成测试 ──
 
-describe("svp check CLI integration", () => {
+describe("forge check CLI integration", () => {
   let testRoot: string;
 
   beforeEach(async () => {

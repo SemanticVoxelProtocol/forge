@@ -2,12 +2,12 @@
 // svp-workflow-zh.ts — E2E 测试: 全中文 SVP 设计→实现工作流（通过 Claude Code CLI）
 //
 // 与 svp-workflow.ts 相同的完整流程，但使用中文 intent 并设置 language=zh：
-//   阶段 1: 初始化    → svp init --language zh
-//   阶段 2: 设计 L5   → svp prompt design-l5 → claude -p → 验证 l5.json
-//   阶段 3: 设计 L4   → svp prompt design-l4 → claude -p → 验证 l4/*.json
-//   阶段 4: 设计 L3   → svp prompt design-l3 (逐步) → claude -p → 验证 l3/*.json
-//   阶段 5: 检查      → svp check → 跨层一致性校验
-//   阶段 6: 编译      → svp prompt compile (逐个 l3) → claude -p → 验证 l2/*.json + 源码
+//   阶段 1: 初始化    → forge init --language zh
+//   阶段 2: 设计 L5   → forge prompt design-l5 → claude -p → 验证 l5.json
+//   阶段 3: 设计 L4   → forge prompt design-l4 → claude -p → 验证 l4/*.json
+//   阶段 4: 设计 L3   → forge prompt design-l3 (逐步) → claude -p → 验证 l3/*.json
+//   阶段 5: 检查      → forge check → 跨层一致性校验
+//   阶段 6: 编译      → forge prompt compile (逐个 l3) → claude -p → 验证 l2/*.json + 源码
 //   阶段 7: 报告      → markdown 摘要
 //
 // 用法:
@@ -83,9 +83,9 @@ function phase1_setup(opts: CLIOptions): PhaseResult {
   const errors: string[] = [];
 
   if (!initResult.ok) {
-    errors.push(`svp init 失败: ${initResult.stderr}`);
+    errors.push(`forge init 失败: ${initResult.stderr}`);
   } else {
-    details.push("svp init 完成");
+    details.push("forge init 完成");
   }
 
   // 验证目录结构
@@ -116,7 +116,7 @@ function phase1_setup(opts: CLIOptions): PhaseResult {
   }
 
   steps.push({
-    name: "svp init（中文） + 验证结构",
+    name: "forge init（中文） + 验证结构",
     ok: initResult.ok && errors.length === 0,
     durationMs: stepTimer(),
     details,
@@ -146,7 +146,7 @@ function phase2_designL5(projectDir: string, opts: CLIOptions): PhaseResult {
 
   if (!promptResult.ok) {
     steps.push({
-      name: "svp prompt design-l5",
+      name: "forge prompt design-l5",
       ok: false,
       durationMs: stepTimer(),
       details: [],
@@ -163,7 +163,7 @@ function phase2_designL5(projectDir: string, opts: CLIOptions): PhaseResult {
   const hasLangDirective = prompt.includes("Chinese") || prompt.includes("中文");
 
   steps.push({
-    name: "svp prompt design-l5",
+    name: "forge prompt design-l5",
     ok: true,
     durationMs: stepTimer(),
     details: [
@@ -258,7 +258,7 @@ function phase3_designL4(projectDir: string, opts: CLIOptions): PhaseResult {
 
   if (!promptResult.ok) {
     steps.push({
-      name: "svp prompt design-l4",
+      name: "forge prompt design-l4",
       ok: false,
       durationMs: stepTimer(),
       details: [],
@@ -272,7 +272,7 @@ function phase3_designL4(projectDir: string, opts: CLIOptions): PhaseResult {
   const model = mapModel(complexity, opts.allSonnet);
 
   steps.push({
-    name: "svp prompt design-l4",
+    name: "forge prompt design-l4",
     ok: true,
     durationMs: stepTimer(),
     details: [
@@ -458,7 +458,7 @@ function phase4_designL3(projectDir: string, opts: CLIOptions): PhaseResult {
 
     if (!promptResult.ok) {
       steps.push({
-        name: `svp prompt design-l3 ${blockId}`,
+        name: `forge prompt design-l3 ${blockId}`,
         ok: false,
         durationMs: stepTimer(),
         details: [],
@@ -523,13 +523,13 @@ function phase5_check(projectDir: string): PhaseResult {
   const rehashTimer = timer();
   const rehashResult = runSvp(`rehash -r "${projectDir}"`, projectDir);
   steps.push({
-    name: "svp rehash",
+    name: "forge rehash",
     ok: rehashResult.ok,
     durationMs: rehashTimer(),
     details: rehashResult.ok
       ? [`Rehash 完成: ${rehashResult.stdout.trim().split("\n").length} 行输出`]
       : [],
-    errors: rehashResult.ok ? [] : [`svp rehash 失败: ${rehashResult.stderr}`],
+    errors: rehashResult.ok ? [] : [`forge rehash 失败: ${rehashResult.stderr}`],
   });
 
   const stepTimer = timer();
@@ -540,7 +540,7 @@ function phase5_check(projectDir: string): PhaseResult {
   let checkOk = result.ok;
 
   if (!result.ok && result.stderr) {
-    errors.push(`svp check 失败: ${result.stderr}`);
+    errors.push(`forge check 失败: ${result.stderr}`);
   }
 
   try {
@@ -572,7 +572,7 @@ function phase5_check(projectDir: string): PhaseResult {
   }
 
   steps.push({
-    name: "svp check --json",
+    name: "forge check --json",
     ok: checkOk,
     durationMs: stepTimer(),
     details,
@@ -624,7 +624,7 @@ function phase6_compile(projectDir: string, opts: CLIOptions): PhaseResult {
         ok: false,
         durationMs: stepTimer(),
         details: [],
-        errors: [`svp prompt compile 失败: ${promptResult.stderr}`],
+        errors: [`forge prompt compile 失败: ${promptResult.stderr}`],
       });
       continue;
     }

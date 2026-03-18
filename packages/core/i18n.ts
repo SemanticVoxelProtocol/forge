@@ -10,7 +10,8 @@ type MessageParams = Record<string, string | number>;
 /** 查找翻译，英文兜底，支持 {param} 插值 */
 export function t(lang: string, key: string, params?: MessageParams): string {
   const catalog = messages[lang] ?? messages.en;
-  let template = catalog[key] ?? messages.en[key] ?? key;
+  let template =
+    (catalog[key] as string | undefined) ?? (messages.en[key] as string | undefined) ?? key;
   if (params !== undefined) {
     for (const [k, v] of Object.entries(params)) {
       template = template.replaceAll(`{${k}}`, String(v));
@@ -21,13 +22,13 @@ export function t(lang: string, key: string, params?: MessageParams): string {
 
 /** 检测系统语言（取 LANG/LC_ALL 前两位，如 "zh_CN.UTF-8" → "zh"） */
 export function detectSystemLanguage(): string {
-  const raw = (typeof process !== "undefined" && (process.env.LC_ALL || process.env.LANG)) || "";
-  const match = raw.match(/^([a-z]{2})/i);
+  const raw = typeof process === "undefined" ? "" : (process.env.LC_ALL ?? process.env.LANG ?? "");
+  const match = /^([a-z]{2})/i.exec(raw);
   return match ? match[1].toLowerCase() : "en";
 }
 
 /** 从 L5 提取语言，缺省检测系统语言 */
-export function getLanguage(l5?: Pick<L5Blueprint, "language"> | undefined): string {
+export function getLanguage(l5?: Pick<L5Blueprint, "language">): string {
   return l5?.language ?? detectSystemLanguage();
 }
 
@@ -58,14 +59,12 @@ export function languageDirective(lang: string): string {
 const messages: Record<string, Record<string, string>> = {
   en: {
     // ── check.* ──
-    "check.hashMismatch.l5":
-      "L5 contentHash mismatch: stored={stored}, computed={computed}",
+    "check.hashMismatch.l5": "L5 contentHash mismatch: stored={stored}, computed={computed}",
     "check.hashMismatch.l4":
       'L4 "{name}" contentHash mismatch: stored={stored}, computed={computed}',
     "check.hashMismatch.l3":
       'L3 "{name}" contentHash mismatch: stored={stored}, computed={computed}',
-    "check.hashMismatch.l2":
-      'L2 "{id}" contentHash mismatch: stored={stored}, computed={computed}',
+    "check.hashMismatch.l2": 'L2 "{id}" contentHash mismatch: stored={stored}, computed={computed}',
     "check.missingBlockRef.l4FlowStep":
       'L4 "{flowName}" step "{stepId}" references non-existent L3 block "{blockRef}"',
     "check.missingFlowRef":
@@ -78,8 +77,7 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{smName}" state "{stateName}" onExit references non-existent L3 block "{blockRef}"',
     "check.missingBlockRef.l4SmGuard":
       'L4 "{smName}" transition "{from}" → "{to}" guard references non-existent L3 block "{guard}"',
-    "check.missingBlockRef.l2":
-      'L2 "{id}" references non-existent L3 block "{blockRef}"',
+    "check.missingBlockRef.l2": 'L2 "{id}" references non-existent L3 block "{blockRef}"',
     "check.missingStepRef.next":
       'L4 "{parentName}" step "{stepId}" next references non-existent step "{next}"',
     "check.missingStepRef.branch":
@@ -102,22 +100,17 @@ const messages: Record<string, Record<string, string>> = {
       'L2 "{id}" signatureHash mismatch: L1 exported signatures have changed since last sync',
     "check.selfReferencingFlow":
       'L4 "{flowName}" step "{stepId}" calls itself (recursive flow reference)',
-    "check.duplicateEvent":
-      'L4 "{egName}" has duplicate event handler for "{event}"',
-    "check.emptyState":
-      'L4 "{egName}" event-graph has no state declarations',
-    "check.invalidInitialState":
-      'L4 "{smName}" initialState "{initialState}" not found in states',
+    "check.duplicateEvent": 'L4 "{egName}" has duplicate event handler for "{event}"',
+    "check.emptyState": 'L4 "{egName}" event-graph has no state declarations',
+    "check.invalidInitialState": 'L4 "{smName}" initialState "{initialState}" not found in states',
     "check.invalidTransition.from":
       'L4 "{smName}" transition from "{from}" references non-existent state',
     "check.invalidTransition.to":
       'L4 "{smName}" transition to "{to}" references non-existent state',
     "check.unreachableState":
       'L4 "{smName}" state "{stateName}" is not reachable from initialState "{initialState}"',
-    "check.nextCycle":
-      'L4 "{entityName}" has a cycle in next chain involving step "{current}"',
-    "check.orphanStep":
-      'L4 "{entityName}" step "{stepId}" is not reachable from the first step',
+    "check.nextCycle": 'L4 "{entityName}" has a cycle in next chain involving step "{current}"',
+    "check.orphanStep": 'L4 "{entityName}" step "{stepId}" is not reachable from the first step',
     "check.missingLanguage":
       "L5 blueprint has no language field — consider adding language preference",
 
@@ -179,45 +172,35 @@ const messages: Record<string, Record<string, string>> = {
 
     // ── cli.* ──
     "cli.init.alreadyExists":
-      ".svp/ directory already exists. Use `svp check` to validate or `svp view` to inspect.",
+      ".svp/ directory already exists. Use `forge check` to validate or `forge view` to inspect.",
     "cli.init.initialized": "Initialized .svp/ in {root}",
     "cli.init.dirStructure": "Directory structure:",
-    "cli.init.nextEdit":
-      "Next: edit .svp/l5.json to add domains, constraints, and integrations.",
-    "cli.init.nextSvp": "Next: use /svp to start the interactive SVP workflow.",
-    "cli.init.slashCommands":
-      "{host}: {count} skill files → {skillDir}/",
+    "cli.init.nextEdit": "Next: edit .svp/l5.json to add domains, constraints, and integrations.",
+    "cli.init.nextSvp": "Next: use /forge to start the interactive SVP workflow.",
+    "cli.init.slashCommands": "{host}: {count} skill files → {skillDir}/",
     "cli.init.claudeMdSection": "{host}: SVP section → {contextFile}",
-    "cli.init.claudeMdSkipped":
-      "{host}: {contextFile} already contains SVP section (skipped)",
-    "cli.error.loadFailed":
-      'Error: cannot load .svp/ data from "{root}". Run `svp init` first.',
+    "cli.init.claudeMdSkipped": "{host}: {contextFile} already contains SVP section (skipped)",
+    "cli.error.loadFailed": 'Error: cannot load .svp/ data from "{root}". Run `forge init` first.',
     "cli.error.l3NotFound": 'Error: L3 block "{id}" not found in .svp/l3/',
     "cli.error.l4NotFound": 'Error: L4 flow "{id}" not found in .svp/l4/',
     "cli.error.l5NotFound":
-      "Error: L5 blueprint not found. Design L5 first with `svp prompt design-l5`.",
+      "Error: L5 blueprint not found. Design L5 first with `forge prompt design-l5`.",
     "cli.error.invalidKind":
       'Error: invalid --kind "{kind}". Must be flow, event-graph, or state-machine.',
-    "cli.error.stepOutOfRange":
-      "Error: step index {step} is out of range (0-{max})",
+    "cli.error.stepOutOfRange": "Error: step index {step} is out of range (0-{max})",
     "cli.error.blockNotFound":
       'Error: block "{blockId}" not found in L4 artifact "{flow}" (kind: {kind})',
   },
 
   zh: {
     // ── check.* ──
-    "check.hashMismatch.l5":
-      "L5 contentHash 不匹配：存储值={stored}，计算值={computed}",
-    "check.hashMismatch.l4":
-      'L4 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
-    "check.hashMismatch.l3":
-      'L3 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
-    "check.hashMismatch.l2":
-      'L2 "{id}" contentHash 不匹配：存储值={stored}，计算值={computed}',
+    "check.hashMismatch.l5": "L5 contentHash 不匹配：存储值={stored}，计算值={computed}",
+    "check.hashMismatch.l4": 'L4 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
+    "check.hashMismatch.l3": 'L3 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
+    "check.hashMismatch.l2": 'L2 "{id}" contentHash 不匹配：存储值={stored}，计算值={computed}',
     "check.missingBlockRef.l4FlowStep":
       'L4 "{flowName}" 步骤 "{stepId}" 引用了不存在的 L3 block "{blockRef}"',
-    "check.missingFlowRef":
-      'L4 "{flowName}" 步骤 "{stepId}" 引用了不存在的 L4 flow "{flowRef}"',
+    "check.missingFlowRef": 'L4 "{flowName}" 步骤 "{stepId}" 引用了不存在的 L4 flow "{flowRef}"',
     "check.missingBlockRef.l4EventGraphStep":
       'L4 "{egName}" 处理器 "{handlerId}" 步骤 "{stepId}" 引用了不存在的 L3 block "{blockRef}"',
     "check.missingBlockRef.l4SmOnEntry":
@@ -226,8 +209,7 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{smName}" 状态 "{stateName}" 的 onExit 引用了不存在的 L3 block "{blockRef}"',
     "check.missingBlockRef.l4SmGuard":
       'L4 "{smName}" 转换 "{from}" → "{to}" 的 guard 引用了不存在的 L3 block "{guard}"',
-    "check.missingBlockRef.l2":
-      'L2 "{id}" 引用了不存在的 L3 block "{blockRef}"',
+    "check.missingBlockRef.l2": 'L2 "{id}" 引用了不存在的 L3 block "{blockRef}"',
     "check.missingStepRef.next":
       'L4 "{parentName}" 步骤 "{stepId}" 的 next 引用了不存在的步骤 "{next}"',
     "check.missingStepRef.branch":
@@ -246,38 +228,24 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{egName}" 处理器 "{handlerId}" dataFlow {direction} 引用了未声明的 state key "{field}"',
     "check.sourceDrift":
       'L2 "{id}" 的 sourceHash ({sourceHash}) 与 L3 "{blockRef}" 的 contentHash ({l3Hash}) 不匹配：L3 自上次编译以来已变更',
-    "check.contentDrift":
-      'L2 "{id}" signatureHash 不匹配：L1 导出签名自上次同步以来已变更',
-    "check.selfReferencingFlow":
-      'L4 "{flowName}" 步骤 "{stepId}" 调用了自身（递归 flow 引用）',
-    "check.duplicateEvent":
-      'L4 "{egName}" 存在重复的事件处理器 "{event}"',
-    "check.emptyState":
-      'L4 "{egName}" event-graph 没有 state 声明',
-    "check.invalidInitialState":
-      'L4 "{smName}" 的 initialState "{initialState}" 不在 states 中',
-    "check.invalidTransition.from":
-      'L4 "{smName}" 转换的 from "{from}" 引用了不存在的状态',
-    "check.invalidTransition.to":
-      'L4 "{smName}" 转换的 to "{to}" 引用了不存在的状态',
+    "check.contentDrift": 'L2 "{id}" signatureHash 不匹配：L1 导出签名自上次同步以来已变更',
+    "check.selfReferencingFlow": 'L4 "{flowName}" 步骤 "{stepId}" 调用了自身（递归 flow 引用）',
+    "check.duplicateEvent": 'L4 "{egName}" 存在重复的事件处理器 "{event}"',
+    "check.emptyState": 'L4 "{egName}" event-graph 没有 state 声明',
+    "check.invalidInitialState": 'L4 "{smName}" 的 initialState "{initialState}" 不在 states 中',
+    "check.invalidTransition.from": 'L4 "{smName}" 转换的 from "{from}" 引用了不存在的状态',
+    "check.invalidTransition.to": 'L4 "{smName}" 转换的 to "{to}" 引用了不存在的状态',
     "check.unreachableState":
       'L4 "{smName}" 状态 "{stateName}" 从 initialState "{initialState}" 不可达',
-    "check.nextCycle":
-      'L4 "{entityName}" 在 next 链中存在环，涉及步骤 "{current}"',
-    "check.orphanStep":
-      'L4 "{entityName}" 步骤 "{stepId}" 从第一个步骤不可达',
-    "check.missingLanguage":
-      "L5 blueprint 未设置 language 字段 — 建议添加语言偏好",
+    "check.nextCycle": 'L4 "{entityName}" 在 next 链中存在环，涉及步骤 "{current}"',
+    "check.orphanStep": 'L4 "{entityName}" 步骤 "{stepId}" 从第一个步骤不可达',
+    "check.missingLanguage": "L5 blueprint 未设置 language 字段 — 建议添加语言偏好",
 
     // ── compilePlan.* ──
-    "compilePlan.reason.missingL2":
-      'L3 block "{name}" 没有对应的 L2 code block — 需要初始编译',
-    "compilePlan.reason.sourceDrift":
-      "L3 契约自上次编译以来已变更 — L2 代码已过时",
-    "compilePlan.reason.contentDrift":
-      "L1 导出签名已变更 — 请审查 L3 契约是否仍与代码匹配",
-    "compilePlan.reason.missingBlockRef":
-      "Flow 引用了缺失的 L3 block — 需要更新步骤或重建 L3",
+    "compilePlan.reason.missingL2": 'L3 block "{name}" 没有对应的 L2 code block — 需要初始编译',
+    "compilePlan.reason.sourceDrift": "L3 契约自上次编译以来已变更 — L2 代码已过时",
+    "compilePlan.reason.contentDrift": "L1 导出签名已变更 — 请审查 L3 契约是否仍与代码匹配",
+    "compilePlan.reason.missingBlockRef": "Flow 引用了缺失的 L3 block — 需要更新步骤或重建 L3",
     "compilePlan.reason.missingL2BlockRef":
       "L2 code block 引用了缺失的 L3 block — 孤立代码需要审查",
     "compilePlan.label.l3Contract": 'L3 契约 "{name}"',
@@ -326,28 +294,22 @@ const messages: Record<string, Record<string, string>> = {
     "view.common.l5Ref": "L5",
 
     // ── cli.* ──
-    "cli.init.alreadyExists":
-      ".svp/ 目录已存在。使用 `svp check` 校验或 `svp view` 查看。",
+    "cli.init.alreadyExists": ".svp/ 目录已存在。使用 `forge check` 校验或 `forge view` 查看。",
     "cli.init.initialized": "已在 {root} 初始化 .svp/",
     "cli.init.dirStructure": "目录结构：",
-    "cli.init.nextEdit":
-      "下一步：编辑 .svp/l5.json 添加领域、约束和集成。",
-    "cli.init.nextSvp": "下一步：使用 /svp 启动交互式 SVP 工作流。",
-    "cli.init.slashCommands":
-      "{host}: {count} 个 skill 文件 → {skillDir}/",
+    "cli.init.nextEdit": "下一步：编辑 .svp/l5.json 添加领域、约束和集成。",
+    "cli.init.nextSvp": "下一步：使用 /forge 启动交互式 SVP 工作流。",
+    "cli.init.slashCommands": "{host}: {count} 个 skill 文件 → {skillDir}/",
     "cli.init.claudeMdSection": "{host}: SVP 部分 → {contextFile}",
-    "cli.init.claudeMdSkipped":
-      "{host}: {contextFile} 已包含 SVP 部分（已跳过）",
-    "cli.error.loadFailed":
-      '错误：无法从 "{root}" 加载 .svp/ 数据。请先运行 `svp init`。',
+    "cli.init.claudeMdSkipped": "{host}: {contextFile} 已包含 SVP 部分（已跳过）",
+    "cli.error.loadFailed": '错误：无法从 "{root}" 加载 .svp/ 数据。请先运行 `forge init`。',
     "cli.error.l3NotFound": '错误：在 .svp/l3/ 中未找到 L3 block "{id}"',
     "cli.error.l4NotFound": '错误：在 .svp/l4/ 中未找到 L4 flow "{id}"',
     "cli.error.l5NotFound":
-      "错误：未找到 L5 blueprint。请先使用 `svp prompt design-l5` 设计 L5。",
+      "错误：未找到 L5 blueprint。请先使用 `forge prompt design-l5` 设计 L5。",
     "cli.error.invalidKind":
       '错误：无效的 --kind "{kind}"。必须为 flow、event-graph 或 state-machine。',
-    "cli.error.stepOutOfRange":
-      "错误：步骤索引 {step} 超出范围 (0-{max})",
+    "cli.error.stepOutOfRange": "错误：步骤索引 {step} 超出范围 (0-{max})",
     "cli.error.blockNotFound":
       '错误：在 L4 制品 "{flow}" (类型: {kind}) 中未找到 block "{blockId}"',
   },

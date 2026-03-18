@@ -1,9 +1,9 @@
-// svp init — 初始化 .svp/ 目录结构的 CLI 命令
+// forge init — 初始化 .svp/ 目录结构的 CLI 命令
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { t } from "../../core/i18n.js";
 import { init } from "../../core/init.js";
-import { t, getLanguage } from "../../core/i18n.js";
 import { getAdapter, getAllAdapterIds, detectHosts } from "../../skills/adapters/index.js";
 import type { HostId, HostAdapter } from "../../skills/adapters/index.js";
 import type { Command } from "commander";
@@ -14,7 +14,7 @@ function isValidHost(host: string): host is HostId {
   return (VALID_HOSTS as readonly string[]).includes(host);
 }
 
-/** 注册 svp init 子命令 */
+/** 注册 forge init 子命令 */
 export function registerInit(program: Command): void {
   program
     .command("init")
@@ -38,14 +38,7 @@ export function registerInit(program: Command): void {
 
         // Resolve host: explicit flag > auto-detect
         let hostId: HostId | undefined;
-        if (options.host != null) {
-          if (!isValidHost(options.host)) {
-            console.error(`Unknown host: ${options.host}. Valid hosts: ${VALID_HOSTS.join(", ")}`);
-            process.exitCode = 1;
-            return;
-          }
-          hostId = options.host;
-        } else {
+        if (options.host === undefined) {
           // Auto-detect from project directory markers
           const detected = await detectHosts(options.root);
           if (detected.length === 1) {
@@ -55,6 +48,13 @@ export function registerInit(program: Command): void {
               `Multiple hosts detected: ${detected.join(", ")}. Use --host to specify one.`,
             );
           }
+        } else {
+          if (!isValidHost(options.host)) {
+            console.error(`Unknown host: ${options.host}. Valid hosts: ${VALID_HOSTS.join(", ")}`);
+            process.exitCode = 1;
+            return;
+          }
+          hostId = options.host;
         }
 
         const result = await init(options.root, {
@@ -68,7 +68,7 @@ export function registerInit(program: Command): void {
         if (!result.created) {
           console.log(t(lang, "cli.init.alreadyExists"));
           // Still generate host files if resolved
-          if (hostId != null) {
+          if (hostId !== undefined) {
             await generateHostFiles(options.root, getAdapter(hostId), options.name, lang);
           }
           return;
@@ -90,12 +90,12 @@ export function registerInit(program: Command): void {
         console.log("  └── l2/            (code blocks)");
 
         // Host-specific integration
-        if (hostId != null) {
-          console.log();
-          await generateHostFiles(options.root, getAdapter(hostId), options.name, lang);
-        } else {
+        if (hostId === undefined) {
           console.log();
           console.log(t(lang, "cli.init.nextEdit"));
+        } else {
+          console.log();
+          await generateHostFiles(options.root, getAdapter(hostId), options.name, lang);
         }
       },
     );

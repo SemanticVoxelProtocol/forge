@@ -1,6 +1,5 @@
 // adapters/kimi-code — Kimi Code host adapter
 
-import type { HostAdapter, SkillFile } from "./types.js";
 import {
   buildSkillFileContent,
   genericModelTierLine,
@@ -8,6 +7,7 @@ import {
   genericContextOptions,
   DEFAULT_CONTEXT_MARKER,
 } from "./shared.js";
+import type { HostAdapter, SkillFile } from "./types.js";
 
 export const kimiCodeAdapter: HostAdapter = {
   id: "kimi-code",
@@ -29,7 +29,12 @@ export const kimiCodeAdapter: HostAdapter = {
       "",
     ].join("\n");
 
-    return [{ relativePath: "svp/SKILL.md", content: buildSkillFileContent(language, genericModelTierLine(language), frontmatter) }];
+    return [
+      {
+        relativePath: "svp/SKILL.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language), frontmatter),
+      },
+    ];
   },
 
   contextFilePath() {
@@ -41,6 +46,10 @@ export const kimiCodeAdapter: HostAdapter = {
   },
 
   generateContextSection(projectName: string, language = "en"): string {
-    return generateContextBody(projectName, language, genericContextOptions(language, "/skill:svp"));
+    return generateContextBody(
+      projectName,
+      language,
+      genericContextOptions(language, "/skill:svp"),
+    );
   },
 };
