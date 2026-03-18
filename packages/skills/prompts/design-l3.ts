@@ -1,19 +1,31 @@
 // design-l3 — L3 Contract 设计 prompt 模板
-// 由 slash commands 驱动，不走 SkillRegistry
+// 由 slash commands / svp prompt 驱动
 
+import { complexityHeader } from "./complexity-header.js";
+import { languageDirective } from "../../core/i18n.js";
 import { viewL4Detail } from "../../core/view.js";
 import type { L3Block } from "../../core/l3.js";
-import type { L4Flow } from "../../core/l4.js";
+import type { L4Artifact, L4Flow, BlockContext } from "../../core/l4.js";
 
 export interface DesignL3Input {
-  readonly l4Context: {
-    readonly flow: L4Flow; // design-l3 只在 Flow 上下文中使用（需要 stepIndex）
-    readonly stepIndex: number;
-    readonly prevBlock?: L3Block;
-    readonly nextBlock?: L3Block;
-  };
+  readonly l4Context:
+    | {
+        // Legacy flow-only form (backward compat)
+        readonly flow: L4Flow;
+        readonly stepIndex: number;
+        readonly prevBlock?: L3Block;
+        readonly nextBlock?: L3Block;
+      }
+    | {
+        // Generalized form for any L4 kind
+        readonly l4: L4Artifact;
+        readonly blockContext: BlockContext;
+        readonly prevBlock?: L3Block;
+        readonly nextBlock?: L3Block;
+      };
   readonly existingBlock?: L3Block;
   readonly userIntent: string;
+  readonly language?: string;
 }
 
 const L3_SCHEMA_EXAMPLE = `{
@@ -44,35 +56,54 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
   const isNew = existingBlock === undefined;
   const action = isNew ? "Create" : "Update";
 
-  const step = l4Context.flow.steps[l4Context.stepIndex] as
-    | (typeof l4Context.flow.steps)[number]
-    | undefined;
-  const blockId = step?.blockRef ?? "unknown";
+  // Normalize both input forms into a common shape
+  let l4Artifact: L4Artifact;
+  let blockId: string;
+  let location: string;
+  let prevBlock: L3Block | undefined;
+  let nextBlock: L3Block | undefined;
+
+  if ("blockContext" in l4Context) {
+    // Generalized form
+    l4Artifact = l4Context.l4;
+    blockId = l4Context.blockContext.blockId;
+    location = l4Context.blockContext.location;
+    prevBlock = l4Context.prevBlock;
+    nextBlock = l4Context.nextBlock;
+  } else {
+    // Legacy flow form
+    l4Artifact = l4Context.flow;
+    const step = l4Context.flow.steps[l4Context.stepIndex] as
+      | (typeof l4Context.flow.steps)[number]
+      | undefined;
+    blockId = step?.blockRef ?? "unknown";
+    location = `step ${String(l4Context.stepIndex)} in flow "${l4Context.flow.id}"`;
+    prevBlock = l4Context.prevBlock;
+    nextBlock = l4Context.nextBlock;
+  }
 
   // Build L4 context view
   const l3sForContext: L3Block[] = [];
-  if (l4Context.prevBlock !== undefined) l3sForContext.push(l4Context.prevBlock);
-  if (l4Context.nextBlock !== undefined) l3sForContext.push(l4Context.nextBlock);
+  if (prevBlock !== undefined) l3sForContext.push(prevBlock);
+  if (nextBlock !== undefined) l3sForContext.push(nextBlock);
   if (existingBlock !== undefined) l3sForContext.push(existingBlock);
 
-  const l4View = viewL4Detail(l4Context.flow, l3sForContext);
+  const l4View = viewL4Detail(l4Artifact, l3sForContext);
 
   // Neighbor context
   const neighborSection: string[] = [];
-  if (l4Context.prevBlock !== undefined) {
-    const prev = l4Context.prevBlock;
+  if (prevBlock !== undefined) {
     neighborSection.push(
       "### Upstream Block (previous step output)",
-      `- id: ${prev.id}`,
-      `- output: ${prev.output.map((p) => `${p.name}: ${p.type}`).join(", ")}`,
+      `- id: ${prevBlock.id}`,
+      `- output: ${prevBlock.output.map((p) => `${p.name}: ${p.type}`).join(", ")}`,
     );
   }
-  if (l4Context.nextBlock !== undefined) {
-    const next = l4Context.nextBlock;
+  if (nextBlock !== undefined) {
     neighborSection.push(
       "### Downstream Block (next step input)",
-      `- id: ${next.id}`,
-      `- input: ${next.input.map((p) => `${p.name}: ${p.type}`).join(", ")}`,
+      `- id: ${nextBlock.id}`,
+      `- input: ${nextBlock.input.map((p) => `${p.name}: ${p.type}`).join(", ")}`,
     );
   }
 
@@ -80,13 +111,13 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
     ? "No existing L3 block. Creating new contract."
     : ["### Current L3 Block", "```json", JSON.stringify(existingBlock, null, 2), "```"].join("\n");
 
-  return [
+  return complexityHeader("standard") + [
     `# ${action} L3 Contract: ${blockId}`,
     "",
     "You are designing a contract box (L3) — the specification for a single logic unit.",
     "L3 is the interface between human intent and AI implementation.",
     "",
-    "## L4 Flow Context",
+    `## L4 Context (${location})`,
     "",
     l4View,
     "",
@@ -133,5 +164,5 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
     "- description explains HOW to transform input to output",
     "- Ensure pin types are compatible with upstream/downstream blocks",
     "- Write 'placeholder' for contentHash — rehash will fix it",
-  ].join("\n");
+  ].join("\n") + languageDirective(input.language ?? "en");
 }

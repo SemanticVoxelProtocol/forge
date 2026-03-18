@@ -2,7 +2,8 @@
 // 7 个子命令：compile, recompile, review, update-ref, design-l5, design-l4, design-l3
 // 读 .svp/ 状态 → 解析上下文 → 调用 prompt builder → stdout 输出 markdown
 
-import { extractBlockRefs, getL4Kind } from "../../core/l4.js";
+import { extractBlockRefs, findBlockContext, getL4Kind } from "../../core/l4.js";
+import { getLanguage } from "../../core/i18n.js";
 import { DEFAULT_SKILL_CONFIG } from "../../core/skill.js";
 import { buildPrompt, renderPrompt } from "../../skills/prompt-builder.js";
 import { buildDesignL3Prompt } from "../../skills/prompts/design-l3.js";
@@ -12,9 +13,10 @@ import { buildDesignL4Prompt } from "../../skills/prompts/design-l4.js";
 import { buildDesignL5Prompt } from "../../skills/prompts/design-l5.js";
 import { loadCheckInput } from "../load.js";
 import { createResolver } from "../resolve.js";
+import { getDefaultComplexity } from "../../core/compile-plan.js";
 import type { CompileTask, ContextRef, TaskAction } from "../../core/compile-plan.js";
 import type { L3Block } from "../../core/l3.js";
-import type { L4Flow } from "../../core/l4.js";
+import type { L4Artifact, L4Flow } from "../../core/l4.js";
 import type { SkillInput } from "../../core/skill.js";
 import type { Command } from "commander";
 
@@ -135,6 +137,7 @@ function registerTaskPrompt(parent: Command, action: TaskAction, config: TaskPro
         reason: config.reason(l3Id),
         issueCode: config.issueCode,
         context: contextRefs,
+        complexity: getDefaultComplexity(action),
       };
 
       const resolver = createResolver(root);
@@ -189,6 +192,7 @@ function registerUpdateRef(parent: Command): void {
         reason: `Manual update-ref request for L4 flow "${l4Id}" — fix broken L3 references`,
         issueCode: "MANUAL",
         context: contextRefs,
+        complexity: "light",
       };
 
       const resolver = createResolver(root);
@@ -227,6 +231,7 @@ function registerDesignL5(parent: Command): void {
       const prompt = buildDesignL5Prompt({
         currentL5: input.l5,
         userIntent: options.intent,
+        language: getLanguage(input.l5),
       });
 
       console.log(prompt);
@@ -282,6 +287,7 @@ function registerDesignL4(parent: Command): void {
             existingBlocks: input.l3Blocks,
             userIntent: options.intent,
             targetId,
+            language: getLanguage(input.l5),
           });
         } else if (kind === "state-machine") {
           prompt = buildDesignL4StateMachinePrompt({
@@ -290,6 +296,7 @@ function registerDesignL4(parent: Command): void {
             existingBlocks: input.l3Blocks,
             userIntent: options.intent,
             targetId,
+            language: getLanguage(input.l5),
           });
         } else {
           prompt = buildDesignL4Prompt({
@@ -298,6 +305,7 @@ function registerDesignL4(parent: Command): void {
             existingBlocks: input.l3Blocks,
             userIntent: options.intent,
             targetFlowId: targetId,
+            language: getLanguage(input.l5),
           });
         }
 
@@ -311,13 +319,13 @@ function registerDesignL3(parent: Command): void {
     .command("design-l3 <block-id>")
     .description("Generate a prompt for designing L3 contract")
     .requiredOption("--intent <text>", "User intent for the block")
-    .requiredOption("--flow <flow-id>", "L4 flow containing this block")
-    .requiredOption("--step <index>", "Step index in the L4 flow (0-based)")
+    .requiredOption("--flow <flow-id>", "L4 artifact containing this block")
+    .option("--step <index>", "Step index in the L4 flow (0-based, auto-detected when omitted)")
     .option("-r, --root <path>", "Project root directory", ".")
     .action(
       async (
         blockId: string,
-        options: { intent: string; flow: string; step: string; root: string },
+        options: { intent: string; flow: string; step?: string; root: string },
       ) => {
         const root = options.root;
 
@@ -332,45 +340,70 @@ function registerDesignL3(parent: Command): void {
 
         const l4 = input.l4Flows.find((f) => f.id === options.flow);
         if (l4 === undefined) {
-          console.error(`Error: L4 flow "${options.flow}" not found in .svp/l4/`);
+          console.error(`Error: L4 artifact "${options.flow}" not found in .svp/l4/`);
           process.exitCode = 1;
           return;
         }
 
-        if (getL4Kind(l4) !== "flow") {
+        const kind = getL4Kind(l4);
+
+        // When --step is provided and L4 is a flow, use legacy path for backward compat
+        if (options.step !== undefined && kind === "flow") {
+          const flow = l4 as L4Flow;
+          const stepIndex = Number.parseInt(options.step, 10);
+          if (Number.isNaN(stepIndex) || stepIndex < 0 || stepIndex >= flow.steps.length) {
+            console.error(
+              `Error: step index ${options.step} is out of range (0-${String(flow.steps.length - 1)})`,
+            );
+            process.exitCode = 1;
+            return;
+          }
+
+          const findBlock = (idx: number): L3Block | undefined => {
+            const step = flow.steps[idx];
+            if (step.blockRef === undefined) return;
+            return input.l3Blocks.find((b) => b.id === step.blockRef);
+          };
+
+          const prevBlock = stepIndex > 0 ? findBlock(stepIndex - 1) : undefined;
+          const nextBlock = stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
+          const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
+
+          const prompt = buildDesignL3Prompt({
+            l4Context: { flow, stepIndex, prevBlock, nextBlock },
+            existingBlock,
+            userIntent: options.intent,
+            language: getLanguage(input.l5),
+          });
+
+          console.log(prompt);
+          return;
+        }
+
+        // Auto-detect block location for any L4 kind
+        const blockContext = findBlockContext(l4, blockId);
+        if (blockContext === undefined) {
           console.error(
-            `Error: L4 "${options.flow}" is not a flow (kind: ${getL4Kind(l4)}). design-l3 requires a flow.`,
+            `Error: block "${blockId}" not found in L4 artifact "${options.flow}" (kind: ${kind})`,
           );
           process.exitCode = 1;
           return;
         }
 
-        const flow = l4 as L4Flow;
-
-        const stepIndex = Number.parseInt(options.step, 10);
-        if (Number.isNaN(stepIndex) || stepIndex < 0 || stepIndex >= flow.steps.length) {
-          console.error(
-            `Error: step index ${options.step} is out of range (0-${String(flow.steps.length - 1)})`,
-          );
-          process.exitCode = 1;
-          return;
-        }
-
-        // Find neighbor blocks
-        const findBlock = (idx: number): L3Block | undefined => {
-          const step = flow.steps[idx];
-          if (step.blockRef === undefined) return;
-          return input.l3Blocks.find((b) => b.id === step.blockRef);
-        };
-
-        const prevBlock = stepIndex > 0 ? findBlock(stepIndex - 1) : undefined;
-        const nextBlock = stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
+        // Resolve neighbor L3 blocks from blockContext
+        const prevBlock = blockContext.prevBlockRef !== undefined
+          ? input.l3Blocks.find((b) => b.id === blockContext.prevBlockRef)
+          : undefined;
+        const nextBlock = blockContext.nextBlockRef !== undefined
+          ? input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef)
+          : undefined;
         const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
 
         const prompt = buildDesignL3Prompt({
-          l4Context: { flow, stepIndex, prevBlock, nextBlock },
+          l4Context: { l4, blockContext, prevBlock, nextBlock },
           existingBlock,
           userIntent: options.intent,
+          language: getLanguage(input.l5),
         });
 
         console.log(prompt);

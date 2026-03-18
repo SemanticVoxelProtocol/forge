@@ -3,6 +3,7 @@
 // 纯函数，不做 IO
 
 import { check } from "./check.js";
+import { t } from "./i18n.js";
 import { extractBlockRefs } from "./l4.js";
 import type { CheckInput } from "./check.js";
 import type { L3Block } from "./l3.js";
@@ -11,6 +12,8 @@ import type { L3Block } from "./l3.js";
 
 export type TaskAction = "compile" | "recompile" | "update-ref" | "review";
 
+export type Complexity = "heavy" | "standard" | "light";
+
 export interface CompileTask {
   readonly action: TaskAction;
   readonly targetLayer: "l2" | "l3" | "l4";
@@ -18,6 +21,7 @@ export interface CompileTask {
   readonly reason: string; // 人类可读的原因
   readonly issueCode: string; // 对应 check 的 issue code 或自定义 code
   readonly context: readonly ContextRef[]; // subagent 需要参考的上下文
+  readonly complexity: Complexity;
 }
 
 export interface ContextRef {
@@ -34,17 +38,31 @@ export interface CompilePlan {
     readonly recompile: number;
     readonly updateRef: number;
     readonly review: number;
+    readonly complexityCounts: Record<Complexity, number>;
   };
+}
+
+/** Default complexity for a given task action */
+export function getDefaultComplexity(action: TaskAction): Complexity {
+  switch (action) {
+    case "update-ref":
+      return "light";
+    case "compile":
+    case "recompile":
+    case "review":
+      return "standard";
+  }
 }
 
 // ── 主入口 ──
 
-export function compilePlan(input: CheckInput): CompilePlan {
+export function compilePlan(input: CheckInput, language = "en"): CompilePlan {
+  const lang = language;
   const tasks: CompileTask[] = [
-    ...detectMissingCompilations(input),
-    ...detectRecompilations(input),
-    ...detectContentDrift(input),
-    ...detectBrokenRefs(input),
+    ...detectMissingCompilations(input, lang),
+    ...detectRecompilations(input, lang),
+    ...detectContentDrift(input, lang),
+    ...detectBrokenRefs(input, lang),
   ];
 
   // 去重（同一个 target 可能被多个检测器命中）
@@ -64,13 +82,18 @@ export function compilePlan(input: CheckInput): CompilePlan {
       recompile: unique.filter((t) => t.action === "recompile").length,
       updateRef: unique.filter((t) => t.action === "update-ref").length,
       review: unique.filter((t) => t.action === "review").length,
+      complexityCounts: {
+        heavy: unique.filter((t) => t.complexity === "heavy").length,
+        standard: unique.filter((t) => t.complexity === "standard").length,
+        light: unique.filter((t) => t.complexity === "light").length,
+      },
     },
   };
 }
 
 // ── 1. 缺失编译：有 L3 但没有对应 L2 ──
 
-function detectMissingCompilations(input: CheckInput): CompileTask[] {
+function detectMissingCompilations(input: CheckInput, lang: string): CompileTask[] {
   const l2BlockRefs = new Set(input.l2Blocks.map((cb) => cb.blockRef));
 
   return input.l3Blocks
@@ -80,17 +103,18 @@ function detectMissingCompilations(input: CheckInput): CompileTask[] {
         action: "compile",
         targetLayer: "l2",
         targetId: block.id,
-        reason: `L3 block "${block.name}" has no corresponding L2 code block — needs initial compilation`,
+        reason: t(lang, "compilePlan.reason.missingL2", { name: block.name }),
         issueCode: "MISSING_L2",
-        context: buildL3Context(block, input),
+        context: buildL3Context(block, input, lang),
+        complexity: "standard",
       }),
     );
 }
 
 // ── 2. 重编译：L3 变了，L2 的 sourceHash 过期 ──
 
-function detectRecompilations(input: CheckInput): CompileTask[] {
-  const report = check(input);
+function detectRecompilations(input: CheckInput, lang: string): CompileTask[] {
+  const report = check(input, lang);
   const driftIssues = report.issues.filter((i) => i.code === "SOURCE_DRIFT");
 
   return driftIssues.map((issue): CompileTask => {
@@ -99,13 +123,13 @@ function detectRecompilations(input: CheckInput): CompileTask[] {
 
     const context: ContextRef[] = [];
     if (l3 !== undefined) {
-      context.push(...buildL3Context(l3, input));
+      context.push(...buildL3Context(l3, input, lang));
     }
     if (cb !== undefined) {
       context.push({
         layer: "l2",
         id: cb.id,
-        label: `current L2 mapping (${cb.files.join(", ")})`,
+        label: t(lang, "compilePlan.label.currentL2", { files: cb.files.join(", ") }),
       });
     }
 
@@ -113,17 +137,18 @@ function detectRecompilations(input: CheckInput): CompileTask[] {
       action: "recompile",
       targetLayer: "l2",
       targetId: issue.entityId,
-      reason: `L3 contract changed since last compilation — L2 code is stale`,
+      reason: t(lang, "compilePlan.reason.sourceDrift"),
       issueCode: "SOURCE_DRIFT",
       context,
+      complexity: "standard",
     };
   });
 }
 
 // ── 3. 内容漂移：L1 导出签名变了，需要向上对账 ──
 
-function detectContentDrift(input: CheckInput): CompileTask[] {
-  const report = check(input);
+function detectContentDrift(input: CheckInput, lang: string): CompileTask[] {
+  const report = check(input, lang);
   const driftIssues = report.issues.filter((i) => i.code === "CONTENT_DRIFT");
 
   return driftIssues.map((issue): CompileTask => {
@@ -135,14 +160,14 @@ function detectContentDrift(input: CheckInput): CompileTask[] {
       context.push({
         layer: "l2",
         id: cb.id,
-        label: `L2 code block (${cb.files.join(", ")})`,
+        label: t(lang, "compilePlan.label.l2CodeBlock", { files: cb.files.join(", ") }),
       });
     }
     if (l3 !== undefined) {
       context.push({
         layer: "l3",
         id: l3.id,
-        label: `L3 contract "${l3.name}" — verify still satisfied`,
+        label: t(lang, "compilePlan.label.l3Verify", { name: l3.name }),
       });
     }
 
@@ -150,17 +175,18 @@ function detectContentDrift(input: CheckInput): CompileTask[] {
       action: "review",
       targetLayer: "l3",
       targetId: l3?.id ?? issue.entityId,
-      reason: `L1 exported signatures changed — review whether L3 contract still matches the code`,
+      reason: t(lang, "compilePlan.reason.contentDrift"),
       issueCode: "CONTENT_DRIFT",
       context,
+      complexity: "standard",
     };
   });
 }
 
 // ── 4. 断裂引用：L4 引用了不存在的 L3 ──
 
-function detectBrokenRefs(input: CheckInput): CompileTask[] {
-  const report = check(input);
+function detectBrokenRefs(input: CheckInput, lang: string): CompileTask[] {
+  const report = check(input, lang);
   const tasks: CompileTask[] = [];
 
   // L4 → L3 断裂引用
@@ -172,18 +198,19 @@ function detectBrokenRefs(input: CheckInput): CompileTask[] {
     const flow = input.l4Flows.find((f) => f.id === issue.entityId);
     if (flow === undefined) continue;
 
-    const context: ContextRef[] = [{ layer: "l4", id: flow.id, label: `L4 flow "${flow.name}"` }];
+    const context: ContextRef[] = [{ layer: "l4", id: flow.id, label: t(lang, "compilePlan.label.l4Flow", { name: flow.name }) }];
     if (input.l5 !== undefined) {
-      context.push({ layer: "l5", id: input.l5.id, label: "L5 blueprint" });
+      context.push({ layer: "l5", id: input.l5.id, label: t(lang, "compilePlan.label.l5Blueprint") });
     }
 
     tasks.push({
       action: "update-ref",
       targetLayer: "l4",
       targetId: flow.id,
-      reason: `Flow references missing L3 block — step needs updating or L3 needs recreating`,
+      reason: t(lang, "compilePlan.reason.missingBlockRef"),
       issueCode: "MISSING_BLOCK_REF",
       context,
+      complexity: "light",
     });
   }
 
@@ -197,9 +224,10 @@ function detectBrokenRefs(input: CheckInput): CompileTask[] {
       action: "review",
       targetLayer: "l2",
       targetId: issue.entityId,
-      reason: `L2 code block references missing L3 block — orphaned code needs review`,
+      reason: t(lang, "compilePlan.reason.missingL2BlockRef"),
       issueCode: "MISSING_BLOCK_REF",
-      context: [{ layer: "l2", id: issue.entityId, label: "orphaned L2 code block" }],
+      context: [{ layer: "l2", id: issue.entityId, label: t(lang, "compilePlan.label.orphanedL2") }],
+      complexity: "standard",
     });
   }
 
@@ -208,9 +236,9 @@ function detectBrokenRefs(input: CheckInput): CompileTask[] {
 
 // ── 辅助：构建 L3 上下文引用 ──
 
-function buildL3Context(block: L3Block, input: CheckInput): ContextRef[] {
+function buildL3Context(block: L3Block, input: CheckInput, lang: string): ContextRef[] {
   const context: ContextRef[] = [
-    { layer: "l3", id: block.id, label: `L3 contract "${block.name}"` },
+    { layer: "l3", id: block.id, label: t(lang, "compilePlan.label.l3Contract", { name: block.name }) },
   ];
 
   // 找到引用此 block 的 L4 artifact
@@ -219,7 +247,7 @@ function buildL3Context(block: L3Block, input: CheckInput): ContextRef[] {
     context.push({
       layer: "l4",
       id: flow.id,
-      label: `L4 flow "${flow.name}" (references this block)`,
+      label: t(lang, "compilePlan.label.l4FlowRef", { name: flow.name }),
     });
   }
 

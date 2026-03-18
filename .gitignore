@@ -6,6 +6,7 @@
 !.prettierrc
 !.node-version
 !README.md
+!LICENSE
 !tsconfig.json
 !package.json
 !package-lock.json
@@ -21,10 +22,20 @@
 !examples/**
 !scripts/
 !scripts/**
+!tests/
+!tests/**
+!.github/
+!.github/**
+
+# Within allowed dirs, re-ignore all hidden directories then whitelist .svp/ and .github/
+**/.*/
+!**/.svp/
+!**/.svp/**
 !.github/
 !.github/**
 
 # Re-ignore generated/temp files within allowed dirs
+tests/e2e/report-*
 *.swp
 *.kate-swp
 *.swo

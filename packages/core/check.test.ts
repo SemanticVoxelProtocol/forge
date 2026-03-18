@@ -53,6 +53,7 @@ function makeL5(overrides: Partial<L5Blueprint> = {}): L5Blueprint {
     constraints: [],
     domains: [{ name: "order", description: "订单域", dependencies: [] }],
     integrations: [],
+    language: "en",
     ...overrides,
   };
   const { revision: _r, ...hashInput } = base;
@@ -671,5 +672,283 @@ describe("check — summary", () => {
     const report = check({ l4Flows: [], l3Blocks: [l3], l2Blocks: [l2] });
     expect(report.summary.errors).toBeGreaterThanOrEqual(1);
     expect(report.summary.warnings).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ── Additional branch-coverage tests ──
+
+describe("check — EventGraph $state ref in 'to' direction", () => {
+  it("detects MISSING_STATE_REF when $state.xxx used in 'to' endpoint", () => {
+    const l3 = makeL3();
+    const eg = makeEventGraph({
+      state: { document: { type: "Doc", description: "d" } },
+      handlers: [
+        {
+          id: "h1",
+          event: "edit",
+          steps: [{ id: "s1", action: "process" as const, blockRef: "validate-order" }],
+          dataFlows: [{ from: "s1.result", to: "$state.nonExistent" }],
+        },
+      ],
+    });
+    const report = check({ l4Flows: [eg], l3Blocks: [l3], l2Blocks: [] });
+    const stateIssues = report.issues.filter((i) => i.code === "MISSING_STATE_REF");
+    expect(stateIssues).toHaveLength(1);
+    expect(stateIssues[0].message).toContain("nonExistent");
+  });
+});
+
+describe("check — EventGraph dataFlow format", () => {
+  it("detects INVALID_DATAFLOW_FORMAT in EventGraph handler (no dot)", () => {
+    const l3 = makeL3();
+    const eg = makeEventGraph({
+      handlers: [
+        {
+          id: "h1",
+          event: "edit",
+          steps: [{ id: "s1", action: "process" as const, blockRef: "validate-order" }],
+          dataFlows: [{ from: "bad-format", to: "s1.request" }],
+        },
+      ],
+    });
+    const report = check({ l4Flows: [eg], l3Blocks: [l3], l2Blocks: [] });
+    const fmtIssues = report.issues.filter((i) => i.code === "INVALID_DATAFLOW_FORMAT");
+    expect(fmtIssues).toHaveLength(1);
+    expect(fmtIssues[0].message).toContain("bad-format");
+  });
+});
+
+describe("check — Flow dataFlow step ref", () => {
+  it("detects MISSING_STEP_REF when dataFlow references non-existent step", () => {
+    const l3 = makeL3();
+    const l4 = makeL4({
+      steps: [{ id: "s1", action: "process" as const, blockRef: "validate-order" }],
+      dataFlows: [{ from: "nonExistentStep.result", to: "s1.request" }],
+    });
+    const report = check({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] });
+    const stepRefIssues = report.issues.filter((i) => i.code === "MISSING_STEP_REF");
+    expect(stepRefIssues).toHaveLength(1);
+    expect(stepRefIssues[0].message).toContain("nonExistentStep");
+    // format is valid (has dot), so no INVALID_DATAFLOW_FORMAT
+    const fmtIssues = report.issues.filter((i) => i.code === "INVALID_DATAFLOW_FORMAT");
+    expect(fmtIssues).toHaveLength(0);
+  });
+});
+
+describe("check — StateMachine onExit ref", () => {
+  it("detects missing blockRef in onExit", () => {
+    const sm = makeStateMachine({
+      states: {
+        draft: {},
+        pending: { onExit: { blockRef: "non-existent" } },
+      },
+      transitions: [{ from: "draft", to: "pending", event: "submit" }],
+    });
+    const report = check({ l4Flows: [sm], l3Blocks: [], l2Blocks: [] });
+    const refIssues = report.issues.filter(
+      (i) => i.code === "MISSING_BLOCK_REF" && i.layer === "l4",
+    );
+    expect(refIssues).toHaveLength(1);
+    expect(refIssues[0].message).toContain("non-existent");
+    expect(refIssues[0].message).toContain("onExit");
+  });
+});
+
+describe("check — multiple parallel branch issues", () => {
+  it("reports MISSING_STEP_REF for each invalid branch independently", () => {
+    const l3 = makeL3();
+    const l4 = makeL4({
+      steps: [{ id: "p1", action: "parallel" as const, branches: ["ghost1", "ghost2"] }],
+    });
+    const report = check({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] });
+    const stepRefIssues = report.issues.filter((i) => i.code === "MISSING_STEP_REF");
+    expect(stepRefIssues).toHaveLength(2);
+    const messages = stepRefIssues.map((i) => i.message);
+    expect(messages.some((m) => m.includes("ghost1"))).toBe(true);
+    expect(messages.some((m) => m.includes("ghost2"))).toBe(true);
+  });
+});
+
+describe("check — mixed L4 variants", () => {
+  it("validates Flow + EventGraph + StateMachine simultaneously", () => {
+    const l3 = makeL3();
+    const flow = makeL4();
+    const eg = makeEventGraph();
+    const sm = makeStateMachine();
+    const report = check({ l4Flows: [flow, eg, sm], l3Blocks: [l3], l2Blocks: [] });
+    // All three are valid — no issues
+    expect(report.issues).toHaveLength(0);
+  });
+});
+
+describe("check — EventGraph edge cases", () => {
+  it("handles EventGraph with empty handlers array", () => {
+    const eg = makeEventGraph({ handlers: [] });
+    // Should not crash; EMPTY_STATE warning expected since state has one key but no handlers
+    const report = check({ l4Flows: [eg], l3Blocks: [], l2Blocks: [] });
+    // No NEXT_CYCLE or ORPHAN_STEP since there are no steps
+    const cycleIssues = report.issues.filter((i) => i.code === "NEXT_CYCLE");
+    const orphanIssues = report.issues.filter((i) => i.code === "ORPHAN_STEP");
+    expect(cycleIssues).toHaveLength(0);
+    expect(orphanIssues).toHaveLength(0);
+  });
+});
+
+describe("check — EventGraph multi-handler cycle", () => {
+  it("detects cycle in one handler while other handler is clean", () => {
+    const l3 = makeL3();
+    const eg = makeEventGraph({
+      handlers: [
+        {
+          id: "h1-cyclic",
+          event: "edit",
+          steps: [
+            { id: "a1", action: "process" as const, blockRef: "validate-order", next: "a2" },
+            { id: "a2", action: "process" as const, blockRef: "validate-order", next: "a1" },
+          ],
+          dataFlows: [],
+        },
+        {
+          id: "h2-clean",
+          event: "save",
+          steps: [
+            { id: "b1", action: "process" as const, blockRef: "validate-order", next: "b2" },
+            { id: "b2", action: "process" as const, blockRef: "validate-order", next: null },
+          ],
+          dataFlows: [],
+        },
+      ],
+    });
+    const report = check({ l4Flows: [eg], l3Blocks: [l3], l2Blocks: [] });
+    const cycleIssues = report.issues.filter((i) => i.code === "NEXT_CYCLE");
+    expect(cycleIssues).toHaveLength(1);
+    expect(cycleIssues[0].message).toContain("h1-cyclic");
+  });
+});
+
+describe("check — orphan detection via waitFor", () => {
+  it("steps reachable via waitFor are not orphans", () => {
+    const l3 = makeL3();
+    // w1 is the entry step (steps[0]); it waits for s1, making s1 reachable.
+    // Neither step should be flagged as orphan.
+    const l4 = makeL4({
+      steps: [
+        { id: "w1", action: "wait" as const, waitFor: ["s1"] },
+        { id: "s1", action: "process" as const, blockRef: "validate-order" },
+      ],
+    });
+    const report = check({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] });
+    const orphanIssues = report.issues.filter((i) => i.code === "ORPHAN_STEP");
+    expect(orphanIssues).toHaveLength(0);
+  });
+});
+
+describe("check — empty steps", () => {
+  it("flow with empty steps produces no graph structure issues", () => {
+    const l3 = makeL3();
+    const l4 = makeL4({ steps: [] });
+    const report = check({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] });
+    const cycleIssues = report.issues.filter((i) => i.code === "NEXT_CYCLE");
+    const orphanIssues = report.issues.filter((i) => i.code === "ORPHAN_STEP");
+    expect(cycleIssues).toHaveLength(0);
+    expect(orphanIssues).toHaveLength(0);
+  });
+});
+
+describe("check — CONTENT_DRIFT edge cases", () => {
+  it("skips CONTENT_DRIFT when l1SignatureHashes map has no entry for L2 id", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash, signatureHash: "old-sig" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      // map exists but does not contain the L2's id "validate-order-ts"
+      l1SignatureHashes: new Map([["some-other-id", "any-sig"]]),
+    });
+
+    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
+    expect(drift).toBeUndefined();
+  });
+});
+
+describe("check — SOURCE_DRIFT edge cases", () => {
+  it("skips SOURCE_DRIFT when L3 not found for blockRef", () => {
+    // L2 references a blockRef that does not exist in l3Blocks
+    // checkDrift: l3HashById.get(cb.blockRef) === undefined → no SOURCE_DRIFT emitted
+    // checkReferentialIntegrity will emit MISSING_BLOCK_REF instead
+    const l2 = makeL2({ blockRef: "no-such-block", sourceHash: "some-hash" });
+    const report = check({ l4Flows: [], l3Blocks: [], l2Blocks: [l2] });
+    const sourceDrift = report.issues.filter((i) => i.code === "SOURCE_DRIFT");
+    expect(sourceDrift).toHaveLength(0);
+    const missingRef = report.issues.filter((i) => i.code === "MISSING_BLOCK_REF");
+    expect(missingRef).toHaveLength(1);
+  });
+});
+
+describe("check — multiple flows with different issues", () => {
+  it("reports issues from each flow independently", () => {
+    const l3 = makeL3();
+    // flow1 has a MISSING_BLOCK_REF
+    const flow1 = makeL4({
+      id: "flow1",
+      name: "Flow One",
+      steps: [{ id: "s1", action: "process" as const, blockRef: "non-existent" }],
+    });
+    // flow2 has a NEXT_CYCLE
+    const flow2 = makeL4({
+      id: "flow2",
+      name: "Flow Two",
+      steps: [
+        { id: "a", action: "process" as const, blockRef: "validate-order", next: "b" },
+        { id: "b", action: "process" as const, blockRef: "validate-order", next: "a" },
+      ],
+    });
+    const report = check({ l4Flows: [flow1, flow2], l3Blocks: [l3], l2Blocks: [] });
+    const refIssues = report.issues.filter((i) => i.code === "MISSING_BLOCK_REF");
+    const cycleIssues = report.issues.filter((i) => i.code === "NEXT_CYCLE");
+    expect(refIssues).toHaveLength(1);
+    expect(cycleIssues).toHaveLength(1);
+  });
+});
+
+describe("check — dataFlow pin check skip", () => {
+  it("skips MISSING_PIN when step has no blockRef (e.g., parallel step)", () => {
+    const l3 = makeL3();
+    // p1 is a parallel step — no blockRef. dataFlow referencing p1.somePin should not
+    // emit MISSING_PIN because there is no L3 to check against.
+    const l4 = makeL4({
+      steps: [
+        { id: "s1", action: "process" as const, blockRef: "validate-order" },
+        { id: "p1", action: "parallel" as const, branches: ["s1"] },
+      ],
+      dataFlows: [{ from: "p1.somePin", to: "s1.request" }],
+    });
+    const report = check({ l4Flows: [l4], l3Blocks: [l3], l2Blocks: [] });
+    const pinIssues = report.issues.filter((i) => i.code === "MISSING_PIN");
+    expect(pinIssues).toHaveLength(0);
+  });
+});
+
+describe("check — EventGraph regular step dataFlow", () => {
+  it("detects MISSING_PIN for regular step.pin ref in EventGraph handler", () => {
+    const l3 = makeL3(); // output pin is "result", input pin is "request"
+    const eg = makeEventGraph({
+      state: { document: { type: "Doc", description: "d" } },
+      handlers: [
+        {
+          id: "h1",
+          event: "edit",
+          steps: [{ id: "s1", action: "process" as const, blockRef: "validate-order" }],
+          // "nonExistentOutput" is not in l3.output
+          dataFlows: [{ from: "s1.nonExistentOutput", to: "$state.document" }],
+        },
+      ],
+    });
+    const report = check({ l4Flows: [eg], l3Blocks: [l3], l2Blocks: [] });
+    const pinIssues = report.issues.filter((i) => i.code === "MISSING_PIN");
+    expect(pinIssues).toHaveLength(1);
+    expect(pinIssues[0].message).toContain("nonExistentOutput");
   });
 });

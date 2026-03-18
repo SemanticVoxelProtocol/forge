@@ -12,7 +12,8 @@ export type {
   StateConfig,
   Transition,
 } from "./l4.js";
-export { getL4Kind, extractBlockRefs } from "./l4.js";
+export type { BlockContext } from "./l4.js";
+export { getL4Kind, extractBlockRefs, findBlockContext } from "./l4.js";
 export type { L5Blueprint, Domain, Integration } from "./l5.js";
 export type { L2CodeBlock } from "./l2.js";
 export type { ArtifactVersion, VersionSource } from "./version.js";
@@ -38,10 +39,13 @@ export {
   readL2,
   writeL2,
   listL2,
+  readNodeDocs,
+  readGraphDocs,
 } from "./store.js";
 export type { CheckIssue, CheckReport, CheckInput, IssueSeverity } from "./check.js";
 export { check } from "./check.js";
-export type { CompileTask, CompilePlan, ContextRef, TaskAction } from "./compile-plan.js";
+export type { CompileTask, CompilePlan, ContextRef, TaskAction, Complexity } from "./compile-plan.js";
+export { getDefaultComplexity } from "./compile-plan.js";
 export type {
   ExportedSymbol,
   FileFingerprint,
@@ -63,25 +67,15 @@ export {
   viewL2Detail,
 } from "./view.js";
 export type {
-  Skill,
   SkillInput,
   SkillResult,
   SkillResultWithFiles,
   SkillConfig,
   SkillStatus,
-  SkillRegistry,
   ResolvedContext,
   FileContent,
   Artifact,
   FileArtifact,
 } from "./skill.js";
-export { DEFAULT_SKILL_CONFIG, REVIEW_SKILL_CONFIG, createSkillRegistry } from "./skill.js";
-export type {
-  TaskExecution,
-  IterationResult,
-  OrchestratorResult,
-  OrchestratorConfig,
-  ContextResolver,
-} from "./orchestrator.js";
-export { runOrchestrator, DEFAULT_ORCHESTRATOR_CONFIG } from "./orchestrator.js";
-export type { CodeCLIAdapter } from "./adapter.js";
+export { DEFAULT_SKILL_CONFIG, REVIEW_SKILL_CONFIG } from "./skill.js";
+export { t, getLanguage, detectSystemLanguage, languageName, languageDirective } from "./i18n.js";

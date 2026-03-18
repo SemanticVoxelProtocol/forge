@@ -120,3 +120,80 @@ describe("relinkL2", () => {
     expect(relinked.signatureHash).toBe("sig-hash-123");
   });
 });
+
+// ── Additional tests ──
+
+describe("createL2Link — additional", () => {
+  it("creates L2 with empty files array", () => {
+    const l3 = makeL3();
+    const l2 = createL2Link({ l3Block: l3, files: [] });
+
+    expect(l2.files).toEqual([]);
+    // contentHash must still be computed without error
+    expect(l2.contentHash).toBeDefined();
+    expect(typeof l2.contentHash).toBe("string");
+  });
+
+  it("L2 id matches L3 block id exactly", () => {
+    const l3 = makeL3({ id: "compute-discount" });
+    const l2 = createL2Link({ l3Block: l3, files: ["src/compute-discount.ts"] });
+
+    expect(l2.id).toBe("compute-discount");
+    expect(l2.blockRef).toBe("compute-discount");
+  });
+
+  it("revision source is ai/compile", () => {
+    const l3 = makeL3();
+    const l2 = createL2Link({ l3Block: l3, files: ["src/validate-order.ts"] });
+
+    expect(l2.revision.source).toEqual({ type: "ai", action: "compile" });
+  });
+});
+
+describe("relinkL2 — additional", () => {
+  it("preserves existing signatureHash when it is undefined", () => {
+    const l3 = makeL3();
+    const existing = createL2Link({ l3Block: l3, files: ["src/old.ts"] });
+    // createL2Link does not set signatureHash — should be undefined
+    expect(existing.signatureHash).toBeUndefined();
+
+    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
+    expect(relinked.signatureHash).toBeUndefined();
+  });
+
+  it("preserves existing signatureHash when it is defined", () => {
+    const l3 = makeL3();
+    const existing: L2CodeBlock = {
+      ...createL2Link({ l3Block: l3, files: ["src/old.ts"] }),
+      signatureHash: "sig-abc-999",
+    };
+    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
+    expect(relinked.signatureHash).toBe("sig-abc-999");
+  });
+
+  it("revision source is ai/recompile", () => {
+    const l3 = makeL3();
+    const existing = createL2Link({ l3Block: l3, files: ["src/old.ts"] });
+    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
+
+    expect(relinked.revision.source).toEqual({ type: "ai", action: "recompile" });
+  });
+
+  it("handles different number of files than original", () => {
+    const l3 = makeL3();
+    const existing = createL2Link({ l3Block: l3, files: ["src/a.ts"] });
+    const newFiles = ["src/a.ts", "src/a.test.ts", "src/a.helper.ts"];
+    const relinked = relinkL2(existing, l3, newFiles);
+
+    expect(relinked.files).toEqual(newFiles);
+    expect(relinked.files.length).toBe(3);
+  });
+
+  it("contentHash changes when files change", () => {
+    const l3 = makeL3();
+    const existing = createL2Link({ l3Block: l3, files: ["src/old.ts"] });
+    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
+
+    expect(relinked.contentHash).not.toBe(existing.contentHash);
+  });
+});

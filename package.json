@@ -1,13 +1,20 @@
 {
-  "name": "svp",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@svporg/forge",
+  "version": "0.1.1",
   "type": "module",
+  "description": "Semantic Voxel Protocol — five-layer observability framework for AI-assisted development",
+  "license": "MIT",
   "bin": {
-    "svp": "./dist/packages/cli/index.js"
+    "forge": "./dist/packages/cli/index.js"
   },
+  "files": [
+    "dist/packages/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "lint": "eslint packages/",
     "lint:fix": "eslint packages/ --fix",
@@ -30,6 +37,9 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "commander": "^14.0.3",
