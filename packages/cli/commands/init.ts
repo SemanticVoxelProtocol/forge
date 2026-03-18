@@ -243,9 +243,7 @@ async function generateHostFiles(
   }
 
   if (newFileCount > 0) {
-    console.log(
-      t(lang, "cli.init.slashCommands", { count: String(newFileCount), ...i18nParams }),
-    );
+    console.log(t(lang, "cli.init.slashCommands", { count: String(newFileCount), ...i18nParams }));
   }
 
   // 2. Append SVP section to context file
