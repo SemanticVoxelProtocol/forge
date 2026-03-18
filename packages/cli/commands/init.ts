@@ -5,8 +5,8 @@ import path from "node:path";
 import { t } from "../../core/i18n.js";
 import { init } from "../../core/init.js";
 import { getAdapter, getAllAdapterIds, detectHosts } from "../../skills/adapters/index.js";
-import type { HostId, HostAdapter } from "../../skills/adapters/index.js";
 import { SKILL_FILE_VERSION, extractSkillVersion } from "../../skills/adapters/shared.js";
+import type { HostId, HostAdapter } from "../../skills/adapters/index.js";
 import type { Command } from "commander";
 
 const VALID_HOSTS = getAllAdapterIds();
@@ -58,7 +58,7 @@ export function registerInit(program: Command): void {
         const resolvedRoot = path.resolve(options.root);
 
         // Show welcome banner in interactive mode
-        if (process.stdin.isTTY && !options.yes) {
+        if (process.stdin.isTTY && options.yes !== true) {
           const { printBanner } = await import("../banner.js");
           await printBanner(SKILL_FILE_VERSION);
         }
@@ -68,7 +68,7 @@ export function registerInit(program: Command): void {
 
         // Resolve intent: flag or TTY prompt
         let intent = options.intent;
-        if (intent === undefined && process.stdin.isTTY && !options.yes) {
+        if (intent === undefined && process.stdin.isTTY && options.yes !== true) {
           const { input } = await import("@inquirer/prompts");
           const answer = await input({
             message: t(lang, "cli.init.promptIntent"),
@@ -92,7 +92,7 @@ export function registerInit(program: Command): void {
           if (detected.length === 1) {
             hostIds = detected;
           } else if (detected.length > 1) {
-            if (process.stdin.isTTY && !options.yes) {
+            if (process.stdin.isTTY && options.yes !== true) {
               const { select } = await import("@inquirer/prompts");
               const choices: Array<{ name: string; value: string }> = [
                 ...detected.map((h) => ({ name: getAdapter(h).displayName, value: h })),

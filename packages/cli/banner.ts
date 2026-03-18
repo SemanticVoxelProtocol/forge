@@ -9,7 +9,8 @@ function sleep(ms: number): Promise<void> {
 function supportsColor(): boolean {
   if (process.env.NO_COLOR !== undefined) return false;
   if (process.env.TERM === "dumb") return false;
-  return process.stdout.isTTY === true;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- isTTY is undefined when not a TTY
+  return process.stdout.isTTY ?? false;
 }
 
 // ── Multi-stop gradient interpolation ──
@@ -30,6 +31,8 @@ function lerpColor(stops: readonly RGB[], t: number): RGB {
   ];
 }
 
+const ESC = "\u001B";
+
 /** Color each non-space character with a diagonal gradient (horizontal + vertical blend) */
 function gradientLine(
   text: string,
@@ -42,6 +45,7 @@ function gradientLine(
   const maxCol = 48; // normalization width
   let result = "";
 
+  // eslint-disable-next-line unicorn/no-for-loop -- spread/Array.from both lint-conflict on string iteration
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (ch === " ") {
@@ -53,10 +57,10 @@ function gradientLine(
     const v = lineIndex / Math.max(totalLines - 1, 1);
     const t = h * 0.7 + v * 0.3;
     const [r, g, b] = lerpColor(stops, t);
-    result += `\x1b[38;2;${r};${g};${b}m${ch}`;
+    result += `${ESC}[38;2;${String(r)};${String(g)};${String(b)}m${ch}`;
   }
 
-  return result + "\x1b[0m";
+  return result + `${ESC}[0m`;
 }
 
 // ── ASCII Art — "FORGE" in ANSI Shadow font ──
@@ -85,8 +89,8 @@ export async function printBanner(version: string): Promise<void> {
   console.log();
 
   // Art lines with per-character diagonal gradient
-  for (let i = 0; i < ART.length; i++) {
-    console.log(gradientLine(ART[i], i, ART.length, GRADIENT_STOPS));
+  for (const [i, line] of ART.entries()) {
+    console.log(gradientLine(line, i, ART.length, GRADIENT_STOPS));
     await sleep(delay);
   }
 
@@ -94,10 +98,10 @@ export async function printBanner(version: string): Promise<void> {
 
   // Tagline: "SVP · Semantic Voxel Protocol · v0.1.3"
   if (useColor) {
-    const svp = "\x1b[1m\x1b[38;2;251;191;36mSVP\x1b[0m"; // bold amber
-    const dot = "\x1b[38;2;71;85;105m·\x1b[0m"; // slate-600
-    const tag = "\x1b[38;2;148;163;184mSemantic Voxel Protocol\x1b[0m"; // slate-400
-    const ver = `\x1b[38;2;100;116;139mv${version}\x1b[0m`; // slate-500
+    const svp = `${ESC}[1m${ESC}[38;2;251;191;36mSVP${ESC}[0m`; // bold amber
+    const dot = `${ESC}[38;2;71;85;105m·${ESC}[0m`; // slate-600
+    const tag = `${ESC}[38;2;148;163;184mSemantic Voxel Protocol${ESC}[0m`; // slate-400
+    const ver = `${ESC}[38;2;100;116;139mv${version}${ESC}[0m`; // slate-500
     console.log(`  ${svp}  ${dot}  ${tag}  ${dot}  ${ver}`);
   } else {
     console.log(`  SVP  ·  Semantic Voxel Protocol  ·  v${version}`);
