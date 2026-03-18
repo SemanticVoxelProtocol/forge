@@ -457,12 +457,7 @@ describe("forge init", () => {
   });
 
   it("i18n shows correct host name for cursor", async () => {
-    const { stdout, exitCode } = await runInit(testRoot, [
-      "--name",
-      "My App",
-      "--host",
-      "cursor",
-    ]);
+    const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "cursor"]);
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Cursor");

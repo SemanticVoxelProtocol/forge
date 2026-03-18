@@ -19,7 +19,9 @@ export const codexAdapter: HostAdapter = {
   generateSkillFiles(language = "en"): readonly SkillFile[] {
     const modelTierLine = "heavy=o3 | standard=o4-mini | light=o4-mini";
 
-    return [{ relativePath: "svp/SKILL.md", content: buildSkillFileContent(language, modelTierLine) }];
+    return [
+      { relativePath: "svp/SKILL.md", content: buildSkillFileContent(language, modelTierLine) },
+    ];
   },
 
   contextFilePath() {

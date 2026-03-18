@@ -44,7 +44,13 @@ export {
 } from "./store.js";
 export type { CheckIssue, CheckReport, CheckInput, IssueSeverity } from "./check.js";
 export { check } from "./check.js";
-export type { CompileTask, CompilePlan, ContextRef, TaskAction, Complexity } from "./compile-plan.js";
+export type {
+  CompileTask,
+  CompilePlan,
+  ContextRef,
+  TaskAction,
+  Complexity,
+} from "./compile-plan.js";
 export { getDefaultComplexity } from "./compile-plan.js";
 export type {
   ExportedSymbol,

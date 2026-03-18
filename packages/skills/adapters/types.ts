@@ -1,6 +1,12 @@
 // adapters/types — Host adapter interface for multi-host support
 
-export type HostId = "claude-code" | "kimi-code" | "codex" | "cursor" | "windsurf" | "github-copilot";
+export type HostId =
+  | "claude-code"
+  | "kimi-code"
+  | "codex"
+  | "cursor"
+  | "windsurf"
+  | "github-copilot";
 
 export interface HostAdapter {
   readonly id: HostId;

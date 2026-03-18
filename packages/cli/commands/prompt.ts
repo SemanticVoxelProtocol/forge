@@ -366,7 +366,8 @@ function registerDesignL3(parent: Command): void {
           };
 
           const prevBlock = stepIndex > 0 ? findBlock(stepIndex - 1) : undefined;
-          const nextBlock = stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
+          const nextBlock =
+            stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
           const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
 
           const prompt = buildDesignL3Prompt({
@@ -391,12 +392,14 @@ function registerDesignL3(parent: Command): void {
         }
 
         // Resolve neighbor L3 blocks from blockContext
-        const prevBlock = blockContext.prevBlockRef === undefined
-          ? undefined
-          : input.l3Blocks.find((b) => b.id === blockContext.prevBlockRef);
-        const nextBlock = blockContext.nextBlockRef === undefined
-          ? undefined
-          : input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef);
+        const prevBlock =
+          blockContext.prevBlockRef === undefined
+            ? undefined
+            : input.l3Blocks.find((b) => b.id === blockContext.prevBlockRef);
+        const nextBlock =
+          blockContext.nextBlockRef === undefined
+            ? undefined
+            : input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef);
         const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
 
         const prompt = buildDesignL3Prompt({
