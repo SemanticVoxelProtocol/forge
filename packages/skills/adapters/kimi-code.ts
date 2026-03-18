@@ -29,7 +29,12 @@ export const kimiCodeAdapter: HostAdapter = {
       "",
     ].join("\n");
 
-    return [{ relativePath: "svp/SKILL.md", content: buildSkillFileContent(language, genericModelTierLine(language), frontmatter) }];
+    return [
+      {
+        relativePath: "svp/SKILL.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language), frontmatter),
+      },
+    ];
   },
 
   contextFilePath() {
@@ -41,6 +46,10 @@ export const kimiCodeAdapter: HostAdapter = {
   },
 
   generateContextSection(projectName: string, language = "en"): string {
-    return generateContextBody(projectName, language, genericContextOptions(language, "/skill:svp"));
+    return generateContextBody(
+      projectName,
+      language,
+      genericContextOptions(language, "/skill:svp"),
+    );
   },
 };

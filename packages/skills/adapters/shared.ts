@@ -135,7 +135,11 @@ export interface ContextOptions {
   readonly slashCommands: readonly SlashCommandEntry[];
 }
 
-export function generateContextBody(_projectName: string, language: string, opts: ContextOptions): string {
+export function generateContextBody(
+  _projectName: string,
+  language: string,
+  opts: ContextOptions,
+): string {
   if (language === "zh") {
     return contextBodyZh(opts);
   }
@@ -487,7 +491,9 @@ $ARGUMENTS`;
 // ── Private: Context body templates ──
 
 function contextBodyZh(opts: ContextOptions): string {
-  const slashRows = opts.slashCommands.map((s) => `| \`${s.command}\` | ${s.description} |`).join("\n");
+  const slashRows = opts.slashCommands
+    .map((s) => `| \`${s.command}\` | ${s.description} |`)
+    .join("\n");
 
   return `
 ## SVP — Semantic Voxel Protocol
@@ -634,7 +640,9 @@ description → 描述中间（转换逻辑）
 }
 
 function contextBodyEn(opts: ContextOptions): string {
-  const slashRows = opts.slashCommands.map((s) => `| \`${s.command}\` | ${s.description} |`).join("\n");
+  const slashRows = opts.slashCommands
+    .map((s) => `| \`${s.command}\` | ${s.description} |`)
+    .join("\n");
 
   return `
 ## SVP — Semantic Voxel Protocol

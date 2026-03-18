@@ -200,9 +200,15 @@ function detectBrokenRefs(input: CheckInput, lang: string): CompileTask[] {
     const flow = input.l4Flows.find((f) => f.id === issue.entityId);
     if (flow === undefined) continue;
 
-    const context: ContextRef[] = [{ layer: "l4", id: flow.id, label: t(lang, "compilePlan.label.l4Flow", { name: flow.name }) }];
+    const context: ContextRef[] = [
+      { layer: "l4", id: flow.id, label: t(lang, "compilePlan.label.l4Flow", { name: flow.name }) },
+    ];
     if (input.l5 !== undefined) {
-      context.push({ layer: "l5", id: input.l5.id, label: t(lang, "compilePlan.label.l5Blueprint") });
+      context.push({
+        layer: "l5",
+        id: input.l5.id,
+        label: t(lang, "compilePlan.label.l5Blueprint"),
+      });
     }
 
     tasks.push({
@@ -228,7 +234,9 @@ function detectBrokenRefs(input: CheckInput, lang: string): CompileTask[] {
       targetId: issue.entityId,
       reason: t(lang, "compilePlan.reason.missingL2BlockRef"),
       issueCode: "MISSING_BLOCK_REF",
-      context: [{ layer: "l2", id: issue.entityId, label: t(lang, "compilePlan.label.orphanedL2") }],
+      context: [
+        { layer: "l2", id: issue.entityId, label: t(lang, "compilePlan.label.orphanedL2") },
+      ],
       complexity: "standard",
     });
   }
@@ -240,7 +248,11 @@ function detectBrokenRefs(input: CheckInput, lang: string): CompileTask[] {
 
 function buildL3Context(block: L3Block, input: CheckInput, lang: string): ContextRef[] {
   const context: ContextRef[] = [
-    { layer: "l3", id: block.id, label: t(lang, "compilePlan.label.l3Contract", { name: block.name }) },
+    {
+      layer: "l3",
+      id: block.id,
+      label: t(lang, "compilePlan.label.l3Contract", { name: block.name }),
+    },
   ];
 
   // 找到引用此 block 的 L4 artifact

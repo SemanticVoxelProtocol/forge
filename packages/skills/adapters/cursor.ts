@@ -18,7 +18,12 @@ export const cursorAdapter: HostAdapter = {
   },
 
   generateSkillFiles(language = "en"): readonly SkillFile[] {
-    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, genericModelTierLine(language)) }];
+    return [
+      {
+        relativePath: "svp.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language)),
+      },
+    ];
   },
 
   contextFilePath() {
@@ -39,6 +44,8 @@ export const cursorAdapter: HostAdapter = {
       "",
     ].join("\n");
 
-    return frontmatter + generateContextBody(projectName, language, genericContextOptions(language));
+    return (
+      frontmatter + generateContextBody(projectName, language, genericContextOptions(language))
+    );
   },
 };
