@@ -1,6 +1,6 @@
 {
   "name": "@svporg/forge",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "Semantic Voxel Protocol — five-layer observability framework for AI-assisted development",
   "license": "MIT",
@@ -37,6 +37,10 @@
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SemanticVoxelProtocol/forge"
   },
   "publishConfig": {
     "access": "public"
