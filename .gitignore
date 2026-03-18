@@ -27,10 +27,12 @@
 !.github/
 !.github/**
 
-# Within allowed dirs, re-ignore all hidden directories then whitelist .svp/
+# Within allowed dirs, re-ignore all hidden directories then whitelist .svp/ and .github/
 **/.*/
 !**/.svp/
 !**/.svp/**
+!.github/
+!.github/**
 
 # Re-ignore generated/temp files within allowed dirs
 tests/e2e/report-*
