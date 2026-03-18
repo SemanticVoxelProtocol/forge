@@ -4,11 +4,14 @@ export type { HostId, HostAdapter, SkillFile } from "./types.js";
 export { detectHost, detectHosts } from "./detect.js";
 
 import { claudeCodeAdapter } from "./claude-code.js";
+import { clineAdapter } from "./cline.js";
 import { codexAdapter } from "./codex.js";
 import { cursorAdapter } from "./cursor.js";
+import { geminiCliAdapter } from "./gemini-cli.js";
 import { githubCopilotAdapter } from "./github-copilot.js";
 import { kimiCodeAdapter } from "./kimi-code.js";
 import { kodeAdapter } from "./kode.js";
+import { rooCodeAdapter } from "./roo-code.js";
 import { windsurfAdapter } from "./windsurf.js";
 import type { HostId, HostAdapter } from "./types.js";
 
@@ -20,6 +23,9 @@ const adapters: Record<HostId, HostAdapter> = {
   windsurf: windsurfAdapter,
   "github-copilot": githubCopilotAdapter,
   kode: kodeAdapter,
+  cline: clineAdapter,
+  "gemini-cli": geminiCliAdapter,
+  "roo-code": rooCodeAdapter,
 };
 
 export function getAdapter(host: HostId): HostAdapter {

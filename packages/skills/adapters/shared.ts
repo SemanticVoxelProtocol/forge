@@ -1,6 +1,17 @@
 // adapters/shared — Shared workflow content across all host adapters
 // Build/Add/Change/Fix/View sections are identical for every host.
 
+/** Package version stamped into generated skill files for extend-mode upgrades */
+export const SKILL_FILE_VERSION = "0.1.3";
+
+const SKILL_VERSION_RE = /<!-- svp-skill-version: (.+?) -->/;
+
+/** Extract the svp-skill-version from an existing skill file, or null if absent */
+export function extractSkillVersion(content: string): string | null {
+  const m = SKILL_VERSION_RE.exec(content);
+  return m ? m[1] : null;
+}
+
 // ── Skill file: Intro line ──
 
 export function getSkillIntro(language: string): string {
@@ -68,6 +79,8 @@ export function buildSkillFileContent(
     "---",
     "",
     getWorkflowContent(language),
+    "",
+    `<!-- svp-skill-version: ${SKILL_FILE_VERSION} -->`,
   ].join("\n");
   return frontmatter !== undefined && frontmatter.length > 0 ? frontmatter + body : body;
 }

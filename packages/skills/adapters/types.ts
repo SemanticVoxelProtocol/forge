@@ -7,7 +7,10 @@ export type HostId =
   | "cursor"
   | "windsurf"
   | "github-copilot"
-  | "kode";
+  | "kode"
+  | "cline"
+  | "gemini-cli"
+  | "roo-code";
 
 export interface HostAdapter {
   readonly id: HostId;

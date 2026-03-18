@@ -13,6 +13,9 @@ const HOST_MARKERS: ReadonlyArray<{ marker: string; kind: "dir" | "file"; host: 
   { marker: ".agents", kind: "dir", host: "kimi-code" },
   { marker: ".codex", kind: "dir", host: "codex" },
   { marker: ".kode", kind: "dir", host: "kode" },
+  { marker: ".cline", kind: "dir", host: "cline" },
+  { marker: ".gemini", kind: "dir", host: "gemini-cli" },
+  { marker: ".roo", kind: "dir", host: "roo-code" },
   { marker: ".github/copilot-instructions.md", kind: "file", host: "github-copilot" },
 ];
 
