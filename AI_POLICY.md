@@ -54,7 +54,7 @@ If you're new to open source or to SVP, don't hesitate to ask questions in Issue
 We encourage (but do not require) disclosure of AI assistance. If you choose to disclose, use one of the following formats in your commit message footer:
 
 ```
-Assisted-by: Claude (claude-opus-4-20250514)
+Assisted-by: Claude (claude-opus-4-6)
 ```
 
 ```
