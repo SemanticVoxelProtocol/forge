@@ -19,3 +19,27 @@ export type VersionSource =
       readonly fromRev?: Readonly<Record<string, number>>; // 如 { "l3:validate": 3 }
     }
   | { readonly type: "init" };
+
+// ── Package version (single source of truth: package.json) ──
+
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+function findPackageJson(): { version: string } {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 10; i++) {
+    try {
+      const content = readFileSync(path.resolve(dir, "package.json"), "utf8");
+      const pkg = JSON.parse(content) as { name?: string; version: string };
+      if (pkg.name === "@svporg/forge") return pkg;
+    } catch {
+      // not found at this level, keep going
+    }
+    dir = path.dirname(dir);
+  }
+  return { version: "0.0.0" };
+}
+
+/** Package version, read from the root package.json at runtime */
+export const VERSION: string = findPackageJson().version;

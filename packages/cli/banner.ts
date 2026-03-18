@@ -96,7 +96,7 @@ export async function printBanner(version: string): Promise<void> {
 
   console.log();
 
-  // Tagline: "SVP · Semantic Voxel Protocol · v0.1.3"
+  // Tagline: "SVP · Semantic Voxel Protocol · v{version}"
   if (useColor) {
     const svp = `${ESC}[1m${ESC}[38;2;251;191;36mSVP${ESC}[0m`; // bold amber
     const dot = `${ESC}[38;2;71;85;105m·${ESC}[0m`; // slate-600
