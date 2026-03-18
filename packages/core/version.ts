@@ -19,3 +19,13 @@ export type VersionSource =
       readonly fromRev?: Readonly<Record<string, number>>; // 如 { "l3:validate": 3 }
     }
   | { readonly type: "init" };
+
+// ── Package version (single source of truth: package.json) ──
+
+import { createRequire } from "node:module";
+
+const _require = createRequire(import.meta.url);
+const _pkg = _require("../../package.json") as { version: string };
+
+/** Package version, read from the root package.json at runtime */
+export const VERSION: string = _pkg.version;

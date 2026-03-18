@@ -1,8 +1,11 @@
 // adapters/shared — Shared workflow content across all host adapters
 // Build/Add/Change/Fix/View sections are identical for every host.
 
-/** Package version stamped into generated skill files for extend-mode upgrades */
-export const SKILL_FILE_VERSION = "0.1.3";
+import { VERSION } from "../../core/version.js";
+
+/** Package version stamped into generated skill files for extend-mode upgrades.
+ *  Reads from package.json at runtime — no manual bumping needed. */
+export const SKILL_FILE_VERSION = VERSION;
 
 const SKILL_VERSION_RE = /<!-- svp-skill-version: (.+?) -->/;
 
