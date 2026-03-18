@@ -18,10 +18,6 @@
 # Allow source directories
 !packages/
 !packages/**
-!docs/
-!docs/**
-!examples/
-!examples/**
 !scripts/
 !scripts/**
 !tests/
