@@ -1,6 +1,6 @@
 // forge init CLI 命令的集成测试
 
-import { mkdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Command } from "commander";
@@ -474,5 +474,281 @@ describe("forge init", () => {
 
     const windsurfResult = await runInit(testRoot, ["--name", "My App", "--host", "windsurf"]);
     expect(windsurfResult.stdout).toContain(".windsurf/rules/svp.md");
+  });
+
+  // ── Positional name argument tests ──
+
+  it("positional name: 'forge init my-app' sets project name", async () => {
+    const { exitCode } = await runInit(testRoot, ["my-app"]);
+
+    expect(exitCode).toBe(0);
+
+    const l5 = await readL5(testRoot);
+    expect(l5?.name).toBe("my-app");
+  });
+
+  it("positional name takes precedence over --name flag", async () => {
+    const { exitCode } = await runInit(testRoot, ["positional-name", "--name", "flag-name"]);
+
+    expect(exitCode).toBe(0);
+
+    const l5 = await readL5(testRoot);
+    expect(l5?.name).toBe("positional-name");
+  });
+
+  it("falls back to directory basename when no name provided", async () => {
+    const { exitCode } = await runInit(testRoot, []);
+
+    expect(exitCode).toBe(0);
+
+    const l5 = await readL5(testRoot);
+    // Should use the basename of the temp directory
+    expect(l5?.name).toBeTruthy();
+    expect(l5?.name).toBe(path.basename(testRoot));
+  });
+
+  // ── --host all tests ──
+
+  it("--host all generates files for all detected hosts", async () => {
+    await mkdir(path.join(testRoot, ".claude"), { recursive: true });
+    await mkdir(path.join(testRoot, ".cursor"), { recursive: true });
+
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "all"]);
+
+    expect(exitCode).toBe(0);
+    // Should generate for both detected hosts
+    expect(stdout).toContain("Claude Code");
+    expect(stdout).toContain("Cursor");
+  });
+
+  it("--host all with no detection generates for all registered adapters", async () => {
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "all"]);
+
+    expect(exitCode).toBe(0);
+    // Should generate for every adapter
+    expect(stdout).toContain("Claude Code");
+    expect(stdout).toContain("Cursor");
+    expect(stdout).toContain("Windsurf");
+    expect(stdout).toContain("Kimi Code");
+  });
+
+  // ── Post-init guidance tests ──
+
+  it("post-init guidance is shown after successful init", async () => {
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("What to do next:");
+    expect(stdout).toContain("Edit .svp/l5.json");
+    expect(stdout).toContain("/forge");
+    expect(stdout).toContain("Build / Add / Change / Fix / View");
+  });
+
+  it("post-init guidance uses host-specific command for kimi-code", async () => {
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "kimi-code"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("/skill:svp");
+  });
+
+  // ── Cline adapter tests ──
+
+  it("--host cline generates skill file in .cline/skills/", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "cline"]);
+
+    expect(exitCode).toBe(0);
+
+    const skillFile = path.join(testRoot, ".cline", "skills", "svp", "SKILL.md");
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const content = await readFile(skillFile, "utf8");
+    // Cline has no YAML frontmatter
+    expect(content).not.toMatch(/^---\n/);
+    expect(content).toContain("Step 0: Diagnostic Router");
+    // Should have version stamp
+    expect(content).toContain("<!-- svp-skill-version:");
+  });
+
+  it("--host cline creates AGENTS.md with SVP section", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "cline"]);
+
+    expect(exitCode).toBe(0);
+
+    const agentsMdPath = path.join(testRoot, "AGENTS.md");
+    expect(await fileExists(agentsMdPath)).toBe(true);
+
+    const content = await readFile(agentsMdPath, "utf8");
+    expect(content).toContain("## SVP");
+    expect(content).toContain("strongest model");
+  });
+
+  // ── Gemini CLI adapter tests ──
+
+  it("--host gemini-cli generates skill file in .gemini/skills/", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "gemini-cli"]);
+
+    expect(exitCode).toBe(0);
+
+    const skillFile = path.join(testRoot, ".gemini", "skills", "svp", "SKILL.md");
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const content = await readFile(skillFile, "utf8");
+    // Gemini has YAML frontmatter
+    expect(content).toMatch(/^---\nname: svp/);
+    expect(content).toContain("Step 0: Diagnostic Router");
+  });
+
+  it("--host gemini-cli creates GEMINI.md with SVP section", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "gemini-cli"]);
+
+    expect(exitCode).toBe(0);
+
+    const geminiMdPath = path.join(testRoot, "GEMINI.md");
+    expect(await fileExists(geminiMdPath)).toBe(true);
+
+    const content = await readFile(geminiMdPath, "utf8");
+    expect(content).toContain("## SVP");
+    expect(content).toContain("strongest model");
+  });
+
+  // ── RooCode adapter tests ──
+
+  it("--host roo-code generates skill file in .roo/skills/", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "roo-code"]);
+
+    expect(exitCode).toBe(0);
+
+    const skillFile = path.join(testRoot, ".roo", "skills", "svp", "SKILL.md");
+    expect(await fileExists(skillFile)).toBe(true);
+
+    const content = await readFile(skillFile, "utf8");
+    // RooCode has YAML frontmatter
+    expect(content).toMatch(/^---\nname: svp/);
+    expect(content).toContain("Step 0: Diagnostic Router");
+  });
+
+  it("--host roo-code creates AGENTS.md with SVP section", async () => {
+    const { exitCode } = await runInit(testRoot, ["--name", "My App", "--host", "roo-code"]);
+
+    expect(exitCode).toBe(0);
+
+    const agentsMdPath = path.join(testRoot, "AGENTS.md");
+    expect(await fileExists(agentsMdPath)).toBe(true);
+
+    const content = await readFile(agentsMdPath, "utf8");
+    expect(content).toContain("## SVP");
+    expect(content).toContain("strongest model");
+  });
+
+  // ── Auto-detection tests for new hosts ──
+
+  it("auto-detects host from .cline/ directory", async () => {
+    await mkdir(path.join(testRoot, ".cline"), { recursive: true });
+
+    const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Cline");
+    expect(stdout).toContain("skill files");
+  });
+
+  it("auto-detects host from .gemini/ directory", async () => {
+    await mkdir(path.join(testRoot, ".gemini"), { recursive: true });
+
+    const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Gemini CLI");
+  });
+
+  it("auto-detects host from .roo/ directory", async () => {
+    await mkdir(path.join(testRoot, ".roo"), { recursive: true });
+
+    const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("RooCode");
+  });
+
+  // ── --yes flag tests ──
+
+  it("--yes skips all prompts and works like non-TTY mode", async () => {
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--yes"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Initialized");
+    // No prompts should have been fired — just basic init
+  });
+
+  it("--yes with --host works normally", async () => {
+    const { stdout, exitCode } = await runInit(testRoot, [
+      "my-app",
+      "--host",
+      "claude-code",
+      "--yes",
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Claude Code");
+    expect(stdout).toContain("skill files");
+  });
+
+  it("-y is accepted as short form of --yes", async () => {
+    const { exitCode } = await runInit(testRoot, ["my-app", "-y"]);
+
+    expect(exitCode).toBe(0);
+  });
+
+  // ── Extend mode tests ──
+
+  it("extend mode: re-init with same version shows 'up to date'", async () => {
+    // First init
+    await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    // Second init — same version should show "up to date"
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("up to date");
+  });
+
+  it("extend mode: legacy file without version tag gets updated", async () => {
+    // First init to create directories
+    await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    // Overwrite the skill file with legacy content (no version tag)
+    const skillFile = path.join(testRoot, ".claude", "commands", "svp.md");
+    await writeFile(skillFile, "# Legacy content without version tag\n", "utf8");
+
+    // Re-init should detect legacy and update
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("updated");
+
+    // Verify the file now has the version tag
+    const content = await readFile(skillFile, "utf8");
+    expect(content).toContain("<!-- svp-skill-version:");
+    expect(content).toContain("Step 0: Diagnostic Router");
+  });
+
+  it("extend mode: older version gets updated with version transition message", async () => {
+    // First init to create directories
+    await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    // Overwrite with an older version tag
+    const skillFile = path.join(testRoot, ".claude", "commands", "svp.md");
+    await writeFile(skillFile, "# Old content\n\n<!-- svp-skill-version: 0.0.1 -->\n", "utf8");
+
+    // Re-init should detect older version and update
+    const { stdout, exitCode } = await runInit(testRoot, ["my-app", "--host", "claude-code"]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("updated");
+    expect(stdout).toContain("0.0.1");
+
+    // Verify the file has been updated
+    const content = await readFile(skillFile, "utf8");
+    expect(content).toContain("Step 0: Diagnostic Router");
   });
 });

@@ -20,7 +20,10 @@ describe("adapter registry", () => {
     expect(ids).toContain("windsurf");
     expect(ids).toContain("github-copilot");
     expect(ids).toContain("kode");
-    expect(ids.length).toBe(7);
+    expect(ids).toContain("cline");
+    expect(ids).toContain("gemini-cli");
+    expect(ids).toContain("roo-code");
+    expect(ids.length).toBe(10);
   });
 
   it("getAdapter returns correct adapter for each HostId", () => {
