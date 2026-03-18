@@ -1,4 +1,4 @@
-// svp check — 层间一致性校验命令
+// forge check — 层间一致性校验命令
 // 读取 .svp/ 目录下的所有数据，调用 core.check()，格式化输出结果
 
 import { check } from "../../core/index.js";
@@ -12,7 +12,7 @@ function formatIssue(issue: CheckIssue): string {
   return `  ${icon} [${issue.code}] ${issue.layer}/${issue.entityId}: ${issue.message}`;
 }
 
-/** 注册 svp check 子命令 */
+/** 注册 forge check 子命令 */
 export function registerCheck(program: Command): void {
   program
     .command("check")
@@ -33,7 +33,7 @@ export function registerCheck(program: Command): void {
         if (options.json) {
           console.log(JSON.stringify({ issues: [], summary: { errors: 0, warnings: 0 } }));
         } else {
-          console.log("No .svp/ data found. Run `svp init` to create a project.");
+          console.log("No .svp/ data found. Run `forge init` to create a project.");
         }
         return;
       }
@@ -55,7 +55,7 @@ export function registerCheck(program: Command): void {
         .filter(Boolean)
         .join(" ");
 
-      console.log(`svp check — loaded: ${loaded}`);
+      console.log(`forge check — loaded: ${loaded}`);
       console.log();
 
       if (report.issues.length === 0) {

@@ -1,4 +1,4 @@
-// svp view — 虚拟文件树渲染
+// forge view — 虚拟文件树渲染
 // 把五层数据模型渲染为 AI 友好的文本视图
 // 纯函数，不做 IO，方便测试和复用
 
@@ -100,7 +100,7 @@ export function viewL4Detail(
 
 // ── Flow overview/detail ──
 
-function viewFlowOverviewLines(flow: L4Flow, lang: string): string[] {
+function viewFlowOverviewLines(flow: L4Flow, _lang: string): string[] {
   const lines: string[] = [];
   const trigger = formatTrigger(flow);
   lines.push(`${flow.id} [flow]${trigger}`);
@@ -163,7 +163,7 @@ function viewFlowDetail(flow: L4Flow, l3Blocks: readonly L3Block[], l5?: L5Bluep
 
 // ── EventGraph overview/detail ──
 
-function viewEventGraphOverviewLines(eg: L4EventGraph, lang: string): string[] {
+function viewEventGraphOverviewLines(eg: L4EventGraph, _lang: string): string[] {
   const lines: string[] = [];
   const stateCount = Object.keys(eg.state).length;
   const handlerCount = eg.handlers.length;
@@ -240,7 +240,7 @@ function viewEventGraphDetail(
 
 // ── StateMachine overview/detail ──
 
-function viewStateMachineOverviewLines(sm: L4StateMachine, lang: string): string[] {
+function viewStateMachineOverviewLines(sm: L4StateMachine, _lang: string): string[] {
   const stateCount = Object.keys(sm.states).length;
   const transCount = sm.transitions.length;
   return [

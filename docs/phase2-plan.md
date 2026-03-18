@@ -16,7 +16,7 @@ SVP 核心基础设施已完成（208 tests passing）：
 - **哈希**: `computeHash`, `hashL3`, `hashL4`, `hashL5`, `hashL2` (`packages/core/hash.ts`)
 - **初始化**: `init()` — 创建 `.svp/` + L5 (`packages/core/init.ts`)
 - **编译器**: YAML 节点图 → L3/L4 JSON（确定性格式转换）(`packages/compiler/`)
-- **CLI**: `svp init/check/compile/compile-plan/view/compile-blueprint` (`packages/cli/`)
+- **CLI**: `forge init/check/compile/compile-plan/view/compile-blueprint` (`packages/cli/`)
 
 ### 跑不通的环节
 
@@ -28,7 +28,7 @@ SVP 核心基础设施已完成（208 tests passing）：
 
 ### 本阶段目标
 
-让用户在 Claude Code 中通过意图驱动的 slash commands 与 SVP 全层协作。人只做两件事：**看**（svp view / svp check）和**说**（自然语言指令）。AI 负责 L5 到 L1 所有层的创建、编辑和编译。
+让用户在 Claude Code 中通过意图驱动的 slash commands 与 SVP 全层协作。人只做两件事：**看**（forge view / forge check）和**说**（自然语言指令）。AI 负责 L5 到 L1 所有层的创建、编辑和编译。
 
 ---
 
@@ -40,7 +40,7 @@ SVP 不调 AI API，不造编译器。SVP 是 AI 编码工具的**增强层**—
 
 ### 2. 透明优先于正确（overview.md §二）
 
-SVP 不追求 AI 不犯错，追求错误可见、可定位、可修复。五层是五个观测窗口。`svp check` 是闭环验收工具。每层完成后展示给用户确认。
+SVP 不追求 AI 不犯错，追求错误可见、可定位、可修复。五层是五个观测窗口。`forge check` 是闭环验收工具。每层完成后展示给用户确认。
 
 ### 3. 逐层渗透模型（interaction.md §逐层渗透）
 
@@ -179,7 +179,7 @@ packages/skills/
 
 **问题**：AI 创建/编辑 L5、L4、L3 的 JSON 时，contentHash 和 revision 需要正确计算。让 AI 在 prompt 中算 SHA-256 不可靠。
 
-**方案**：`svp rehash` — AI 写完 JSON 后运行，自动修正 hash 和 revision。
+**方案**：`forge rehash` — AI 写完 JSON 后运行，自动修正 hash 和 revision。
 
 ```typescript
 // packages/skills/rehash.ts — 纯函数，不做 IO
@@ -217,11 +217,11 @@ export function rehashL2(cb: L2CodeBlock): L2CodeBlock { ... }
 **CLI 命令** `packages/cli/commands/rehash.ts`：
 
 ```bash
-svp rehash                    # 重算所有层
-svp rehash l5                 # 只重算 L5
-svp rehash l4                 # 重算所有 L4
-svp rehash l3/validate-order  # 重算指定 L3
-svp rehash l2                 # 重算所有 L2
+forge rehash                    # 重算所有层
+forge rehash l5                 # 只重算 L5
+forge rehash l4                 # 重算所有 L4
+forge rehash l3/validate-order  # 重算指定 L3
+forge rehash l2                 # 重算所有 L2
 ```
 
 实现：
@@ -274,8 +274,8 @@ export function createL2Link(options: LinkOptions): L2CodeBlock {
 **CLI 命令** `packages/cli/commands/link.ts`：
 
 ```bash
-svp link <l3-id> --files src/validate-order.ts src/validate-order.test.ts
-svp link validate-order --files src/validate-order.ts --language typescript
+forge link <l3-id> --files src/validate-order.ts src/validate-order.test.ts
+forge link validate-order --files src/validate-order.ts --language typescript
 ```
 
 实现：
@@ -338,7 +338,7 @@ Prompt 内容指导 AI：
 - 从用户描述中提取：intent（核心问题+解决方案+成功标准）、constraints（功能/非功能/业务约束）、domains（领域+依赖关系）、integrations（外部系统+类型）
 - 输出 `.svp/l5.json`，格式符合 `L5Blueprint` schema
 - 保持简洁（~10行有效信息），只描述"做什么"不描述"怎么做"
-- 运行 `svp rehash l5` 修正 hash
+- 运行 `forge rehash l5` 修正 hash
 - **嵌入 JSON schema 示例**（让 AI 知道怎么写）：
 
 ```json
@@ -370,7 +370,7 @@ Prompt 内容：
 - 定义 steps（每个 step 有 id、action、blockRef）、dataFlows（from "stepId.pinName" → to "stepId.pinName"）、trigger
 - **每个 process step 必须有 blockRef**（指向 L3 block id，可以是尚不存在的）
 - step.action 类型：process（引用 L3 block）、call（引用 L4 子 flow）、parallel（分支+branches）、wait（汇聚+waitFor）
-- 运行 `svp rehash l4` 修正 hash
+- 运行 `forge rehash l4` 修正 hash
 - **嵌入 L4Flow JSON schema 示例**
 
 #### `prompts/design-l3.ts`
@@ -395,7 +395,7 @@ Prompt 内容：
 - validate 用自然语言：`"request.items": "array, min 1, max 50"`
 - constraints 用自然语言断言：`"output.result.errors contains all failed checks, not just first"`
 - type 引用 TypeScript interface 名称（来自项目 `types/` 目录）
-- 运行 `svp rehash l3/<id>` 修正 hash
+- 运行 `forge rehash l3/<id>` 修正 hash
 - **嵌入 L3Block JSON schema 示例**
 
 ### 5. 编译 Prompt 模板（L2、L1）
@@ -409,11 +409,11 @@ Prompt 内容：
 2. 读取 L4 流上下文（已通过 `resolved.l4` 提供）
 3. 读取相关类型定义（如果 types/ 目录存在）
 4. 生成 L1 源代码：函数签名匹配 L3 pins，实现满足 validate + constraints，内部逻辑参考 description
-5. 运行 `svp link <l3-id> --files <paths>` 创建 L2 映射
+5. 运行 `forge link <l3-id> --files <paths>` 创建 L2 映射
 
 #### `prompts/recompile.ts` — 重编译
 
-在 compile 基础上额外提供旧 L1 代码（`resolved.l1Files`）和 L2 映射。指导保留不变的逻辑，只修改受影响部分。运行 `svp link` 更新 L2。
+在 compile 基础上额外提供旧 L1 代码（`resolved.l1Files`）和 L2 映射。指导保留不变的逻辑，只修改受影响部分。运行 `forge link` 更新 L2。
 
 #### `prompts/review.ts` — 漂移审查
 
@@ -458,7 +458,7 @@ export const claudeCodeAdapter: CodeCLIAdapter = {
 
 ### 7. 意图驱动的 Slash Commands
 
-`svp init --host claude-code` 生成到 `.claude/commands/`。每个是 markdown 文件，内含完整工作流指导。
+`forge init --host claude-code` 生成到 `.claude/commands/`。每个是 markdown 文件，内含完整工作流指导。
 
 | 命令文件 | 用户意图 | AI 做什么 |
 |---|---|---|
@@ -466,10 +466,10 @@ export const claudeCodeAdapter: CodeCLIAdapter = {
 | `svp-add.md` | "加个 Z 步骤" | 编辑 L4 → 设计 L3 → 编译 L2+L1 |
 | `svp-change.md` | "把 email 改成可选" | 定位层级 → 修改 → 向下重编译 |
 | `svp-fix.md` | "修复 check 问题" | 读 check 报告 → 逐个修复 |
-| `svp-check.md` | "检查一下" | `svp check` → 结构化报告 |
-| `svp-view.md` | "看一下 L3" | `svp view $ARGUMENTS` |
+| `svp-check.md` | "检查一下" | `forge check` → 结构化报告 |
+| `svp-view.md` | "看一下 L3" | `forge view $ARGUMENTS` |
 
-#### `/svp-build` — 全量设计+编译（最重要的命令）
+#### `/forge-build` — 全量设计+编译（最重要的命令）
 
 核心 prompt 结构：
 
@@ -482,42 +482,42 @@ L3 设计和 L2+L1 编译通过 Agent 工具派发 subagent 完成。
 你绝不直接读写 L1 源代码——那是 subagent 的事。
 
 ## Step 1: 设计 L5 Blueprint（主 Agent 直接做，~10 行）
-- 运行 `svp view l5` 查看当前 blueprint
+- 运行 `forge view l5` 查看当前 blueprint
 - 根据用户描述，编辑 .svp/l5.json（嵌入 L5Blueprint JSON schema 示例）
-- 运行 `svp rehash l5` 修正 hash
-- 展示 `svp view l5` 给用户确认
+- 运行 `forge rehash l5` 修正 hash
+- 展示 `forge view l5` 给用户确认
 
 ## Step 2: 设计 L4 Flows（主 Agent 直接做，~20 行/flow）
 - 基于 L5 domains，为每个核心流程设计 L4 Flow
 - 写入 .svp/l4/<flow-id>.json（嵌入 L4Flow JSON schema 示例）
 - 注意：扇出用 parallel step，汇聚用 wait step
-- 运行 `svp rehash l4`
-- 展示 `svp view l4` 给用户确认
+- 运行 `forge rehash l4`
+- 展示 `forge view l4` 给用户确认
 
 ## Step 3: 设计 L3 Contracts（派发 subagent，每个 ~50 行）
 对每个 L4 step 引用的 blockRef：
 - 用 Agent 工具派发 subagent，prompt 包含：
-  - 该 step 在 L4 中的位置（用 `svp view l4/<flow-id>` 输出）
+  - 该 step 在 L4 中的位置（用 `forge view l4/<flow-id>` 输出）
   - 上游/下游 block 的 pin 信息（如果已创建）
   - 用户意图描述
   - L3Block JSON schema 示例
 - subagent 创建 .svp/l3/<block-id>.json（pins + validate + constraints + description）
-- subagent 运行 `svp rehash l3/<id>`
+- subagent 运行 `forge rehash l3/<id>`
 - **无依赖的 block 并行派发**
-- 展示 `svp view l3` 给用户确认
+- 展示 `forge view l3` 给用户确认
 
 ## Step 4: 编译 L2+L1（派发 subagent，每个 ~200 行）
-- 运行 `svp compile-plan` 获取任务列表（每个任务带 context refs）
+- 运行 `forge compile-plan` 获取任务列表（每个任务带 context refs）
 - 对每个 compile 任务派发 subagent，prompt 只包含：
-  - 该任务的 L3 契约（`svp view l3/<id>`）
+  - 该任务的 L3 契约（`forge view l3/<id>`）
   - 相关类型定义（types/ 目录）
   - 任务描述和输出要求
-- subagent 生成 L1 源代码 + 运行 `svp link <l3-id> --files <paths>` 创建 L2
+- subagent 生成 L1 源代码 + 运行 `forge link <l3-id> --files <paths>` 创建 L2
 - **无依赖的任务并行派发**
 - 主 Agent 只看完成摘要，不读代码
 
 ## Step 5: 验证
-- 运行 `svp check` 验证一致性
+- 运行 `forge check` 验证一致性
 - 如有问题，定位到对应层修复
 - 重复直到 check 通过
 
@@ -526,42 +526,42 @@ L3 设计和 L2+L1 编译通过 Agent 工具派发 subagent 完成。
 - 主 Agent 不读 L1 代码——上下文隔离是核心价值
 - 每层完成后展示给用户确认
 - 做不到就报错，说清哪层什么问题——用户是反向反馈回路
-- 用 `svp rehash` 处理 hash，用 `svp link` 创建 L2
+- 用 `forge rehash` 处理 hash，用 `forge link` 创建 L2
 - JSON 中 contentHash 和 revision 写占位值，rehash 会修正
 - 尽量并行派发无依赖的 subagent
 ```
 
-#### `/svp-change` — 修改需求
+#### `/forge-change` — 修改需求
 
 ```
 你是 SVP 编译器。定位受影响层级，从该层向下重编译。
 
-Step 1: 定位层级（主 Agent 运行 svp view l5 + svp view l4）
+Step 1: 定位层级（主 Agent 运行 forge view l5 + forge view l4）
   系统意图变了 → L5 | 流程编排变了 → L4 | 契约规则变了 → L3 | 代码变了 → L1（只报 drift）
   越低层介入越精确越便宜
 
 Step 2: 执行修改（L5/L4 主 Agent 做，L3 派发 subagent）
-  运行 svp rehash 更新 hash → 展示给用户确认
+  运行 forge rehash 更新 hash → 展示给用户确认
 
 Step 3: 向下重编译
-  运行 svp compile-plan → 按 /svp-build Step 3/4 模式派发 subagent
+  运行 forge compile-plan → 按 /forge-build Step 3/4 模式派发 subagent
   只处理受影响的实体
 ```
 
-#### `/svp-add` — 添加步骤
+#### `/forge-add` — 添加步骤
 
 ```
 定位 flow → 编辑 L4 加新 step → 设计新 L3 → 编译新 L2+L1
-同 /svp-build Step 2-5，但只处理新增的 block
+同 /forge-build Step 2-5，但只处理新增的 block
 ```
 
-#### `/svp-fix` — 修复 check 问题
+#### `/forge-fix` — 修复 check 问题
 
 ```
-运行 svp check --json → 按 issue code 分类修复：
-  HASH_MISMATCH → svp rehash
+运行 forge check --json → 按 issue code 分类修复：
+  HASH_MISMATCH → forge rehash
   MISSING_BLOCK_REF → 创建 L3 或修改 L4
-  SOURCE_DRIFT → svp compile-plan 重编译
+  SOURCE_DRIFT → forge compile-plan 重编译
   CONTENT_DRIFT → 展示给用户决定
   ORPHAN_STEP / NEXT_CYCLE → 展示给用户修复
 ```
@@ -575,7 +575,7 @@ export function generateClaudeMdSection(projectName: string): string
 生成内容包括：
 - 五层模型说明 + 层间关系图
 - `.svp/` 目录结构
-- 可用命令列表（svp view/check/compile-plan/rehash/link/compile）
+- 可用命令列表（forge view/check/compile-plan/rehash/link/compile）
 - 逐层渗透规则（三条规则）
 - 上下文隔离原则（主 Agent 不读 L1）
 - JSON 编辑规则（contentHash 写占位值，rehash 修正）
@@ -591,18 +591,18 @@ export interface SlashCommandTemplate {
 export function generateSlashCommands(): readonly SlashCommandTemplate[]
 ```
 
-### 10. 增强 `svp init --host`
+### 10. 增强 `forge init --host`
 
 修改 `packages/core/init.ts` — `InitOptions` 加 `host?: "claude-code"`
 修改 `packages/cli/commands/init.ts` — `--host` 选项
 
 当 `--host claude-code` 时额外生成：
-1. `.claude/commands/svp-build.md`
-2. `.claude/commands/svp-add.md`
-3. `.claude/commands/svp-change.md`
-4. `.claude/commands/svp-fix.md`
-5. `.claude/commands/svp-check.md`
-6. `.claude/commands/svp-view.md`
+1. `.claude/commands/forge-build.md`
+2. `.claude/commands/forge-add.md`
+3. `.claude/commands/forge-change.md`
+4. `.claude/commands/forge-fix.md`
+5. `.claude/commands/forge-check.md`
+6. `.claude/commands/forge-view.md`
 7. 追加 SVP section 到 `CLAUDE.md`（已存在则追加，否则创建）
 
 ---
@@ -628,13 +628,13 @@ export function generateSlashCommands(): readonly SlashCommandTemplate[]
 9. 实现 `adapters/claude-code.ts` + 测试
 10. 实现 `templates/slash-commands.ts`（6 个命令模板）
 11. 实现 `templates/claude-md.ts`
-12. 增强 `svp init --host claude-code`（修改 init.ts + init CLI）
+12. 增强 `forge init --host claude-code`（修改 init.ts + init CLI）
 
 ### Phase D: 验证
 
 13. 单元测试全覆盖（rehash, link, prompt-builder, adapter）
-14. 集成测试（svp rehash/link CLI, svp init --host）
-15. 端到端：init → /svp-build → check 全绿
+14. 集成测试（forge rehash/link CLI, forge init --host）
+15. 端到端：init → /forge-build → check 全绿
 16. 回归：`npm test`（208+ tests 通过）+ `npm run check`（tsc + eslint + prettier）
 
 ---
@@ -665,8 +665,8 @@ export function generateSlashCommands(): readonly SlashCommandTemplate[]
 | `packages/skills/templates/slash-commands.ts` | 6 个 slash command 模板 |
 | `packages/skills/templates/claude-md.ts` | CLAUDE.md SVP section |
 | `packages/skills/adapters/claude-code.ts` | CodeCLIAdapter 实现 |
-| `packages/cli/commands/rehash.ts` | svp rehash CLI 命令 |
-| `packages/cli/commands/link.ts` | svp link CLI 命令 |
+| `packages/cli/commands/rehash.ts` | forge rehash CLI 命令 |
+| `packages/cli/commands/link.ts` | forge link CLI 命令 |
 | `packages/skills/__tests__/rehash.test.ts` | rehash 测试 |
 | `packages/skills/__tests__/link.test.ts` | link 测试 |
 | `packages/skills/__tests__/prompt-builder.test.ts` | prompt-builder 测试 |
@@ -694,14 +694,14 @@ export function generateSlashCommands(): readonly SlashCommandTemplate[]
 - **adapter**: `claudeCodeAdapter.createSkillRegistry()` 返回 4 个 skill（compile/recompile/review/update-ref），每个 execute() 返回 status="needs-review" + prompt in notes
 
 ### 集成测试
-- `svp rehash`：写入错误 hash → rehash → `svp check` 无 HASH_MISMATCH
-- `svp link`：有 L3 无 L2 → link → `svp check` 无 MISSING_L2
-- `svp init --host claude-code`：检查 .claude/commands/ 有 6 个 md 文件 + CLAUDE.md 有 SVP section
+- `forge rehash`：写入错误 hash → rehash → `forge check` 无 HASH_MISMATCH
+- `forge link`：有 L3 无 L2 → link → `forge check` 无 MISSING_L2
+- `forge init --host claude-code`：检查 .claude/commands/ 有 6 个 md 文件 + CLAUDE.md 有 SVP section
 
 ### 端到端
-1. `svp init --name hello --host claude-code`
-2. 在 Claude Code 中 `/svp-build 一个简单的 hello world HTTP 服务`
-3. `svp check` → 全绿
+1. `forge init --name hello --host claude-code`
+2. 在 Claude Code 中 `/forge-build 一个简单的 hello world HTTP 服务`
+3. `forge check` → 全绿
 
 ### 回归
 - `npm test` — 所有 208+ 现有测试通过

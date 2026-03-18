@@ -1,5 +1,5 @@
 // recompile — L3 变更 → 重编译 L2+L1 prompt 模板
-// 由 svp prompt recompile 使用
+// 由 forge prompt recompile 使用
 
 import { languageDirective } from "../../core/i18n.js";
 
@@ -17,7 +17,7 @@ export function recompileInstructions(language = "en"): string {
     "   - If description changed: update internal implementation",
     "4. Preserve unchanged logic — minimize diff",
     "5. Update tests to match the new contract",
-    "6. Run `svp link <l3-id> --files <file-paths>` to update the L2 mapping",
+    "6. Run `forge link <l3-id> --files <file-paths>` to update the L2 mapping",
     "",
     "## Important",
     "",

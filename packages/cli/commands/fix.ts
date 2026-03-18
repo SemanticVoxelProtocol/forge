@@ -1,4 +1,4 @@
-// svp fix — 自动检测一致性问题并批量生成修复提示词
+// forge fix — 自动检测一致性问题并批量生成修复提示词
 // check → compilePlan → resolve → buildPrompt → stdout
 
 import { compilePlan } from "../../core/compile-plan.js";
@@ -11,7 +11,7 @@ import type { CompileTask, TaskAction } from "../../core/compile-plan.js";
 import type { SkillInput } from "../../core/skill.js";
 import type { Command } from "commander";
 
-/** 注册 svp fix 命令 */
+/** 注册 forge fix 命令 */
 export function registerFix(program: Command): void {
   program
     .command("fix")
@@ -27,7 +27,7 @@ export function registerFix(program: Command): void {
       try {
         input = await loadCheckInput(root);
       } catch {
-        console.error(`Error: cannot load .svp/ data from "${root}". Run \`svp init\` first.`);
+        console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -49,9 +49,9 @@ export function registerFix(program: Command): void {
 
       // Dry-run: print summary only
       if (options.dryRun === true) {
-        console.log(`Compile plan: ${tasks.length} task(s)`);
+        console.log(`Compile plan: ${String(tasks.length)} task(s)`);
         for (const [i, task] of tasks.entries()) {
-          console.log(`  [${i + 1}] ${task.action} · ${task.targetLayer}/${task.targetId} · ${task.issueCode}`);
+          console.log(`  [${String(i + 1)}] ${task.action} · ${task.targetLayer}/${task.targetId} · ${task.issueCode}`);
         }
         return;
       }
@@ -60,7 +60,7 @@ export function registerFix(program: Command): void {
       const resolver = createResolver(root);
       for (const [i, task] of tasks.entries()) {
         if (i > 0) console.log("\n---\n");
-        console.log(`## [${i + 1}/${tasks.length}] ${task.action} · ${task.targetLayer}/${task.targetId} · ${task.issueCode}\n`);
+        console.log(`## [${String(i + 1)}/${String(tasks.length)}] ${task.action} · ${task.targetLayer}/${task.targetId} · ${task.issueCode}\n`);
 
         const resolved = await resolver.resolve(task, input);
         const skillInput: SkillInput = { task, resolved, config: DEFAULT_SKILL_CONFIG };

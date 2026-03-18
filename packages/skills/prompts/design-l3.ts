@@ -1,9 +1,9 @@
 // design-l3 — L3 Contract 设计 prompt 模板
-// 由 slash commands / svp prompt 驱动
+// 由 slash commands / forge prompt 驱动
 
-import { complexityHeader } from "./complexity-header.js";
 import { languageDirective } from "../../core/i18n.js";
 import { viewL4Detail } from "../../core/view.js";
+import { complexityHeader } from "./complexity-header.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Artifact, L4Flow, BlockContext } from "../../core/l4.js";
 
@@ -153,8 +153,8 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
     L3_SCHEMA_EXAMPLE,
     "```",
     "",
-    "After writing, run `svp rehash l3/${blockId}` to fix contentHash.",
-    "Then show `svp view l3/${blockId}` to the user for confirmation.",
+    "After writing, run `forge rehash l3/${blockId}` to fix contentHash.",
+    "Then show `forge view l3/${blockId}` to the user for confirmation.",
     "",
     "## Rules",
     "",

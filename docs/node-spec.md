@@ -27,7 +27,7 @@ AI 是编译器，不是 parser。`"request.items: array, min 1, max 50"` 这种
 
 ### 结构化的边界
 
-层间连接关系（pins 类型、wire 引用）需要结构化，`svp check` 要校验。block 内部（validate、constraints、description）是黑盒，工具只需展示，不需解析。
+层间连接关系（pins 类型、wire 引用）需要结构化，`forge check` 要校验。block 内部（validate、constraints、description）是黑盒，工具只需展示，不需解析。
 
 ---
 
@@ -312,7 +312,7 @@ graphs/
 
 ### 加载行为
 
-- `svp prompt compile/recompile/review` 时自动加载并注入 prompt
+- `forge prompt compile/recompile/review` 时自动加载并注入 prompt
 - subagent 只拉自己需要的 docs，不加载全量
 - 不影响 `contentHash` 计算——docs 是编译辅助信息，不是契约的一部分
 

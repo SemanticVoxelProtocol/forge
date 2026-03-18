@@ -7,19 +7,19 @@ export interface HostAdapter {
   readonly displayName: string;
 
   /** Directory where skill/command files are written (relative to project root) */
-  skillDir(): string;
+  skillDir: () => string;
 
   /** Generate skill/command files */
-  generateSkillFiles(language: string): readonly SkillFile[];
+  generateSkillFiles: (language: string) => readonly SkillFile[];
 
   /** Path to context file (e.g. "CLAUDE.md" or "AGENTS.md") */
-  contextFilePath(): string;
+  contextFilePath: () => string;
 
   /** Marker string to detect if SVP section already exists */
-  contextMarker(): string;
+  contextMarker: () => string;
 
   /** Generate the context section to append */
-  generateContextSection(projectName: string, language: string): string;
+  generateContextSection: (projectName: string, language: string) => string;
 }
 
 export interface SkillFile {

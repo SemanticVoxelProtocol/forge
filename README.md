@@ -22,7 +22,7 @@ L1  Code         最终实现
 
 SVP 不自己调 AI API，不造编译器。SVP 是 AI 编码工具（Claude Code、Cursor、Windsurf、Kimi Code、Codex、GitHub Copilot）的**增强层**：
 
-- **工具链**：`svp check`（校验）、store（读写）、hash（变更追踪）
+- **工具链**：`forge check`（校验）、store（读写）、hash（变更追踪）
 - **Skills**：基于五层数据模型生成结构化 context，喂给用户已有的 AI 工具
 
 类似 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 的定位——不造 AI，给 AI 喂更好的上下文。SVP 的能力随 base model 进化自动提升。
@@ -73,7 +73,7 @@ npm run check    # tsc + eslint + prettier
 - [设计理由](docs/design-rationale.md) — 为什么这么设计，每个决策的推理过程
 - [代码风格](docs/code-style.md) — 开发规范（命名、测试、git、依赖、版本）
 - [交互架构](docs/interaction.md) — 逐层渗透模型、虚拟文件树、聚焦视图、编译计划
-- [check 错误码](docs/check-reference.md) — svp check 的所有错误/警告及修复建议
+- [check 错误码](docs/check-reference.md) — forge check 的所有错误/警告及修复建议
 
 ## 目录
 
@@ -81,7 +81,7 @@ npm run check    # tsc + eslint + prettier
 packages/
 ├── core/        五层数据模型的 TypeScript 类型定义 + 核心函数
 ├── skills/      Prompt 生成器（design-l3、compile、recompile 等）
-└── cli/         CLI 入口（svp 命令）
+└── cli/         CLI 入口（forge 命令）
 
 docs/            设计文档 + 开发规范
 examples/        示例项目（hello-world、order-service）

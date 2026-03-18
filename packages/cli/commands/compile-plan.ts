@@ -1,4 +1,4 @@
-// svp compile-plan — 变更检测 + 重编译任务生成的 CLI 命令
+// forge compile-plan — 变更检测 + 重编译任务生成的 CLI 命令
 
 import { compilePlan } from "../../core/index.js";
 import { loadCheckInput } from "../load.js";
@@ -31,7 +31,7 @@ function formatTask(task: CompileTask, index: number): string {
   return lines.join("\n");
 }
 
-/** 注册 svp compile-plan 子命令 */
+/** 注册 forge compile-plan 子命令 */
 export function registerCompilePlan(program: Command): void {
   program
     .command("compile-plan")
@@ -56,7 +56,7 @@ export function registerCompilePlan(program: Command): void {
             }),
           );
         } else {
-          console.log("No .svp/ data found. Run `svp init` to create a project.");
+          console.log("No .svp/ data found. Run `forge init` to create a project.");
         }
         return;
       }
@@ -69,7 +69,7 @@ export function registerCompilePlan(program: Command): void {
       }
 
       // 人类可读输出
-      console.log(`svp compile-plan — scanned ${String(entityCount)} entities`);
+      console.log(`forge compile-plan — scanned ${String(entityCount)} entities`);
       console.log();
 
       if (plan.tasks.length === 0) {

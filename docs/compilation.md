@@ -19,7 +19,7 @@ L3Block ──→ AI 编码工具 + SVP skills ──→ L2CodeBlock + L1 源文
 
 SVP 不自己调 AI API。契约盒（validate + constraints + description）作为结构化 context 喂给 AI 工具，AI 工具负责生成代码。
 
-> **注意区分两种"编译"**：本文档描述的是**格式转换编译**（YAML 节点图 → L3/L4 JSON），是确定性的、不需要 AI 的。变更驱动的**重编译计划**（某层改了 → 计算哪些下层需要重新生成）见 [交互架构](interaction.md) 的 `svp compile-plan` 章节。
+> **注意区分两种"编译"**：本文档描述的是**格式转换编译**（YAML 节点图 → L3/L4 JSON），是确定性的、不需要 AI 的。变更驱动的**重编译计划**（某层改了 → 计算哪些下层需要重新生成）见 [交互架构](interaction.md) 的 `forge compile-plan` 章节。
 
 ## 映射规则
 
@@ -195,7 +195,7 @@ interface OrderRequest {
 { name: "request", type: "OrderRequest" }
 ```
 
-类型本身不被编译成独立的数据结构——它们就是 TypeScript，被 `svp check` 用来做连线类型匹配。
+类型本身不被编译成独立的数据结构——它们就是 TypeScript，被 `forge check` 用来做连线类型匹配。
 
 ## 编译缓存
 

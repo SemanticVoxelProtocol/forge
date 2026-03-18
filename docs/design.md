@@ -193,7 +193,7 @@ wires:
 
 ## 蓝图查看器
 
-`svp blueprint` 命令是 svp-blueprint 的只读可视化入口——读取 `.svp/` 下已编译的 L3/L4 JSON，生成自包含 HTML 节点图在浏览器中查看。
+`forge blueprint` 命令是 svp-blueprint 的只读可视化入口——读取 `.svp/` 下已编译的 L3/L4 JSON，生成自包含 HTML 节点图在浏览器中查看。
 
 设计要点：
 
@@ -204,7 +204,7 @@ wires:
 - **三种 L4 变体**：Flow（主要，节点图）、EventGraph（事件处理器列表）、StateMachine（状态节点 + 转换边）
 - **零依赖自包含**：单个 HTML 文件内联所有 CSS/JS/数据，无需服务器，离线可用
 
-查看器不做编辑——编辑仍然通过 YAML 文件 + `svp compile-blueprint` 完成。查看器是数据的一种只读渲染视图。
+查看器不做编辑——编辑仍然通过 YAML 文件 + `forge compile-blueprint` 完成。查看器是数据的一种只读渲染视图。
 
 ## 不做什么
 

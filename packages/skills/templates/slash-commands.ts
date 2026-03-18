@@ -1,5 +1,5 @@
-// slash-commands — unified /svp slash command template
-// svp init --host claude-code 时生成到 .claude/commands/
+// slash-commands — unified /forge slash command template
+// forge init --host claude-code 时生成到 .claude/commands/
 // 纯 toolchain 操作（check/view）由用户直接运行 CLI，不需要 slash command
 //
 // DEPRECATED: This module is a backward-compatible re-export.

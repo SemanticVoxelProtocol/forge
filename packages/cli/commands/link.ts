@@ -1,11 +1,11 @@
-// svp link — 创建 L2CodeBlock（L3 和 L1 之间的桥接层）
+// forge link — 创建 L2CodeBlock（L3 和 L1 之间的桥接层）
 // AI 生成 L1 源代码后运行，创建/更新 L2 映射
 
 import { readL2, readL3, writeL2 } from "../../core/index.js";
 import { createL2Link, relinkL2 } from "../../skills/index.js";
 import type { Command } from "commander";
 
-/** 注册 svp link 子命令 */
+/** 注册 forge link 子命令 */
 export function registerLink(program: Command): void {
   program
     .command("link")

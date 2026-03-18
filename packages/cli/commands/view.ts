@@ -1,4 +1,4 @@
-// svp view — 虚拟文件树渲染命令
+// forge view — 虚拟文件树渲染命令
 // 读取 .svp/ 目录下的数据，渲染为 AI 友好的文本视图
 
 import {
@@ -53,14 +53,14 @@ async function loadAll(root: string): Promise<{
   return { l5, l4Flows, l3Blocks, l2Blocks };
 }
 
-/** 注册 svp view 子命令 */
+/** 注册 forge view 子命令 */
 export function registerView(program: Command): void {
   const view = program
     .command("view")
     .description("Render virtual file tree views of .svp/ data")
     .option("-r, --root <path>", "Project root directory", ".");
 
-  // svp view l5
+  // forge view l5
   view
     .command("l5")
     .description("L5 Blueprint overview")
@@ -68,13 +68,13 @@ export function registerView(program: Command): void {
       const root = view.opts<{ root: string }>().root;
       const l5 = (await readL5(root)) ?? undefined;
       if (l5 === undefined) {
-        console.log("No L5 blueprint found. Run `svp init` to create one.");
+        console.log("No L5 blueprint found. Run `forge init` to create one.");
         return;
       }
       console.log(viewL5Overview(l5));
     });
 
-  // svp view l4
+  // forge view l4
   view
     .command("l4 [id]")
     .description("L4 Logic Chains — overview or detail for a specific flow")
@@ -107,7 +107,7 @@ export function registerView(program: Command): void {
       console.log(viewL4Detail(flow, l3Blocks, l5));
     });
 
-  // svp view l3
+  // forge view l3
   view
     .command("l3 [id]")
     .description("L3 Logic Blocks — overview or detail for a specific block")
@@ -140,7 +140,7 @@ export function registerView(program: Command): void {
       console.log(viewL3Detail(block, l4Flows, l2Blocks));
     });
 
-  // svp view l2
+  // forge view l2
   view
     .command("l2 [id]")
     .description("L2 Code Blocks — overview or detail for a specific block")

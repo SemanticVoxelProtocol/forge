@@ -1,4 +1,4 @@
-// svp link CLI 命令的集成测试
+// forge link CLI 命令的集成测试
 
 import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -89,7 +89,7 @@ async function runLink(
 
 // ── Tests ──
 
-describe("svp link", () => {
+describe("forge link", () => {
   let testRoot: string;
 
   beforeEach(async () => {

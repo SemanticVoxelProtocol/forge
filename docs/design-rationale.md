@@ -172,11 +172,11 @@ TypeScript interface 在这里的角色不是"实现语言"，而是**对 AI 最
 
 ### 结构化的边界：拓扑骨架 vs 黑盒内部
 
-"AI 不需要结构化"不意味着什么都不结构化。SVP 的工具链（`svp check`、渲染器）需要程序化处理一部分数据。
+"AI 不需要结构化"不意味着什么都不结构化。SVP 的工具链（`forge check`、渲染器）需要程序化处理一部分数据。
 
 区分标准很简单：**层间的连接关系必须结构化，block 内部可以是黑盒。**
 
-需要结构化（`svp check` 要校验）：
+需要结构化（`forge check` 要校验）：
 - **pins 的类型** — 连线两端类型是否兼容
 - **wire 的引用** — from/to 指向的 pin 是否存在
 - **层间引用** — L4 step 引用的 L3 block 是否存在、签名是否匹配
@@ -201,7 +201,7 @@ SVP 协议（语言无关）
   └── 变更传播的机制
 
 SVP 工具链（某种语言实现）
-  ├── 校验器（svp check）
+  ├── 校验器（forge check）
   ├── 编辑器（svp-blueprint 等）
   ├── Skills（给 AI 编码工具的结构化 context）
   └── Store（.svp/ 数据读写）

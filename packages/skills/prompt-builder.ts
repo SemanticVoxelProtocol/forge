@@ -2,10 +2,10 @@
 // 将编译任务组装为结构化 prompt，复用 core/view.ts 渲染
 // 纯函数，不做 IO
 
+import { getLanguage, languageDirective } from "../core/i18n.js";
 import { viewL2Detail, viewL3Detail, viewL4Detail, viewL5Overview } from "../core/view.js";
 import type { Complexity, TaskAction } from "../core/compile-plan.js";
 import type { SkillInput } from "../core/skill.js";
-import { getLanguage, languageDirective } from "../core/i18n.js";
 
 export interface StructuredPrompt {
   readonly role: string;
@@ -39,7 +39,7 @@ const OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Implementation must satisfy all validate rules and constraints",
     "- Internal logic should follow the description",
     "- If Documentation is provided, use it for design intent, edge cases, and error strategy",
-    "- After writing files, run: svp link <l3-id> --files <paths>",
+    "- After writing files, run: forge link <l3-id> --files <paths>",
     "- File naming: src/<block-id>.ts (or appropriate for language)",
   ].join("\n"),
   recompile: [
@@ -47,7 +47,7 @@ const OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Compare old vs new L3 to identify what changed",
     "- Modify only the affected parts of the implementation",
     "- Preserve unchanged logic and tests",
-    "- After updating files, run: svp link <l3-id> --files <paths>",
+    "- After updating files, run: forge link <l3-id> --files <paths>",
   ].join("\n"),
   review: [
     "Analyze the drift between L3 contract and L1 implementation:",
@@ -62,7 +62,7 @@ const OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Option A: Create the missing L3 block with appropriate contract",
     "- Option B: Fix the L4 step to reference an existing L3 block",
     "- If creating L3, infer pins from the L4 flow context (upstream/downstream steps)",
-    "- After creating L3, run: svp rehash l3/<id>",
+    "- After creating L3, run: forge rehash l3/<id>",
   ].join("\n"),
 };
 
@@ -70,8 +70,8 @@ const OUTPUT_SPECS: Record<TaskAction, string> = {
 
 const COMMON_RULES = [
   "- Do NOT modify layers above your target — strict downward only",
-  "- Use svp rehash to fix contentHash after editing JSON files",
-  "- Use svp link to create/update L2 after generating L1 code",
+  "- Use forge rehash to fix contentHash after editing JSON files",
+  "- Use forge link to create/update L2 after generating L1 code",
   "- Write placeholder for contentHash in JSON — rehash will fix it",
   "- Keep implementation minimal — satisfy the contract, nothing more",
 ].join("\n");

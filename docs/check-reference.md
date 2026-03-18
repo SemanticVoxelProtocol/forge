@@ -1,6 +1,6 @@
-# svp check 错误码参考
+# forge check 错误码参考
 
-`svp check` 校验 `.svp/` 目录下所有层的数据一致性。以下是所有可能的错误和警告。
+`forge check` 校验 `.svp/` 目录下所有层的数据一致性。以下是所有可能的错误和警告。
 
 ## 错误（Error）
 

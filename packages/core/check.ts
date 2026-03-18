@@ -1,4 +1,4 @@
-// svp check — 层间一致性校验
+// forge check — 层间一致性校验
 // 检查 hash 一致性、引用完整性、漂移检测、图结构合法性
 
 import { computeHash } from "./hash.js";

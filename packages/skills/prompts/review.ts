@@ -1,5 +1,5 @@
 // review — L1 漂移审查 prompt 模板
-// 由 svp prompt review 使用
+// 由 forge prompt review 使用
 
 import { languageDirective } from "../../core/i18n.js";
 

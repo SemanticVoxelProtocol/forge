@@ -1,4 +1,4 @@
-// svp rehash — 重算 contentHash + 更新 revision
+// forge rehash — 重算 contentHash + 更新 revision
 // AI 写完 JSON 后运行，自动修正 hash
 
 import {
@@ -25,7 +25,7 @@ function formatResult(result: RehashResult): string {
   return `  OK   ${result.layer}/${result.id}: ${oldShort} -> ${newShort}`;
 }
 
-/** 注册 svp rehash 子命令 */
+/** 注册 forge rehash 子命令 */
 export function registerRehash(program: Command): void {
   program
     .command("rehash")
@@ -102,7 +102,7 @@ export function registerRehash(program: Command): void {
 
       const changed = results.filter((r) => r.changed);
       console.log(
-        `svp rehash — ${String(results.length)} artifact(s) checked, ${String(changed.length)} updated`,
+        `forge rehash — ${String(results.length)} artifact(s) checked, ${String(changed.length)} updated`,
       );
       console.log();
       for (const r of results) {

@@ -100,7 +100,7 @@ describe("buildPrompt", () => {
     expect(prompt.task).toContain("compile");
     expect(prompt.input).toContain("validate-order");
     expect(prompt.input).toContain("OrderRequest");
-    expect(prompt.outputSpec).toContain("svp link");
+    expect(prompt.outputSpec).toContain("forge link");
     expect(prompt.rules).toContain("downward only");
   });
 
