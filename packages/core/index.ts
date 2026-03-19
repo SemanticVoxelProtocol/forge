@@ -27,6 +27,7 @@ export {
   collectFlowRefs,
   resolveDataFlowType,
 } from "./computed.js";
+export type { RefFile } from "./store.js";
 export {
   readL3,
   writeL3,
@@ -41,9 +42,15 @@ export {
   listL2,
   readNodeDocs,
   readGraphDocs,
+  readL5Docs,
+  readL2Docs,
+  readNodeRefs,
+  readGraphRefs,
 } from "./store.js";
 export type { CheckIssue, CheckReport, CheckInput, IssueSeverity } from "./check.js";
 export { check } from "./check.js";
+export type { DocsCheckInput, DocsIssue } from "./docs.js";
+export { checkDocs } from "./docs.js";
 export type {
   CompileTask,
   CompilePlan,
@@ -85,3 +92,25 @@ export type {
 } from "./skill.js";
 export { DEFAULT_SKILL_CONFIG, REVIEW_SKILL_CONFIG } from "./skill.js";
 export { t, getLanguage, detectSystemLanguage, languageName, languageDirective } from "./i18n.js";
+export type { Manifest, CompatibilityStatus } from "./manifest.js";
+export {
+  SCHEMA_VERSION,
+  readManifest,
+  writeManifest,
+  createManifest,
+  checkCompatibility,
+  checkSchemaCompatibility,
+} from "./manifest.js";
+export type { Migration } from "./migrate.js";
+export { runMigrations } from "./migrate.js";
+export type { ScanOptions, ScannedFile, ScanContext } from "./scan.js";
+export { collectScanContext } from "./scan.js";
+export type { Changeset, ChangesetDiff } from "./changeset.js";
+export { computeBaselineFromArtifacts, computeDiff, formatDiffSummary } from "./changeset.js";
+export {
+  writeChangeset,
+  readChangeset,
+  listChangesets,
+  deleteChangeset,
+  findActiveChangeset,
+} from "./store.js";

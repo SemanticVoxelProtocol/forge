@@ -2,6 +2,7 @@
 // 读取 .svp/ 目录下的数据，渲染为 AI 友好的文本视图
 
 import {
+  checkCompatibility,
   listL2,
   listL3,
   listL4,
@@ -27,6 +28,7 @@ async function loadAll(root: string): Promise<{
   l3Blocks: L3Block[];
   l2Blocks: L2CodeBlock[];
 }> {
+  await checkCompatibility(root);
   const l5 = (await readL5(root)) ?? undefined;
 
   const l4Ids = await listL4(root);

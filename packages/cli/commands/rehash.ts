@@ -2,6 +2,7 @@
 // AI 写完 JSON 后运行，自动修正 hash
 
 import {
+  checkCompatibility,
   listL2,
   listL3,
   listL4,
@@ -36,6 +37,9 @@ export function registerRehash(program: Command): void {
     .action(async (target: string | undefined, options: { root: string; json: boolean }) => {
       const results: RehashResult[] = [];
       const root = options.root;
+
+      // Ensure schema compatibility
+      await checkCompatibility(root);
 
       // 解析 target
       const parsed = parseTarget(target);

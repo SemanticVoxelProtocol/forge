@@ -7,6 +7,7 @@ import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Artifact } from "./l4.js";
 import type { L5Blueprint } from "./l5.js";
+import type { RefFile } from "./store.js";
 import type { ArtifactVersion } from "./version.js";
 
 // ── Skill 输入 ──
@@ -19,6 +20,7 @@ export interface ResolvedContext {
   readonly l4?: L4Artifact;
   readonly l1Files?: readonly FileContent[];
   readonly docs?: string;
+  readonly refs?: readonly RefFile[];
 }
 
 /** L1 源文件内容 */

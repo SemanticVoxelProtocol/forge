@@ -1,7 +1,7 @@
 // forge link — 创建 L2CodeBlock（L3 和 L1 之间的桥接层）
 // AI 生成 L1 源代码后运行，创建/更新 L2 映射
 
-import { readL2, readL3, writeL2 } from "../../core/index.js";
+import { checkCompatibility, readL2, readL3, writeL2 } from "../../core/index.js";
 import { createL2Link, relinkL2 } from "../../skills/index.js";
 import type { Command } from "commander";
 
@@ -21,6 +21,9 @@ export function registerLink(program: Command): void {
         options: { files: string[]; language: string; root: string; json: boolean },
       ) => {
         const root = options.root;
+
+        // Ensure schema compatibility
+        await checkCompatibility(root);
 
         // 读取 L3 contract
         const l3 = await readL3(root, l3Id);

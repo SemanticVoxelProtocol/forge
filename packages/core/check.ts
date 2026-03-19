@@ -42,6 +42,10 @@ export interface CheckInput {
   // 由调用方（CLI）提前计算，check 只做比对，不依赖提取器
   // 省略时跳过 CONTENT_DRIFT 检测
   readonly l1SignatureHashes?: ReadonlyMap<string, string>;
+
+  // 已有文档的 L3 block id 集合（nodes/<id>/docs.md 存在的）
+  // 省略时跳过 MISSING_NODE_DOCS 检测
+  readonly existingNodeDocs?: ReadonlySet<string>;
 }
 
 // ── 主入口 ──
@@ -53,6 +57,7 @@ export function check(input: CheckInput, language = "en"): CheckReport {
     ...checkReferentialIntegrity(input, lang),
     ...checkDrift(input, lang),
     ...checkGraphStructure(input, lang),
+    ...checkDocsPresence(input, lang),
   ];
 
   return {
@@ -893,6 +898,31 @@ function detectOrphanSteps(
         entityId,
         code: "ORPHAN_STEP",
         message: t(lang, "check.orphanStep", { entityName, stepId: step.id }),
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ── 5. 文档存在性检查 ──
+
+function checkDocsPresence(input: CheckInput, lang: string): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+
+  if (input.existingNodeDocs === undefined) return issues;
+
+  // 找出有 L2 映射的 L3 blocks（即已有实现的模块）
+  const l3WithL2 = new Set(input.l2Blocks.map((cb) => cb.blockRef));
+
+  for (const blockRef of l3WithL2) {
+    if (!input.existingNodeDocs.has(blockRef)) {
+      issues.push({
+        severity: "warning",
+        layer: "l3",
+        entityId: blockRef,
+        code: "MISSING_NODE_DOCS",
+        message: t(lang, "check.missingNodeDocs", { blockRef }),
       });
     }
   }

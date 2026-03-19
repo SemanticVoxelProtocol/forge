@@ -26,6 +26,7 @@ export interface DesignL3Input {
   readonly existingBlock?: L3Block;
   readonly userIntent: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const L3_SCHEMA_EXAMPLE = `{
@@ -128,6 +129,7 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined ? [] : ["## Module Documentation", "", input.docs, ""]),
       "## Current State",
       "",
       currentSection,
@@ -166,6 +168,13 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
       "- description explains HOW to transform input to output",
       "- Ensure pin types are compatible with upstream/downstream blocks",
       "- Write 'placeholder' for contentHash — rehash will fix it",
+      "",
+      "**Design quality guidelines:**",
+      "- A block should have ONE clear responsibility — if you need 'and' to describe it, consider splitting",
+      "- Input pins > 5 is a complexity signal — the block may be doing too much",
+      "- Output pins > 3 is a complexity signal — consider whether some outputs belong to a separate block",
+      "- A block that handles multiple domains (e.g., 'all routes', 'all validations') should almost always be split per domain",
+      "- One L3 block can map to multiple L1 files via L2 — do NOT compress a multi-file responsibility into one block just because of 1:1 naming",
     ].join("\n") +
     languageDirective(input.language ?? "en")
   );

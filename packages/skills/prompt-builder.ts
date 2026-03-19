@@ -6,6 +6,7 @@ import { getLanguage, languageDirective } from "../core/i18n.js";
 import { viewL2Detail, viewL3Detail, viewL4Detail, viewL5Overview } from "../core/view.js";
 import type { Complexity, TaskAction } from "../core/compile-plan.js";
 import type { SkillInput } from "../core/skill.js";
+import type { RefFile } from "../core/store.js";
 
 export interface StructuredPrompt {
   readonly role: string;
@@ -74,6 +75,12 @@ const COMMON_RULES = [
   "- Use forge link to create/update L2 after generating L1 code",
   "- Write placeholder for contentHash in JSON — rehash will fix it",
   "- Keep implementation minimal — satisfy the contract, nothing more",
+  "",
+  "**Implementation quality guidelines:**",
+  "- One L3 block CAN produce multiple L1 files — split when a single file would exceed ~200 lines or mix unrelated concerns",
+  "- If the L3 contract covers multiple domains (e.g., routes for all entities), split into one file per domain and list all in forge link --files",
+  "- Each file should be independently understandable — avoid files that only make sense when read alongside another",
+  "- Prefer explicit over clever — straightforward code is easier to verify against the L3 contract",
 ].join("\n");
 
 // ── 主入口 ──
@@ -180,6 +187,11 @@ function buildCompileInput(input: SkillInput): string[] {
     parts.push("", "### Documentation", "", resolved.docs);
   }
 
+  // 参考材料
+  if (resolved.refs !== undefined && resolved.refs.length > 0) {
+    parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
+  }
+
   return parts;
 }
 
@@ -211,6 +223,11 @@ function buildRecompileInput(input: SkillInput): string[] {
   // 模块化文档
   if (resolved.docs !== undefined) {
     parts.push("", "### Documentation", "", resolved.docs);
+  }
+
+  // 参考材料
+  if (resolved.refs !== undefined && resolved.refs.length > 0) {
+    parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
   }
 
   return parts;
@@ -246,6 +263,11 @@ function buildReviewInput(input: SkillInput): string[] {
     parts.push("", "### Documentation", "", resolved.docs);
   }
 
+  // 参考材料
+  if (resolved.refs !== undefined && resolved.refs.length > 0) {
+    parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
+  }
+
   return parts;
 }
 
@@ -264,4 +286,29 @@ function buildUpdateRefInput(input: SkillInput): string[] {
   }
 
   return parts;
+}
+
+/** Format reference files for prompt injection */
+function formatRefs(refs: readonly RefFile[]): string {
+  const parts: string[] = [
+    "The following reference files are available for this block.",
+    "Use them to guide your implementation.",
+  ];
+
+  for (const ref of refs) {
+    if (ref.isText && ref.content !== undefined) {
+      const ext = ref.name.split(".").pop() ?? "";
+      parts.push("", `#### ${ref.name}`, "", "```" + ext, ref.content, "```");
+    } else {
+      parts.push(
+        "",
+        `#### ${ref.name} (binary)`,
+        "",
+        `File path: ${ref.path}`,
+        "(Read this file for the visual/binary reference)",
+      );
+    }
+  }
+
+  return parts.join("\n");
 }

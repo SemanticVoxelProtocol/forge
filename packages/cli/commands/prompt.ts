@@ -1,17 +1,25 @@
 // forge prompt — 生成上下文感知的 AI 提示词
-// 7 个子命令：compile, recompile, review, update-ref, design-l5, design-l4, design-l3
+// 8 个子命令：compile, recompile, review, update-ref, design-l5, design-l4, design-l3, scan
 // 读 .svp/ 状态 → 解析上下文 → 调用 prompt builder → stdout 输出 markdown
 
+import path from "node:path";
 import { getDefaultComplexity } from "../../core/compile-plan.js";
 import { getLanguage } from "../../core/i18n.js";
 import { extractBlockRefs, findBlockContext, getL4Kind } from "../../core/l4.js";
+import { collectScanContext } from "../../core/scan.js";
 import { DEFAULT_SKILL_CONFIG } from "../../core/skill.js";
+import { readGraphDocs, readL5Docs, readNodeDocs } from "../../core/store.js";
 import { buildPrompt, renderPrompt } from "../../skills/prompt-builder.js";
 import { buildDesignL3Prompt } from "../../skills/prompts/design-l3.js";
 import { buildDesignL4EventGraphPrompt } from "../../skills/prompts/design-l4-event-graph.js";
 import { buildDesignL4StateMachinePrompt } from "../../skills/prompts/design-l4-state-machine.js";
 import { buildDesignL4Prompt } from "../../skills/prompts/design-l4.js";
 import { buildDesignL5Prompt } from "../../skills/prompts/design-l5.js";
+import {
+  buildScanL3Prompt,
+  buildScanL4Prompt,
+  buildScanL5Prompt,
+} from "../../skills/prompts/scan.js";
 import { loadCheckInput } from "../load.js";
 import { createResolver } from "../resolve.js";
 import type { CompileTask, ContextRef, TaskAction } from "../../core/compile-plan.js";
@@ -62,6 +70,7 @@ export function registerPrompt(program: Command): void {
   registerDesignL5(prompt);
   registerDesignL4(prompt);
   registerDesignL3(prompt);
+  registerScan(prompt);
 }
 
 // ── Task-based prompt helpers ──
@@ -228,10 +237,12 @@ function registerDesignL5(parent: Command): void {
         input = { l5: undefined, l4Flows: [], l3Blocks: [], l2Blocks: [] };
       }
 
+      const l5Docs = await readL5Docs(root);
       const prompt = buildDesignL5Prompt({
         currentL5: input.l5,
         userIntent: options.intent,
         language: getLanguage(input.l5),
+        docs: l5Docs ?? undefined,
       });
 
       console.log(prompt);
@@ -278,6 +289,7 @@ function registerDesignL4(parent: Command): void {
           return;
         }
 
+        const graphDocs = targetId === undefined ? null : await readGraphDocs(root, targetId);
         let prompt: string;
 
         if (kind === "event-graph") {
@@ -288,6 +300,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         } else if (kind === "state-machine") {
           prompt = buildDesignL4StateMachinePrompt({
@@ -297,6 +310,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         } else {
           prompt = buildDesignL4Prompt({
@@ -306,6 +320,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetFlowId: targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         }
 
@@ -369,12 +384,14 @@ function registerDesignL3(parent: Command): void {
           const nextBlock =
             stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
           const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
+          const nodeDocs = await readNodeDocs(root, blockId);
 
           const prompt = buildDesignL3Prompt({
             l4Context: { flow, stepIndex, prevBlock, nextBlock },
             existingBlock,
             userIntent: options.intent,
             language: getLanguage(input.l5),
+            docs: nodeDocs ?? undefined,
           });
 
           console.log(prompt);
@@ -401,15 +418,102 @@ function registerDesignL3(parent: Command): void {
             ? undefined
             : input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef);
         const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
+        const nodeDocs2 = await readNodeDocs(root, blockId);
 
         const prompt = buildDesignL3Prompt({
           l4Context: { l4, blockContext, prevBlock, nextBlock },
           existingBlock,
           userIntent: options.intent,
           language: getLanguage(input.l5),
+          docs: nodeDocs2 ?? undefined,
         });
 
         console.log(prompt);
       },
     );
+}
+
+// ── Scan (brownfield reverse generation) ──
+
+function registerScan(parent: Command): void {
+  parent
+    .command("scan")
+    .description("Generate reverse-engineering prompt (auto-detects phase from .svp/ state)")
+    .option("--dir <path>", "Directory to scan", "src")
+    .option("--intent <text>", "Optional: describe what the system does")
+    .option("--max-files <n>", "Max files to scan", "50")
+    .option("-r, --root <path>", "Project root directory", ".")
+    .action(async (options: { dir: string; intent?: string; maxFiles: string; root: string }) => {
+      const root = options.root;
+      const maxFiles = Number.parseInt(options.maxFiles, 10);
+
+      // Determine scan directory: use "src" if it exists, else "."
+      let scanDir = options.dir;
+      if (scanDir === "src") {
+        try {
+          const s = await import("node:fs/promises").then((fs) =>
+            fs.stat(path.resolve(root, "src")),
+          );
+          if (!s.isDirectory()) scanDir = ".";
+        } catch {
+          scanDir = ".";
+        }
+      }
+
+      // Collect scan context (with TS extractor for signature extraction)
+      const { createTypescriptExtractor } = await import("../../core/extractors/typescript.js");
+      const extractor = createTypescriptExtractor();
+      const scanContext = await collectScanContext({ root, dir: scanDir, maxFiles }, extractor);
+
+      if (scanContext.files.length === 0) {
+        console.error(
+          `Error: no files found in "${scanDir}" (relative to "${root}"). Check --dir path.`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      // Load existing .svp/ state to detect phase
+      let input;
+      try {
+        input = await loadCheckInput(root);
+      } catch {
+        // No .svp/ yet — that's okay, Phase 1 doesn't need it
+        input = { l5: undefined, l4Flows: [], l3Blocks: [], l2Blocks: [] };
+      }
+
+      const language = getLanguage(input.l5);
+      const userIntent = options.intent;
+
+      // Auto-detect phase from .svp/ state
+      if (input.l3Blocks.length === 0) {
+        // Phase 1: no L3 → generate L3 from code
+        const prompt = buildScanL3Prompt({ scanContext, userIntent, language });
+        console.log(prompt);
+      } else if (input.l4Flows.length === 0) {
+        // Phase 2: has L3 but no L4 → generate L4 from L3
+        const prompt = buildScanL4Prompt({
+          scanContext,
+          l3Blocks: input.l3Blocks,
+          userIntent,
+          language,
+        });
+        console.log(prompt);
+      } else if (input.l5 === undefined) {
+        // Phase 3: has L3+L4 but no L5 → generate L5
+        const prompt = buildScanL5Prompt({
+          scanContext,
+          l3Blocks: input.l3Blocks,
+          l4Flows: input.l4Flows,
+          userIntent,
+          language,
+        });
+        console.log(prompt);
+      } else {
+        // All layers present — scan complete
+        console.log(
+          "Scan complete: .svp/ already has L3, L4, and L5 artifacts.\nRun `forge check` to verify consistency.",
+        );
+      }
+    });
 }

@@ -1,8 +1,9 @@
 // 读写层 — .svp/ 目录下的 JSON 文件
 // 运行时是 TS 对象，持久化用 JSON
 
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { Changeset } from "./changeset.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Artifact } from "./l4.js";
@@ -113,6 +114,78 @@ export async function listL2(root: string): Promise<string[]> {
   return listIds(svpPath(root, "l2"));
 }
 
+// ── Refs ──
+
+/** A reference file attached to a block's refs/ folder */
+export interface RefFile {
+  readonly name: string; // "design.png"
+  readonly path: string; // "nodes/date-picker/refs/design.png"
+  readonly isText: boolean; // true for .md/.txt/.ts/.js etc.
+  readonly content?: string; // text content (only for text files)
+}
+
+const TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".py",
+  ".go",
+  ".rs",
+  ".java",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".css",
+  ".html",
+  ".sql",
+]);
+
+function isTextFile(filename: string): boolean {
+  const ext = path.extname(filename).toLowerCase();
+  return TEXT_EXTENSIONS.has(ext);
+}
+
+/** Read reference files from nodes/<nodeId>/refs/, returns [] if missing */
+export async function readNodeRefs(root: string, nodeId: string): Promise<RefFile[]> {
+  return readRefsDir(root, path.join("nodes", nodeId, "refs"));
+}
+
+/** Read reference files from graphs/<graphId>/refs/, returns [] if missing */
+export async function readGraphRefs(root: string, graphId: string): Promise<RefFile[]> {
+  return readRefsDir(root, path.join("graphs", graphId, "refs"));
+}
+
+async function readRefsDir(root: string, relDir: string): Promise<RefFile[]> {
+  const absDir = path.join(root, relDir);
+  let entries: string[];
+  try {
+    entries = await readdir(absDir);
+  } catch {
+    return [];
+  }
+
+  const refs: RefFile[] = [];
+  for (const name of entries.toSorted()) {
+    const filePath = path.join(relDir, name);
+    const text = isTextFile(name);
+    const ref: RefFile = { name, path: filePath, isText: text };
+    if (text) {
+      try {
+        const content = await readFile(path.join(root, filePath), "utf8");
+        (ref as { content: string }).content = content;
+      } catch {
+        // skip unreadable files
+      }
+    }
+    refs.push(ref);
+  }
+  return refs;
+}
+
 // ── Docs ──
 
 /** 读取节点的模块化文档 nodes/<nodeId>/docs.md，不存在返回 null */
@@ -131,4 +204,63 @@ export async function readGraphDocs(root: string, graphName: string): Promise<st
   } catch {
     return null;
   }
+}
+
+/** 读取项目级文档 docs/l5.md（架构决策、全局约束说明），不存在返回 null */
+export async function readL5Docs(root: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "docs", "l5.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** 读取实现级文档 nodes/<blockRef>/impl.docs.md（部署注意事项、性能说明），不存在返回 null */
+export async function readL2Docs(root: string, l2Id: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "nodes", l2Id, "impl.docs.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+// ── Changesets ──
+
+/** Write a changeset JSON file */
+export async function writeChangeset(root: string, cs: Changeset): Promise<void> {
+  await ensureDir(svpPath(root, "changesets"));
+  await writeJson(svpPath(root, "changesets", `${cs.id}.json`), cs);
+}
+
+/** Read a changeset by id, returns null if missing */
+export async function readChangeset(root: string, id: string): Promise<Changeset | null> {
+  try {
+    return await readJson<Changeset>(svpPath(root, "changesets", `${id}.json`));
+  } catch {
+    return null;
+  }
+}
+
+/** List all changeset ids */
+export async function listChangesets(root: string): Promise<string[]> {
+  return listIds(svpPath(root, "changesets"));
+}
+
+/** Delete a changeset file */
+export async function deleteChangeset(root: string, id: string): Promise<void> {
+  try {
+    await unlink(svpPath(root, "changesets", `${id}.json`));
+  } catch {
+    // file doesn't exist — no-op
+  }
+}
+
+/** Find the currently active changeset, or null if none */
+export async function findActiveChangeset(root: string): Promise<Changeset | null> {
+  const ids = await listChangesets(root);
+  for (const id of ids) {
+    const cs = await readChangeset(root, id);
+    if (cs !== null && cs.status === "active") return cs;
+  }
+  return null;
 }

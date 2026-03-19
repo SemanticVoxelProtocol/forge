@@ -12,6 +12,10 @@ import {
   readL5,
   readNodeDocs,
   readGraphDocs,
+  readL5Docs,
+  readL2Docs,
+  readNodeRefs,
+  readGraphRefs,
   writeL2,
   writeL3,
   writeL4,
@@ -622,5 +626,165 @@ describe("readGraphDocs", () => {
   it("returns null when graph docs.md does not exist", async () => {
     const result = await readGraphDocs(root, "nonexistent-graph");
     expect(result).toBeNull();
+  });
+});
+
+// ── L5 Docs ──
+
+describe("readL5Docs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-l5-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing docs/l5.md", async () => {
+    const docsDir = path.join(root, "docs");
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(path.join(docsDir, "l5.md"), "# Architecture\nGlobal constraints", "utf8");
+    const result = await readL5Docs(root);
+    expect(result).toBe("# Architecture\nGlobal constraints");
+  });
+
+  it("returns null when docs/l5.md does not exist", async () => {
+    const freshRoot = await mkdtemp(path.join(tmpdir(), "svp-docs-l5-empty-"));
+    try {
+      const result = await readL5Docs(freshRoot);
+      expect(result).toBeNull();
+    } finally {
+      await rm(freshRoot, { recursive: true });
+    }
+  });
+});
+
+// ── L2 Docs ──
+
+describe("readL2Docs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-l2-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing impl.docs.md", async () => {
+    const nodeDir = path.join(root, "nodes", "my-block");
+    await mkdir(nodeDir, { recursive: true });
+    await writeFile(path.join(nodeDir, "impl.docs.md"), "# Deploy Notes\nPerformance tips", "utf8");
+    const result = await readL2Docs(root, "my-block");
+    expect(result).toBe("# Deploy Notes\nPerformance tips");
+  });
+
+  it("returns null when impl.docs.md does not exist", async () => {
+    const result = await readL2Docs(root, "nonexistent-block");
+    expect(result).toBeNull();
+  });
+});
+
+// ── Refs ──
+
+describe("readNodeRefs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-refs-node-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("returns text file with content", async () => {
+    const refsDir = path.join(root, "nodes", "my-block", "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(path.join(refsDir, "algorithm.md"), "# Luhn Check\nUse mod 10", "utf8");
+
+    const refs = await readNodeRefs(root, "my-block");
+    expect(refs).toHaveLength(1);
+    expect(refs[0].name).toBe("algorithm.md");
+    expect(refs[0].path).toBe(path.join("nodes", "my-block", "refs", "algorithm.md"));
+    expect(refs[0].isText).toBe(true);
+    expect(refs[0].content).toBe("# Luhn Check\nUse mod 10");
+  });
+
+  it("returns binary file with path only (no content)", async () => {
+    const refsDir = path.join(root, "nodes", "img-block", "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(path.join(refsDir, "design.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    const refs = await readNodeRefs(root, "img-block");
+    expect(refs).toHaveLength(1);
+    expect(refs[0].name).toBe("design.png");
+    expect(refs[0].isText).toBe(false);
+    expect(refs[0].content).toBeUndefined();
+  });
+
+  it("returns empty array for missing directory", async () => {
+    const refs = await readNodeRefs(root, "nonexistent-block");
+    expect(refs).toEqual([]);
+  });
+
+  it("sorts files by name", async () => {
+    const refsDir = path.join(root, "nodes", "sorted-block", "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(path.join(refsDir, "zebra.md"), "z", "utf8");
+    await writeFile(path.join(refsDir, "alpha.txt"), "a", "utf8");
+    await writeFile(path.join(refsDir, "middle.ts"), "m", "utf8");
+
+    const refs = await readNodeRefs(root, "sorted-block");
+    expect(refs.map((r) => r.name)).toEqual(["alpha.txt", "middle.ts", "zebra.md"]);
+  });
+
+  it("handles mixed text and binary files", async () => {
+    const refsDir = path.join(root, "nodes", "mixed-block", "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(path.join(refsDir, "spec.md"), "# Spec", "utf8");
+    await writeFile(path.join(refsDir, "mockup.fig"), Buffer.from([0x00]));
+    await writeFile(path.join(refsDir, "ref.ts"), "export const x = 1;", "utf8");
+
+    const refs = await readNodeRefs(root, "mixed-block");
+    expect(refs).toHaveLength(3);
+
+    const textRefs = refs.filter((r) => r.isText);
+    const binaryRefs = refs.filter((r) => !r.isText);
+    expect(textRefs).toHaveLength(2);
+    expect(binaryRefs).toHaveLength(1);
+    expect(binaryRefs[0].name).toBe("mockup.fig");
+  });
+});
+
+describe("readGraphRefs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-refs-graph-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads refs from graphs/<graphId>/refs/", async () => {
+    const refsDir = path.join(root, "graphs", "order-flow", "refs");
+    await mkdir(refsDir, { recursive: true });
+    await writeFile(path.join(refsDir, "flow-notes.md"), "# Notes", "utf8");
+
+    const refs = await readGraphRefs(root, "order-flow");
+    expect(refs).toHaveLength(1);
+    expect(refs[0].name).toBe("flow-notes.md");
+    expect(refs[0].isText).toBe(true);
+    expect(refs[0].content).toBe("# Notes");
+  });
+
+  it("returns empty array for missing graph refs", async () => {
+    const refs = await readGraphRefs(root, "no-such-graph");
+    expect(refs).toEqual([]);
   });
 });

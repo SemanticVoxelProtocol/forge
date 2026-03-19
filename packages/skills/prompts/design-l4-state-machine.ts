@@ -15,6 +15,7 @@ export interface DesignL4StateMachineInput {
   readonly userIntent: string;
   readonly targetId?: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const STATE_MACHINE_SCHEMA_EXAMPLE = `{
@@ -199,6 +200,7 @@ export function buildDesignL4StateMachinePrompt(input: DesignL4StateMachineInput
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined ? [] : ["## Graph Documentation", "", input.docs, ""]),
       "## Existing L4 Artifacts",
       "",
       existingSection,

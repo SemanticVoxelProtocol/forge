@@ -2,8 +2,14 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { readGraphDocs, readNodeDocs } from "../core/index.js";
-import type { CheckInput, CompileTask, FileContent, ResolvedContext } from "../core/index.js";
+import { readGraphDocs, readNodeDocs, readNodeRefs, readGraphRefs } from "../core/index.js";
+import type {
+  CheckInput,
+  CompileTask,
+  FileContent,
+  RefFile,
+  ResolvedContext,
+} from "../core/index.js";
 
 export interface ContextResolver {
   readonly resolve: (task: CompileTask, input: CheckInput) => Promise<ResolvedContext>;
@@ -20,6 +26,7 @@ export function createResolver(root: string): ContextResolver {
         l4?: ResolvedContext["l4"];
         l1Files?: FileContent[];
         docs?: string;
+        refs?: RefFile[];
       } = {};
 
       for (const ref of task.context) {
@@ -54,8 +61,10 @@ export function createResolver(root: string): ContextResolver {
         const l4Ref = task.context.find((r) => r.layer === "l4");
         if (l3Ref !== undefined) {
           ctx.docs = (await readNodeDocs(root, l3Ref.id)) ?? undefined;
+          ctx.refs = await readNodeRefs(root, l3Ref.id);
         } else if (l4Ref !== undefined) {
           ctx.docs = (await readGraphDocs(root, l4Ref.id)) ?? undefined;
+          ctx.refs = await readGraphRefs(root, l4Ref.id);
         }
       }
 

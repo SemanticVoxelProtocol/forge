@@ -151,6 +151,8 @@ export function registerInit(program: Command): void {
           console.log("  ├── l4/            (logic chains)");
           console.log("  ├── l3/            (logic blocks)");
           console.log("  └── l2/            (code blocks)");
+          console.log("  nodes/             (module docs)");
+          console.log("  graphs/            (graph docs)");
 
           // Host-specific integration
           if (hostIds.length === 0) {

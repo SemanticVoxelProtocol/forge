@@ -16,6 +16,7 @@ export interface DesignL4Input {
   readonly userIntent: string;
   readonly targetFlowId?: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const L4_SCHEMA_EXAMPLE = `{
@@ -76,6 +77,7 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined ? [] : ["## Graph Documentation", "", input.docs, ""]),
       "## Existing Flows",
       "",
       existingFlowsSection,
@@ -112,6 +114,12 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
       "- Fan-out uses `parallel` action, join uses `wait` action",
       "- Write 'placeholder' for contentHash — rehash will fix it",
       "- Do NOT create L3 blocks here — only reference them by id",
+      "",
+      "**Design quality guidelines:**",
+      "- Each blockRef should map to a single-responsibility unit — if a step name contains 'all' or 'everything', it likely needs splitting",
+      "- Avoid 'god blocks' that orchestrate across all domains — prefer one flow per domain or use case",
+      "- Cross-cutting concerns (auth, routing, logging) should be separate blocks, not bundled into a domain block",
+      "- If a flow has more than 8 steps, consider whether it should be split into sub-flows",
     ].join("\n") +
     languageDirective(input.language ?? "en")
   );

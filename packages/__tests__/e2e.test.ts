@@ -149,11 +149,11 @@ describe("E2E: SVP Pipeline", () => {
       });
       await writeL2(tmpDir, l2);
 
-      // Verify initially no issues
+      // Verify initially no errors (1 warning for missing node docs is expected)
       let input = await loadCheckInput(tmpDir);
       let report = check(input);
       expect(report.summary.errors).toBe(0);
-      expect(report.summary.warnings).toBe(0);
+      expect(report.issues.filter((i) => i.code === "MISSING_NODE_DOCS")).toHaveLength(1);
 
       // Modify L3 content (add a constraint) and rehash
       const modifiedL3 = makeL3({

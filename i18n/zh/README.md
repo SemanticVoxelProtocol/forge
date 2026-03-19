@@ -25,7 +25,13 @@ SVP 不自己调 AI API，不造编译器。SVP 是 AI 编码工具（Claude Cod
 - **工具链**：`forge check`（校验）、store（读写）、hash（变更追踪）
 - **Skills**：基于五层数据模型生成结构化 context，喂给用户已有的 AI 工具
 
-类似 [OpenSpec](https://github.com/Fission-AI/OpenSpec) 的定位——不造 AI，给 AI 喂更好的上下文。SVP 的能力随 base model 进化自动提升。
+不造 AI，给 AI 喂更好的上下文。SVP 的能力随 base model 进化自动提升。
+
+### 推荐搭配 OpenSpec 使用
+
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) 专注**写代码之前**——确保需求规范清晰再让 AI 动手。SVP 专注**写代码之后**——确保 AI 写出来的东西在各层之间一致且正确。
+
+两者互补：OpenSpec 管输入质量（要造什么），SVP 管输出质量（造对了没）。搭配使用可以形成完整的 需求 → 架构 → 验证 流水线。
 
 ## 设计原则
 

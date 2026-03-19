@@ -5,11 +5,12 @@ import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { computeHash } from "./hash.js";
 import { detectSystemLanguage } from "./i18n.js";
+import { createManifest, writeManifest } from "./manifest.js";
 import { writeL5 } from "./store.js";
 import type { L5Blueprint } from "./l5.js";
 
 const SVP_DIR = ".svp";
-const SUB_DIRS = ["l2", "l3", "l4"] as const;
+const SUB_DIRS = ["l2", "l3", "l4", "changesets"] as const;
 
 export interface InitOptions {
   readonly name: string;
@@ -49,6 +50,10 @@ export async function init(root: string, options: InitOptions): Promise<InitResu
     await mkdir(path.join(svpRoot, sub), { recursive: true });
   }
 
+  // 创建文档目录（惰性创建策略，仅创建空目录）
+  await mkdir(path.join(root, "nodes"), { recursive: true });
+  await mkdir(path.join(root, "graphs"), { recursive: true });
+
   // 创建初始 L5
   const l5Base: Omit<L5Blueprint, "contentHash" | "revision"> = {
     id: slugify(options.name),
@@ -73,6 +78,10 @@ export async function init(root: string, options: InitOptions): Promise<InitResu
   };
 
   await writeL5(root, l5);
+
+  // Write manifest.json
+  const manifest = createManifest();
+  await writeManifest(root, manifest);
 
   return { created: true, root, l5 };
 }
