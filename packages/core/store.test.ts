@@ -12,6 +12,8 @@ import {
   readL5,
   readNodeDocs,
   readGraphDocs,
+  readL5Docs,
+  readL2Docs,
   writeL2,
   writeL3,
   writeL4,
@@ -621,6 +623,65 @@ describe("readGraphDocs", () => {
 
   it("returns null when graph docs.md does not exist", async () => {
     const result = await readGraphDocs(root, "nonexistent-graph");
+    expect(result).toBeNull();
+  });
+});
+
+// ── L5 Docs ──
+
+describe("readL5Docs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-l5-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing docs/l5.md", async () => {
+    const docsDir = path.join(root, "docs");
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(path.join(docsDir, "l5.md"), "# Architecture\nGlobal constraints", "utf8");
+    const result = await readL5Docs(root);
+    expect(result).toBe("# Architecture\nGlobal constraints");
+  });
+
+  it("returns null when docs/l5.md does not exist", async () => {
+    const freshRoot = await mkdtemp(path.join(tmpdir(), "svp-docs-l5-empty-"));
+    try {
+      const result = await readL5Docs(freshRoot);
+      expect(result).toBeNull();
+    } finally {
+      await rm(freshRoot, { recursive: true });
+    }
+  });
+});
+
+// ── L2 Docs ──
+
+describe("readL2Docs", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-docs-l2-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("reads existing impl.docs.md", async () => {
+    const nodeDir = path.join(root, "nodes", "my-block");
+    await mkdir(nodeDir, { recursive: true });
+    await writeFile(path.join(nodeDir, "impl.docs.md"), "# Deploy Notes\nPerformance tips", "utf8");
+    const result = await readL2Docs(root, "my-block");
+    expect(result).toBe("# Deploy Notes\nPerformance tips");
+  });
+
+  it("returns null when impl.docs.md does not exist", async () => {
+    const result = await readL2Docs(root, "nonexistent-block");
     expect(result).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ export interface DesignL4Input {
   readonly userIntent: string;
   readonly targetFlowId?: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const L4_SCHEMA_EXAMPLE = `{
@@ -76,6 +77,9 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined
+        ? []
+        : ["## Graph Documentation", "", input.docs, ""]),
       "## Existing Flows",
       "",
       existingFlowsSection,

@@ -26,6 +26,7 @@ export interface DesignL3Input {
   readonly existingBlock?: L3Block;
   readonly userIntent: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const L3_SCHEMA_EXAMPLE = `{
@@ -128,6 +129,9 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined
+        ? []
+        : ["## Module Documentation", "", input.docs, ""]),
       "## Current State",
       "",
       currentSection,

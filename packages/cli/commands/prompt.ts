@@ -6,6 +6,7 @@ import { getDefaultComplexity } from "../../core/compile-plan.js";
 import { getLanguage } from "../../core/i18n.js";
 import { extractBlockRefs, findBlockContext, getL4Kind } from "../../core/l4.js";
 import { DEFAULT_SKILL_CONFIG } from "../../core/skill.js";
+import { readGraphDocs, readL5Docs, readNodeDocs } from "../../core/store.js";
 import { buildPrompt, renderPrompt } from "../../skills/prompt-builder.js";
 import { buildDesignL3Prompt } from "../../skills/prompts/design-l3.js";
 import { buildDesignL4EventGraphPrompt } from "../../skills/prompts/design-l4-event-graph.js";
@@ -228,10 +229,12 @@ function registerDesignL5(parent: Command): void {
         input = { l5: undefined, l4Flows: [], l3Blocks: [], l2Blocks: [] };
       }
 
+      const l5Docs = await readL5Docs(root);
       const prompt = buildDesignL5Prompt({
         currentL5: input.l5,
         userIntent: options.intent,
         language: getLanguage(input.l5),
+        docs: l5Docs ?? undefined,
       });
 
       console.log(prompt);
@@ -278,6 +281,8 @@ function registerDesignL4(parent: Command): void {
           return;
         }
 
+        const graphDocs =
+          targetId === undefined ? null : await readGraphDocs(root, targetId);
         let prompt: string;
 
         if (kind === "event-graph") {
@@ -288,6 +293,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         } else if (kind === "state-machine") {
           prompt = buildDesignL4StateMachinePrompt({
@@ -297,6 +303,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         } else {
           prompt = buildDesignL4Prompt({
@@ -306,6 +313,7 @@ function registerDesignL4(parent: Command): void {
             userIntent: options.intent,
             targetFlowId: targetId,
             language: getLanguage(input.l5),
+            docs: graphDocs ?? undefined,
           });
         }
 
@@ -369,12 +377,14 @@ function registerDesignL3(parent: Command): void {
           const nextBlock =
             stepIndex < flow.steps.length - 1 ? findBlock(stepIndex + 1) : undefined;
           const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
+          const nodeDocs = await readNodeDocs(root, blockId);
 
           const prompt = buildDesignL3Prompt({
             l4Context: { flow, stepIndex, prevBlock, nextBlock },
             existingBlock,
             userIntent: options.intent,
             language: getLanguage(input.l5),
+            docs: nodeDocs ?? undefined,
           });
 
           console.log(prompt);
@@ -401,12 +411,14 @@ function registerDesignL3(parent: Command): void {
             ? undefined
             : input.l3Blocks.find((b) => b.id === blockContext.nextBlockRef);
         const existingBlock = input.l3Blocks.find((b) => b.id === blockId);
+        const nodeDocs2 = await readNodeDocs(root, blockId);
 
         const prompt = buildDesignL3Prompt({
           l4Context: { l4, blockContext, prevBlock, nextBlock },
           existingBlock,
           userIntent: options.intent,
           language: getLanguage(input.l5),
+          docs: nodeDocs2 ?? undefined,
         });
 
         console.log(prompt);

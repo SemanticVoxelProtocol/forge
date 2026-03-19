@@ -50,6 +50,10 @@ export async function init(root: string, options: InitOptions): Promise<InitResu
     await mkdir(path.join(svpRoot, sub), { recursive: true });
   }
 
+  // 创建文档目录（惰性创建策略，仅创建空目录）
+  await mkdir(path.join(root, "nodes"), { recursive: true });
+  await mkdir(path.join(root, "graphs"), { recursive: true });
+
   // 创建初始 L5
   const l5Base: Omit<L5Blueprint, "contentHash" | "revision"> = {
     id: slugify(options.name),

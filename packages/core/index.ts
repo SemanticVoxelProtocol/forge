@@ -41,9 +41,13 @@ export {
   listL2,
   readNodeDocs,
   readGraphDocs,
+  readL5Docs,
+  readL2Docs,
 } from "./store.js";
 export type { CheckIssue, CheckReport, CheckInput, IssueSeverity } from "./check.js";
 export { check } from "./check.js";
+export type { DocsCheckInput, DocsIssue } from "./docs.js";
+export { checkDocs } from "./docs.js";
 export type {
   CompileTask,
   CompilePlan,

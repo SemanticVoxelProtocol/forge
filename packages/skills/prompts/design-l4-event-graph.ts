@@ -15,6 +15,7 @@ export interface DesignL4EventGraphInput {
   readonly userIntent: string;
   readonly targetId?: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const EVENT_GRAPH_SCHEMA_EXAMPLE = `{
@@ -213,6 +214,9 @@ export function buildDesignL4EventGraphPrompt(input: DesignL4EventGraphInput): s
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined
+        ? []
+        : ["## Graph Documentation", "", input.docs, ""]),
       "## Existing L4 Artifacts",
       "",
       existingSection,

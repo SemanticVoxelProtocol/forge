@@ -1,7 +1,7 @@
 // 共享的 .svp/ 数据加载逻辑
 // 两个命令（check, compile-plan）复用
 
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   listL2,
@@ -60,7 +60,30 @@ export async function loadCheckInput(
     l1SignatureHashes = await computeL1Signatures(root, l2Blocks);
   }
 
-  return { l5, l4Flows, l3Blocks, l2Blocks, l1SignatureHashes };
+  // 扫描 nodes/ 目录收集已有文档列表
+  const existingNodeDocs = await scanExistingNodeDocs(root);
+
+  return { l5, l4Flows, l3Blocks, l2Blocks, l1SignatureHashes, existingNodeDocs };
+}
+
+/** Scan nodes/{id}/docs.md, return nodeId set with existing docs */
+async function scanExistingNodeDocs(root: string): Promise<Set<string>> {
+  const result = new Set<string>();
+  const nodesDir = path.join(root, "nodes");
+  try {
+    const entries = await readdir(nodesDir);
+    for (const entry of entries) {
+      try {
+        const s = await stat(path.join(nodesDir, entry, "docs.md"));
+        if (s.isFile()) result.add(entry);
+      } catch {
+        // docs.md doesn't exist for this node
+      }
+    }
+  } catch {
+    // nodes/ directory doesn't exist
+  }
+  return result;
 }
 
 /** 遍历 L2 blocks，提取 L1 文件的导出签名并计算聚合 hash */

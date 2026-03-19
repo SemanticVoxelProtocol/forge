@@ -9,6 +9,7 @@ export interface DesignL5Input {
   readonly currentL5?: L5Blueprint;
   readonly userIntent: string;
   readonly language?: string;
+  readonly docs?: string;
 }
 
 const L5_SCHEMA_EXAMPLE = `{
@@ -49,6 +50,9 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
       "",
       input.userIntent,
       "",
+      ...(input.docs === undefined
+        ? []
+        : ["## Project Documentation", "", input.docs, ""]),
       "## Current State",
       "",
       currentSection,

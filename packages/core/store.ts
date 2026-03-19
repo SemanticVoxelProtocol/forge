@@ -132,3 +132,21 @@ export async function readGraphDocs(root: string, graphName: string): Promise<st
     return null;
   }
 }
+
+/** 读取项目级文档 docs/l5.md（架构决策、全局约束说明），不存在返回 null */
+export async function readL5Docs(root: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "docs", "l5.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** 读取实现级文档 nodes/<blockRef>/impl.docs.md（部署注意事项、性能说明），不存在返回 null */
+export async function readL2Docs(root: string, l2Id: string): Promise<string | null> {
+  try {
+    return await readFile(path.join(root, "nodes", l2Id, "impl.docs.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
