@@ -6,6 +6,7 @@ import type { L3Block } from "../../core/l3.js";
 import type { L4Flow } from "../../core/l4.js";
 import type { L5Blueprint } from "../../core/l5.js";
 import type { SkillInput, ResolvedContext, SkillConfig } from "../../core/skill.js";
+import type { RefFile } from "../../core/store.js";
 
 const baseRevision = {
   rev: 1,
@@ -324,5 +325,121 @@ describe("renderPrompt", () => {
     for (const section of sections.slice(1)) {
       expect(section.trim().length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("buildPrompt — refs", () => {
+  const textRef: RefFile = {
+    name: "algorithm.md",
+    path: "nodes/validate-order/refs/algorithm.md",
+    isText: true,
+    content: "# Luhn Check\nUse mod 10 algorithm",
+  };
+
+  const binaryRef: RefFile = {
+    name: "design.png",
+    path: "nodes/validate-order/refs/design.png",
+    isText: false,
+  };
+
+  const tsRef: RefFile = {
+    name: "reference.ts",
+    path: "nodes/validate-order/refs/reference.ts",
+    isText: true,
+    content: "export function validate(n: number): boolean { return true; }",
+  };
+
+  it("compile prompt includes Reference Materials when refs present", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+      l4: makeL4(),
+      refs: [textRef, binaryRef],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Reference Materials");
+    expect(prompt.input).toContain("#### algorithm.md");
+    expect(prompt.input).toContain("Luhn Check");
+  });
+
+  it("compile prompt omits Reference Materials when refs is empty", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+      l4: makeL4(),
+      refs: [],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).not.toContain("Reference Materials");
+  });
+
+  it("compile prompt omits Reference Materials when refs is undefined", () => {
+    const input = makeInput("compile", {
+      l5: makeL5(),
+      l3: makeL3(),
+      l4: makeL4(),
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).not.toContain("Reference Materials");
+  });
+
+  it("text refs are inlined with content", () => {
+    const input = makeInput("compile", {
+      l3: makeL3(),
+      refs: [tsRef],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("#### reference.ts");
+    expect(prompt.input).toContain("export function validate");
+    expect(prompt.input).toContain("```ts");
+  });
+
+  it("binary refs show path instead of content", () => {
+    const input = makeInput("compile", {
+      l3: makeL3(),
+      refs: [binaryRef],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("#### design.png (binary)");
+    expect(prompt.input).toContain("File path: nodes/validate-order/refs/design.png");
+  });
+
+  it("recompile prompt includes refs", () => {
+    const input = makeInput("recompile", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l4: makeL4(),
+      l1Files: [{ path: "src/validate-order.ts", content: "export function validate() {}" }],
+      refs: [textRef],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Reference Materials");
+    expect(prompt.input).toContain("Luhn Check");
+  });
+
+  it("review prompt includes refs", () => {
+    const input = makeInput("review", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l1Files: [{ path: "src/validate-order.ts", content: "// code" }],
+      refs: [textRef],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Reference Materials");
+    expect(prompt.input).toContain("Luhn Check");
   });
 });
