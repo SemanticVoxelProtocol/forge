@@ -20,7 +20,12 @@ export const opencodeAdapter: HostAdapter = {
   },
 
   generateSkillFiles(language = "en"): readonly SkillFile[] {
-    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, genericModelTierLine(language)) }];
+    return [
+      {
+        relativePath: "svp.md",
+        content: buildSkillFileContent(language, genericModelTierLine(language)),
+      },
+    ];
   },
 
   contextFilePath() {

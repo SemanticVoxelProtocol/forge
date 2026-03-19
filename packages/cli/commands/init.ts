@@ -55,115 +55,122 @@ export function registerInit(program: Command): void {
         },
       ) => {
         try {
-        const lang = options.language ?? "en";
-        const resolvedRoot = path.resolve(options.root);
+          const lang = options.language ?? "en";
+          const resolvedRoot = path.resolve(options.root);
 
-        // Show welcome banner in interactive mode
-        if (process.stdin.isTTY && options.yes !== true) {
-          const { printBanner } = await import("../banner.js");
-          await printBanner(SKILL_FILE_VERSION);
-        }
+          // Show welcome banner in interactive mode
+          if (process.stdin.isTTY && options.yes !== true) {
+            const { printBanner } = await import("../banner.js");
+            await printBanner(SKILL_FILE_VERSION);
+          }
 
-        // Resolve project name: positional > --name flag > directory basename
-        const projectName = positionalName ?? options.name ?? path.basename(resolvedRoot);
+          // Resolve project name: positional > --name flag > directory basename
+          const projectName = positionalName ?? options.name ?? path.basename(resolvedRoot);
 
-        // Intent is only set via --intent flag; project questions belong in slash commands
-        const intent = options.intent;
+          // Intent is only set via --intent flag; project questions belong in slash commands
+          const intent = options.intent;
 
-        // Resolve host: explicit flag > interactive > auto-detect
-        let hostIds: HostId[] = [];
-        const hostAll = options.host?.toLowerCase() === "all";
+          // Resolve host: explicit flag > interactive > auto-detect
+          let hostIds: HostId[] = [];
+          const hostAll = options.host?.toLowerCase() === "all";
 
-        if (hostAll) {
-          // --host all: use detected hosts, or fall back to all registered adapters
-          const detected = await detectHosts(options.root);
-          hostIds = detected.length > 0 ? detected : [...VALID_HOSTS];
-        } else if (options.host === undefined) {
-          // Auto-detect from project directory markers
-          const detected = await detectHosts(options.root);
-          if (detected.length === 1) {
-            hostIds = detected;
-          } else if (detected.length > 1) {
-            if (process.stdin.isTTY && options.yes !== true) {
-              const { select } = await import("@inquirer/prompts");
-              const choices: Array<{ name: string; value: string }> = [
-                ...detected.map((h) => ({ name: getAdapter(h).displayName, value: h })),
-                { name: t(lang, "cli.init.promptHostAll"), value: "__all__" },
-                { name: t(lang, "cli.init.promptHostSkip"), value: "__skip__" },
-              ];
-              const answer = await select({
-                message: t(lang, "cli.init.promptHostSelect"),
-                choices,
-              });
-              if (answer === "__all__") {
-                hostIds = detected;
-              } else if (answer !== "__skip__") {
-                hostIds = [answer as HostId];
+          if (hostAll) {
+            // --host all: use detected hosts, or fall back to all registered adapters
+            const detected = await detectHosts(options.root);
+            hostIds = detected.length > 0 ? detected : [...VALID_HOSTS];
+          } else if (options.host === undefined) {
+            // Auto-detect from project directory markers
+            const detected = await detectHosts(options.root);
+            if (detected.length === 1) {
+              hostIds = detected;
+            } else if (detected.length > 1) {
+              if (process.stdin.isTTY && options.yes !== true) {
+                const { select } = await import("@inquirer/prompts");
+                const choices: Array<{ name: string; value: string }> = [
+                  ...detected.map((h) => ({ name: getAdapter(h).displayName, value: h })),
+                  { name: t(lang, "cli.init.promptHostAll"), value: "__all__" },
+                  { name: t(lang, "cli.init.promptHostSkip"), value: "__skip__" },
+                ];
+                const answer = await select({
+                  message: t(lang, "cli.init.promptHostSelect"),
+                  choices,
+                });
+                if (answer === "__all__") {
+                  hostIds = detected;
+                } else if (answer !== "__skip__") {
+                  hostIds = [answer as HostId];
+                }
+              } else {
+                console.log(
+                  `Multiple hosts detected: ${detected.join(", ")}. Use --host to specify one.`,
+                );
               }
+            }
+          } else {
+            // Explicit single host
+            if (isValidHost(options.host)) {
+              hostIds = [options.host];
             } else {
-              console.log(
-                `Multiple hosts detected: ${detected.join(", ")}. Use --host to specify one.`,
+              console.error(
+                `Unknown host: ${options.host}. Valid hosts: ${VALID_HOSTS.join(", ")}`,
               );
+              process.exitCode = 1;
+              return;
             }
           }
-        } else {
-          // Explicit single host
-          if (isValidHost(options.host)) {
-            hostIds = [options.host];
-          } else {
-            console.error(`Unknown host: ${options.host}. Valid hosts: ${VALID_HOSTS.join(", ")}`);
-            process.exitCode = 1;
+
+          const result = await init(options.root, {
+            name: projectName,
+            version: options.version,
+            intent,
+            host: hostIds[0],
+            language: options.language,
+          });
+
+          if (!result.created) {
+            console.log(t(lang, "cli.init.alreadyExists"));
+            // Still generate host files if resolved
+            for (const hid of hostIds) {
+              await generateHostFiles(options.root, getAdapter(hid), projectName, lang);
+            }
             return;
           }
-        }
 
-        const result = await init(options.root, {
-          name: projectName,
-          version: options.version,
-          intent,
-          host: hostIds[0],
-          language: options.language,
-        });
-
-        if (!result.created) {
-          console.log(t(lang, "cli.init.alreadyExists"));
-          // Still generate host files if resolved
-          for (const hid of hostIds) {
-            await generateHostFiles(options.root, getAdapter(hid), projectName, lang);
-          }
-          return;
-        }
-
-        console.log(t(lang, "cli.init.initialized", { root: options.root }));
-        console.log();
-        const l5 = result.l5!;
-        console.log(`  L5: ${l5.name} v${l5.version}`);
-        if (l5.intent.length > 0) {
-          console.log(`  intent: ${l5.intent}`);
-        }
-        console.log();
-        console.log(t(lang, "cli.init.dirStructure"));
-        console.log("  .svp/");
-        console.log("  ├── l5.json        (blueprint)");
-        console.log("  ├── l4/            (logic chains)");
-        console.log("  ├── l3/            (logic blocks)");
-        console.log("  └── l2/            (code blocks)");
-
-        // Host-specific integration
-        if (hostIds.length === 0) {
+          console.log(t(lang, "cli.init.initialized", { root: options.root }));
           console.log();
-          console.log(t(lang, "cli.init.nextEdit"));
-        } else {
-          console.log();
-          for (const hid of hostIds) {
-            await generateHostFiles(options.root, getAdapter(hid), projectName, lang);
+          const l5 = result.l5!;
+          console.log(`  L5: ${l5.name} v${l5.version}`);
+          if (l5.intent.length > 0) {
+            console.log(`  intent: ${l5.intent}`);
           }
-        }
+          console.log();
+          console.log(t(lang, "cli.init.dirStructure"));
+          console.log("  .svp/");
+          console.log("  ├── l5.json        (blueprint)");
+          console.log("  ├── l4/            (logic chains)");
+          console.log("  ├── l3/            (logic blocks)");
+          console.log("  └── l2/            (code blocks)");
 
-        // Post-init guidance
-        printPostInitGuide(lang, hostIds[0]);
+          // Host-specific integration
+          if (hostIds.length === 0) {
+            console.log();
+            console.log(t(lang, "cli.init.nextEdit"));
+          } else {
+            console.log();
+            for (const hid of hostIds) {
+              await generateHostFiles(options.root, getAdapter(hid), projectName, lang);
+            }
+          }
+
+          // Post-init guidance
+          printPostInitGuide(lang, hostIds[0]);
         } catch (error: unknown) {
-          if (error !== null && typeof error === "object" && "name" in error && (error as Error).name === "ExitPromptError") {
+          if (
+            error !== null &&
+            typeof error === "object" &&
+            "name" in error &&
+            (error as Error).name === "ExitPromptError"
+          ) {
             console.log();
             return;
           }
