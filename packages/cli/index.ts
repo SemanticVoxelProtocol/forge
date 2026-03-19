@@ -3,6 +3,7 @@
 
 import { Command } from "commander";
 import { VERSION } from "../core/version.js";
+import { registerChangeset } from "./commands/changeset.js";
 import { registerCheck } from "./commands/check.js";
 import { registerCompilePlan } from "./commands/compile-plan.js";
 import { registerDocs } from "./commands/docs.js";
@@ -20,6 +21,7 @@ export function createCLI(): Command {
     .description("SVP — Semantic Voxel Protocol toolchain")
     .version(VERSION);
 
+  registerChangeset(program);
   registerCheck(program);
   registerCompilePlan(program);
   registerDocs(program);
