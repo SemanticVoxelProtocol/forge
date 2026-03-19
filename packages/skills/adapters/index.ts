@@ -11,6 +11,7 @@ import { geminiCliAdapter } from "./gemini-cli.js";
 import { githubCopilotAdapter } from "./github-copilot.js";
 import { kimiCodeAdapter } from "./kimi-code.js";
 import { kodeAdapter } from "./kode.js";
+import { opencodeAdapter } from "./opencode.js";
 import { rooCodeAdapter } from "./roo-code.js";
 import { windsurfAdapter } from "./windsurf.js";
 import type { HostId, HostAdapter } from "./types.js";
@@ -25,6 +26,7 @@ const adapters: Record<HostId, HostAdapter> = {
   kode: kodeAdapter,
   cline: clineAdapter,
   "gemini-cli": geminiCliAdapter,
+  opencode: opencodeAdapter,
   "roo-code": rooCodeAdapter,
 };
 
