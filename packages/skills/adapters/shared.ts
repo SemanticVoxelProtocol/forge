@@ -171,9 +171,13 @@ const workflowZh = `## Step 0: 诊断路由
 - 运行 \`forge check --json\`（忽略错误）+ \`forge view l5\` + 检查 .svp/ 是否存在
 - 根据结果判断：
   - **无 .svp/**：告知用户先运行 \`forge init\`，停止
-  - **空项目**（无 L4/L3）→ 问用户选择模式：
-    (a) Build — 从零自上而下构建
-    (b) Scan — 从已有代码自下而上逆向生成
+  - **空项目**（无 L4/L3）→ 先用 subagent 快速扫描项目结构：
+    - 派发 subagent 扫描 src/（或项目根目录）的文件结构和导出符号
+    - Subagent 汇报：有多少源文件、什么语言、大致的模块划分、主要入口点
+    - 基于扫描结果，向用户展示项目概况并推荐模式：
+      - **有现成代码** → 推荐 Scan（逆向生成），同时提供 Build 选项
+      - **无代码（纯空项目）** → 推荐 Build（从零构建）
+    - 展示扫描发现的关键信息，让用户做出知情选择
   - **有数据** → 问用户选择模式：
     (a) Build — 从零构建
     (b) Add — 添加新功能
@@ -411,9 +415,13 @@ const workflowEn = `## Step 0: Diagnostic Router
 - Run \`forge check --json\` (ignore errors) + \`forge view l5\` + check whether .svp/ exists
 - Based on the result, determine:
   - **No .svp/**: Tell user to run \`forge init\` first, then stop
-  - **Empty project** (no L4/L3) → Ask user to choose a mode:
-    (a) Build — build from scratch (top-down)
-    (b) Scan — reverse-engineer from existing code (bottom-up)
+  - **Empty project** (no L4/L3) → First dispatch a subagent to scan the project:
+    - Subagent scans src/ (or project root) for file structure and exported symbols
+    - Subagent reports: how many source files, what language, rough module layout, main entry points
+    - Based on scan results, present project overview and recommend a mode:
+      - **Has existing code** → Recommend Scan (reverse-engineer), also offer Build
+      - **No code (truly empty)** → Recommend Build (from scratch)
+    - Show key findings from the scan so the user can make an informed choice
   - **Has data** → Ask user to choose a mode:
     (a) Build — build from scratch
     (b) Add — add new feature
