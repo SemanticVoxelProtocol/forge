@@ -169,13 +169,16 @@ const workflowZh = `## Step 0: 诊断路由
 - 运行 \`forge check --json\`（忽略错误）+ \`forge view l5\` + 检查 .svp/ 是否存在
 - 根据结果判断：
   - **无 .svp/**：告知用户先运行 \`forge init\`，停止
-  - **空项目**（无 L4/L3）→ 进入 **Build**
+  - **空项目**（无 L4/L3）→ 问用户选择模式：
+    (a) Build — 从零自上而下构建
+    (b) Scan — 从已有代码自下而上逆向生成
   - **有数据** → 问用户选择模式：
     (a) Build — 从零构建
     (b) Add — 添加新功能
     (c) Change — 修改已有功能
     (d) Fix — 修复 check 问题
     (e) View — 查看当前结构
+    (f) Scan — 从已有代码逆向生成
 
 ---
 
@@ -332,6 +335,35 @@ const workflowZh = `## Step 0: 诊断路由
 - 运行 \`forge view l5\` + \`forge view l4\` + \`forge view l3\` 展示完整系统结构
 - 如有 L2 映射，也展示 \`forge view l2\`
 
+---
+
+## Scan（从已有代码逆向生成 SVP）
+
+### Phase 1: [AI] 提取 L3 Contracts
+- 运行 \`forge prompt scan [--dir <path>] [--intent "<描述>"]\`（自动检测 Phase 1）
+- 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
+- Subagent 分析代码，生成 L3 block → 写入 .svp/l3/
+- [Toolchain] 运行 \`forge rehash l3\`
+- 展示 \`forge view l3\` 给用户确认
+
+### Phase 2: [AI] 推断 L4 Flows
+- 运行 \`forge prompt scan\`（自动检测 Phase 2）
+- 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
+- Subagent 分析 L3 block 关系，生成 L4 flow → 写入 .svp/l4/
+- [Toolchain] 运行 \`forge rehash l4\`
+- 展示 \`forge view l4\` 给用户确认
+
+### Phase 3: [AI] 综合 L5 Blueprint
+- 运行 \`forge prompt scan\`（自动检测 Phase 3）
+- 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
+- Subagent 从 L3+L4 综合 L5 → 写入 .svp/l5.json
+- [Toolchain] 运行 \`forge rehash l5\`
+- 展示 \`forge view l5\` 给用户确认
+
+### Phase 4: [Toolchain] 创建 L2 映射
+- 对每个 L3 block，运行 \`forge link <l3-id> --files <source-files>\`
+- 运行 \`forge check\` 验证一致性
+
 $ARGUMENTS`;
 
 const workflowEn = `## Step 0: Diagnostic Router
@@ -339,13 +371,16 @@ const workflowEn = `## Step 0: Diagnostic Router
 - Run \`forge check --json\` (ignore errors) + \`forge view l5\` + check whether .svp/ exists
 - Based on the result, determine:
   - **No .svp/**: Tell user to run \`forge init\` first, then stop
-  - **Empty project** (no L4/L3) → Enter **Build**
+  - **Empty project** (no L4/L3) → Ask user to choose a mode:
+    (a) Build — build from scratch (top-down)
+    (b) Scan — reverse-engineer from existing code (bottom-up)
   - **Has data** → Ask user to choose a mode:
     (a) Build — build from scratch
     (b) Add — add new feature
     (c) Change — modify existing feature
     (d) Fix — fix check issues
     (e) View — view current structure
+    (f) Scan — reverse-engineer from existing code
 
 ---
 
@@ -502,6 +537,35 @@ For each recompile task:
 - Run \`forge view l5\` + \`forge view l4\` + \`forge view l3\` to show full system structure
 - If L2 mappings exist, also show \`forge view l2\`
 
+---
+
+## Scan (reverse-engineer SVP from existing code)
+
+### Phase 1: [AI] Extract L3 Contracts
+- Run \`forge prompt scan [--dir <path>] [--intent "<description>"]\` (auto-detects Phase 1)
+- Dispatch stdout output to subagent (read complexity to select model tier)
+- Subagent analyzes code, generates L3 blocks → writes to .svp/l3/
+- [Toolchain] Run \`forge rehash l3\`
+- Show \`forge view l3\` to user for confirmation
+
+### Phase 2: [AI] Infer L4 Flows
+- Run \`forge prompt scan\` (auto-detects Phase 2)
+- Dispatch stdout output to subagent (read complexity to select model tier)
+- Subagent analyzes L3 block relationships, generates L4 flows → writes to .svp/l4/
+- [Toolchain] Run \`forge rehash l4\`
+- Show \`forge view l4\` to user for confirmation
+
+### Phase 3: [AI] Synthesize L5 Blueprint
+- Run \`forge prompt scan\` (auto-detects Phase 3)
+- Dispatch stdout output to subagent (read complexity to select model tier)
+- Subagent synthesizes L5 from L3+L4 → writes to .svp/l5.json
+- [Toolchain] Run \`forge rehash l5\`
+- Show \`forge view l5\` to user for confirmation
+
+### Phase 4: [Toolchain] Create L2 Mappings
+- For each L3 block, run \`forge link <l3-id> --files <source-files>\`
+- Run \`forge check\` to verify consistency
+
 $ARGUMENTS`;
 
 // ── Private: Context body templates ──
@@ -561,6 +625,7 @@ graphs/
 | **AI** | 编译 L3→L1 代码 | \`forge prompt compile/recompile\` → subagent |
 | **AI** | 审查漂移 | \`forge prompt review\` → subagent |
 | **AI** | 修复断裂引用 | \`forge prompt update-ref\` → subagent |
+| **AI** | 从已有代码逆向生成 | \`forge prompt scan\` → subagent |
 | **Toolchain** | 校验一致性 | \`forge check\` |
 | **Toolchain** | 渲染层视图 | \`forge view\` |
 | **Toolchain** | 生成编译任务列表 | \`forge compile-plan\` |
@@ -612,6 +677,7 @@ SVP prompt 包含 \`complexity\` front-matter 字段，指示任务难度：
 | \`forge prompt design-l5 --intent "..."\` | 生成 L5 设计提示词 |
 | \`forge prompt design-l4 --intent "..." [--kind flow|event-graph|state-machine]\` | 生成 L4 设计提示词 |
 | \`forge prompt design-l3 <id> --flow <fid> --step <n> --intent "..."\` | 生成 L3 设计提示词 |
+| \`forge prompt scan [--dir <path>] [--intent "..."]\` | 从已有代码逆向生成 SVP（自动检测阶段） |
 
 ### Slash 命令
 
@@ -710,6 +776,7 @@ graphs/
 | **AI** | Compile L3→L1 code | \`forge prompt compile/recompile\` → subagent |
 | **AI** | Review drift | \`forge prompt review\` → subagent |
 | **AI** | Fix broken references | \`forge prompt update-ref\` → subagent |
+| **AI** | Reverse-engineer from code | \`forge prompt scan\` → subagent |
 | **Toolchain** | Validate consistency | \`forge check\` |
 | **Toolchain** | Render layer views | \`forge view\` |
 | **Toolchain** | Generate compile task list | \`forge compile-plan\` |
@@ -762,6 +829,7 @@ and pass the corresponding model parameter.
 | \`forge prompt design-l5 --intent "..."\` | Generate L5 design prompt |
 | \`forge prompt design-l4 --intent "..." [--kind flow|event-graph|state-machine]\` | Generate L4 design prompt |
 | \`forge prompt design-l3 <id> --flow <fid> --step <n> --intent "..."\` | Generate L3 design prompt |
+| \`forge prompt scan [--dir <path>] [--intent "..."]\` | Reverse-engineer SVP from existing code (auto-detects phase) |
 
 ### Slash Commands
 

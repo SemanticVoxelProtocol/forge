@@ -100,3 +100,5 @@ export {
 } from "./manifest.js";
 export type { Migration } from "./migrate.js";
 export { runMigrations } from "./migrate.js";
+export type { ScanOptions, ScannedFile, ScanContext } from "./scan.js";
+export { collectScanContext } from "./scan.js";
