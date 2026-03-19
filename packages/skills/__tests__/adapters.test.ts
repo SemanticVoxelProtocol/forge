@@ -23,7 +23,8 @@ describe("adapter registry", () => {
     expect(ids).toContain("cline");
     expect(ids).toContain("gemini-cli");
     expect(ids).toContain("roo-code");
-    expect(ids.length).toBe(10);
+    expect(ids).toContain("opencode");
+    expect(ids.length).toBe(11);
   });
 
   it("getAdapter returns correct adapter for each HostId", () => {

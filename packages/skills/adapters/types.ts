@@ -10,7 +10,8 @@ export type HostId =
   | "kode"
   | "cline"
   | "gemini-cli"
-  | "roo-code";
+  | "roo-code"
+  | "opencode";
 
 export interface HostAdapter {
   readonly id: HostId;
