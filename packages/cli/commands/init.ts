@@ -54,6 +54,7 @@ export function registerInit(program: Command): void {
           yes?: boolean;
         },
       ) => {
+        try {
         const lang = options.language ?? "en";
         const resolvedRoot = path.resolve(options.root);
 
@@ -161,6 +162,13 @@ export function registerInit(program: Command): void {
 
         // Post-init guidance
         printPostInitGuide(lang, hostIds[0]);
+        } catch (error: unknown) {
+          if (error !== null && typeof error === "object" && "name" in error && (error as Error).name === "ExitPromptError") {
+            console.log();
+            return;
+          }
+          throw error;
+        }
       },
     );
 }
