@@ -66,17 +66,8 @@ export function registerInit(program: Command): void {
         // Resolve project name: positional > --name flag > directory basename
         const projectName = positionalName ?? options.name ?? path.basename(resolvedRoot);
 
-        // Resolve intent: flag or TTY prompt
-        let intent = options.intent;
-        if (intent === undefined && process.stdin.isTTY && options.yes !== true) {
-          const { input } = await import("@inquirer/prompts");
-          const answer = await input({
-            message: t(lang, "cli.init.promptIntent"),
-          });
-          if (answer.trim().length > 0) {
-            intent = answer.trim();
-          }
-        }
+        // Intent is only set via --intent flag; project questions belong in slash commands
+        const intent = options.intent;
 
         // Resolve host: explicit flag > interactive > auto-detect
         let hostIds: HostId[] = [];
