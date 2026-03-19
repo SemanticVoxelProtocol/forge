@@ -81,30 +81,31 @@ export function registerInit(program: Command): void {
           } else if (options.host === undefined) {
             // Auto-detect from project directory markers
             const detected = await detectHosts(options.root);
-            if (detected.length === 1) {
-              hostIds = detected;
-            } else if (detected.length > 1) {
-              if (process.stdin.isTTY && options.yes !== true) {
-                const { select } = await import("@inquirer/prompts");
-                const choices: Array<{ name: string; value: string }> = [
-                  ...detected.map((h) => ({ name: getAdapter(h).displayName, value: h })),
-                  { name: t(lang, "cli.init.promptHostAll"), value: "__all__" },
-                  { name: t(lang, "cli.init.promptHostSkip"), value: "__skip__" },
-                ];
-                const answer = await select({
-                  message: t(lang, "cli.init.promptHostSelect"),
-                  choices,
-                });
-                if (answer === "__all__") {
-                  hostIds = detected;
-                } else if (answer !== "__skip__") {
-                  hostIds = [answer as HostId];
-                }
-              } else {
-                console.log(
-                  `Multiple hosts detected: ${detected.join(", ")}. Use --host to specify one.`,
-                );
+            if (process.stdin.isTTY && options.yes !== true) {
+              const { select } = await import("@inquirer/prompts");
+              // Build choices: detected hosts first, then remaining hosts
+              const detectedSet = new Set<string>(detected);
+              const otherHosts = VALID_HOSTS.filter((h) => !detectedSet.has(h));
+              const choices: Array<{ name: string; value: string }> = [
+                ...detected.map((h) => ({
+                  name: `${getAdapter(h).displayName} (detected)`,
+                  value: h,
+                })),
+                ...otherHosts.map((h) => ({
+                  name: getAdapter(h).displayName,
+                  value: h,
+                })),
+                { name: t(lang, "cli.init.promptHostSkip"), value: "__skip__" },
+              ];
+              const answer = await select({
+                message: t(lang, "cli.init.promptHostSelect"),
+                choices,
+              });
+              if (answer !== "__skip__") {
+                hostIds = [answer as HostId];
               }
+            } else if (detected.length > 0) {
+              hostIds = [detected[0]];
             }
           } else {
             // Explicit single host
