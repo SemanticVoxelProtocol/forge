@@ -40,7 +40,8 @@ export function getProtocolSection(language: string, modelTierLine: string): str
 - JSON 中 contentHash 和 revision 写占位值，\`forge rehash\` 会修正
 - 尽量并行派发无依赖的 subagent
 - 做不到就报错，说清哪层什么问题——用户是反向反馈回路
-- 如果 nodes/<id>/docs.md 存在，compile/recompile prompt 会自动包含文档内容`;
+- 如果 nodes/<id>/docs.md 存在，compile/recompile prompt 会自动包含文档内容
+- 如果 nodes/<id>/refs/ 存在，compile/recompile/review prompt 会自动包含参考材料`;
   }
 
   return `## Protocol (one-time declaration)
@@ -55,7 +56,8 @@ export function getProtocolSection(language: string, modelTierLine: string): str
 - Write placeholder values for contentHash and revision in JSON; \`forge rehash\` will fix them
 - Dispatch independent subagents in parallel when possible
 - Report errors when unable to proceed, clearly stating which layer and what the issue is — the user is the reverse feedback loop
-- If nodes/<id>/docs.md exists, compile/recompile prompts will automatically include its content`;
+- If nodes/<id>/docs.md exists, compile/recompile prompts will automatically include its content
+- If nodes/<id>/refs/ exists, compile/recompile/review prompts will automatically include reference materials`;
 }
 
 // ── Skill file: Workflow content (Step 0 through View) ──
@@ -189,7 +191,15 @@ const workflowZh = `## Step 0: 诊断路由
 - 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
 - Subagent 输出 L5 JSON → 写入 .svp/l5.json
 - [Toolchain] 运行 \`forge rehash l5\`
-- 展示 \`forge view l5\` 给用户确认
+
+**[对齐] L5 Overview — 必须等待用户确认后才能继续：**
+- [AI] 生成一份用户能看懂的 L5 Overview，用自然语言解释：
+  - 系统解决什么问题、成功标准是什么
+  - 有哪些领域（domains），它们之间的依赖关系
+  - 有哪些外部集成，各自的职责
+  - 有哪些约束条件
+- 用户可能会要求调整意图、增减领域、修改约束 → 迭代修改 L5 直到用户满意
+- **用户确认后才进入 Step 2**
 
 ### Step 2: [AI] 设计 L4 Artifacts
 根据系统类型选择 L4 变体：
@@ -200,7 +210,15 @@ const workflowZh = `## Step 0: 诊断路由
 - 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
 - Subagent 输出 L4 JSON → 写入 .svp/l4/<id>.json
 - [Toolchain] 运行 \`forge rehash l4\`
-- 展示 \`forge view l4\` 给用户确认
+
+**[对齐] L4 Overview — 必须等待用户确认后才能继续：**
+- [AI] 生成一份用户能看懂的 L4 Overview，用自然语言解释：
+  - 系统有哪些流程/事件图/状态机
+  - 每个流程的触发方式、步骤链、数据流方向
+  - 各步骤引用的 blockRef 是什么（即将成为 L3 的契约）
+  - 流程之间是否有依赖或共享数据
+- 用户可能会要求调整流程编排、增删步骤、修改数据流 → 迭代修改 L4 直到用户满意
+- **用户确认后才进入 Step 3**
 
 ### Step 3: [AI] 设计 L3 Contracts（并行派发）
 对每个 L4 step 的 blockRef：
@@ -209,6 +227,15 @@ const workflowZh = `## Step 0: 诊断路由
 - Subagent 输出 L3 JSON → 写入 .svp/l3/<id>.json
 - [Toolchain] 运行 \`forge rehash l3/<id>\`
 - **无依赖的 block 并行派发**
+
+**[对齐] L3 Overview — 必须等待用户确认后才能继续：**
+- [AI] 生成一份用户能看懂的 L3 Overview，用自然语言解释：
+  - 所有 L3 block 的一览表：名称、职责（一句话）、输入输出
+  - 标记复杂度信号：哪些 block 的 pin 数量多、依赖多
+  - 各 block 和 L4 step 的映射关系
+  - 是否有 block 职责过宽（如一个 block 处理所有路由），建议拆分
+- 用户可能会要求调整 block 粒度、合并或拆分 block、修改 pin 定义 → 迭代修改 L3 直到用户满意
+- **用户确认后才进入 Step 4**
 
 ### Step 4: [Toolchain] 获取编译任务
 - 运行 \`forge compile-plan\` 获取编译任务列表
@@ -232,9 +259,13 @@ const workflowZh = `## Step 0: 诊断路由
 
 ## Add（向已有系统添加功能）
 
+### Step 0: [Toolchain] 创建变更集
+- 运行 \`forge changeset start <name> --reason "<变更原因>"\` 记录基线快照
+
 ### Step 1: [Toolchain] 了解当前结构
 - 运行 \`forge view l5\` 和 \`forge view l4/<id>\` 了解现有架构
 - 确定新功能属于哪个 L4 flow（或需要新 flow）
+- 如有设计稿或参考实现，放入 \`nodes/<block-id>/refs/\` 文件夹
 
 ### Step 2: [AI] 修改 L4 Flow
 - 编辑对应的 .svp/l4/<flow-id>.json，添加新 step + blockRef
@@ -258,9 +289,15 @@ const workflowZh = `## Step 0: 诊断路由
 - \`forge link <l3-id> --files <paths>\`
 - \`forge check\` 确认全绿
 
+### Step 6: [Toolchain] 完成变更集
+- 运行 \`forge changeset complete\` 记录本次变更涉及的所有 artifact 变动
+
 ---
 
 ## Change（修改已有需求）
+
+### Step 0: [Toolchain] 创建变更集
+- 运行 \`forge changeset start <name> --reason "<变更原因>"\` 记录基线快照
 
 ### Step 1: [Toolchain] 诊断当前状态
 - 运行 \`forge check\` 确认当前一致性状态
@@ -291,6 +328,9 @@ const workflowZh = `## Step 0: 诊断路由
 ### Step 6: [Toolchain] 更新映射并验证
 - \`forge link <l3-id> --files <paths>\`
 - \`forge check\` 确认全绿
+
+### Step 7: [Toolchain] 完成变更集
+- 运行 \`forge changeset complete\` 记录本次变更涉及的所有 artifact 变动
 
 ---
 
@@ -391,7 +431,15 @@ const workflowEn = `## Step 0: Diagnostic Router
 - Dispatch stdout output to subagent (read complexity to select model tier)
 - Subagent outputs L5 JSON → write to .svp/l5.json
 - [Toolchain] Run \`forge rehash l5\`
-- Show \`forge view l5\` to user for confirmation
+
+**[Alignment] L5 Overview — MUST wait for user confirmation before proceeding:**
+- [AI] Generate a human-readable L5 Overview in natural language:
+  - What problem the system solves, what success looks like
+  - What domains exist and how they depend on each other
+  - What external integrations exist and their roles
+  - What constraints apply
+- User may request changes to intent, domains, constraints → iterate on L5 until user is satisfied
+- **Proceed to Step 2 only after user confirms**
 
 ### Step 2: [AI] Design L4 Artifacts
 Choose L4 variant based on system type:
@@ -402,7 +450,15 @@ Choose L4 variant based on system type:
 - Dispatch stdout output to subagent (read complexity to select model tier)
 - Subagent outputs L4 JSON → write to .svp/l4/<id>.json
 - [Toolchain] Run \`forge rehash l4\`
-- Show \`forge view l4\` to user for confirmation
+
+**[Alignment] L4 Overview — MUST wait for user confirmation before proceeding:**
+- [AI] Generate a human-readable L4 Overview in natural language:
+  - What flows/event graphs/state machines the system has
+  - How each flow is triggered, its step chain, and data flow direction
+  - What blockRefs each step points to (these become L3 contracts)
+  - Whether flows share data or have dependencies between them
+- User may request changes to flow orchestration, add/remove steps, modify data flows → iterate on L4 until user is satisfied
+- **Proceed to Step 3 only after user confirms**
 
 ### Step 3: [AI] Design L3 Contracts (dispatch in parallel)
 For each blockRef in L4 steps:
@@ -411,6 +467,15 @@ For each blockRef in L4 steps:
 - Subagent outputs L3 JSON → write to .svp/l3/<id>.json
 - [Toolchain] Run \`forge rehash l3/<id>\`
 - **Dispatch independent blocks in parallel**
+
+**[Alignment] L3 Overview — MUST wait for user confirmation before proceeding:**
+- [AI] Generate a human-readable L3 Overview in natural language:
+  - Summary table of all L3 blocks: name, responsibility (one sentence), inputs/outputs
+  - Flag complexity signals: blocks with many pins or high dependency count
+  - Mapping between blocks and L4 steps
+  - Whether any block has overly broad responsibility (e.g., one block handling all routes) — suggest splitting
+- User may request changes to block granularity, merge or split blocks, modify pin definitions → iterate on L3 until user is satisfied
+- **Proceed to Step 4 only after user confirms**
 
 ### Step 4: [Toolchain] Get Compile Tasks
 - Run \`forge compile-plan\` to get the compile task list
@@ -434,9 +499,13 @@ For each compile task:
 
 ## Add (add feature to existing system)
 
+### Step 0: [Toolchain] Create Changeset
+- Run \`forge changeset start <name> --reason "<change reason>"\` to snapshot baseline
+
 ### Step 1: [Toolchain] Understand Current Structure
 - Run \`forge view l5\` and \`forge view l4/<id>\` to understand the existing architecture
 - Determine which L4 flow the new feature belongs to (or whether a new flow is needed)
+- If you have design mockups or reference implementations, place them in \`nodes/<block-id>/refs/\`
 
 ### Step 2: [AI] Modify L4 Flow
 - Edit the corresponding .svp/l4/<flow-id>.json, add a new step + blockRef
@@ -460,9 +529,15 @@ For each compile task:
 - \`forge link <l3-id> --files <paths>\`
 - \`forge check\` to confirm all green
 
+### Step 6: [Toolchain] Complete Changeset
+- Run \`forge changeset complete\` to record all artifact changes in this changeset
+
 ---
 
 ## Change (modify existing requirement)
+
+### Step 0: [Toolchain] Create Changeset
+- Run \`forge changeset start <name> --reason "<change reason>"\` to snapshot baseline
 
 ### Step 1: [Toolchain] Diagnose Current State
 - Run \`forge check\` to confirm current consistency state
@@ -493,6 +568,9 @@ For each recompile task:
 ### Step 6: [Toolchain] Update Mappings and Verify
 - \`forge link <l3-id> --files <paths>\`
 - \`forge check\` to confirm all green
+
+### Step 7: [Toolchain] Complete Changeset
+- Run \`forge changeset complete\` to record all artifact changes in this changeset
 
 ---
 
@@ -617,6 +695,24 @@ graphs/
 - 不影响 contentHash——是补充信息，不是契约
 - 用途：设计意图、边界情况、错误策略、集成约定、示例
 
+### 参考材料 (refs/)
+
+每个节点/图可有可选的 \`refs/\` 文件夹，附加任意参考文件（设计稿、算法规格、参考实现等）：
+
+\`\`\`
+nodes/<block-id>/
+├── docs.md          # 可选：补充文档
+└── refs/            # 可选：参考材料文件夹
+    ├── design.png   # UI 设计稿
+    ├── algorithm.md # 算法规格
+    └── reference.ts # 参考实现
+\`\`\`
+
+- 文本文件（.md/.ts/.py 等）内容直接内联到 prompt 中
+- 二进制文件（.png/.pdf 等）以路径形式列出
+- 不影响 contentHash，也不纳入 \`forge docs check\` 覆盖检查
+- 自动加载到 compile/recompile/review prompt 中
+
 ### AI vs Toolchain 作用域
 
 | 作用域 | 操作 | 方式 |
@@ -665,6 +761,11 @@ SVP prompt 包含 \`complexity\` front-matter 字段，指示任务难度：
 | \`forge rehash [target]\` | 重算 contentHash + 递增 revision |
 | \`forge link <l3-id> --files <paths>\` | 创建/更新 L2 code block 映射 |
 | \`forge prompt <action> <id>\` | 生成上下文感知的 AI 提示词到 stdout |
+| \`forge changeset start <name> --reason "..."\` | 创建变更集，快照基线 |
+| \`forge changeset complete\` | 完成活跃变更集，计算差异 |
+| \`forge changeset list\` | 列出所有变更集 |
+| \`forge changeset view [id]\` | 查看变更集差异（默认活跃） |
+| \`forge changeset abandon [id]\` | 放弃活跃变更集 |
 
 ### Prompt 命令
 
@@ -768,6 +869,24 @@ graphs/
 - Does NOT affect contentHash — it's supplementary, not contractual
 - Use it for: design intent, edge cases, error strategy, integration notes, examples
 
+### Reference Materials (refs/)
+
+Each node/graph can have an optional \`refs/\` folder for arbitrary reference files (mockups, algorithm specs, reference implementations, etc.):
+
+\`\`\`
+nodes/<block-id>/
+├── docs.md          # Optional: supplementary documentation
+└── refs/            # Optional: reference materials folder
+    ├── design.png   # UI mockup
+    ├── algorithm.md # Algorithm spec
+    └── reference.ts # Reference implementation
+\`\`\`
+
+- Text files (.md/.ts/.py etc.) are inlined into the prompt
+- Binary files (.png/.pdf etc.) are listed by path
+- Does NOT affect contentHash, and is NOT checked by \`forge docs check\`
+- Auto-loaded into compile/recompile/review prompts
+
 ### AI vs Toolchain Scope
 
 | Scope | Operation | Method |
@@ -817,6 +936,11 @@ and pass the corresponding model parameter.
 | \`forge rehash [target]\` | Recompute contentHash + bump revision |
 | \`forge link <l3-id> --files <paths>\` | Create/update L2 code block mapping |
 | \`forge prompt <action> <id>\` | Generate context-aware AI prompt to stdout |
+| \`forge changeset start <name> --reason "..."\` | Start changeset, snapshot baseline |
+| \`forge changeset complete\` | Complete active changeset, compute diff |
+| \`forge changeset list\` | List all changesets |
+| \`forge changeset view [id]\` | View changeset diff (defaults to active) |
+| \`forge changeset abandon [id]\` | Abandon active changeset |
 
 ### Prompt Commands
 

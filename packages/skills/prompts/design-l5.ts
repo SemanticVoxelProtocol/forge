@@ -81,6 +81,12 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
       "- Constraints are strings, not objects",
       "- Domain dependencies reference other domain names",
       "- Write 'placeholder' for contentHash — rehash will fix it",
+      "",
+      "**Design quality guidelines:**",
+      "- Each domain should have a clear, non-overlapping responsibility boundary",
+      "- If a domain description contains 'and' connecting unrelated concepts, consider splitting it",
+      "- Prefer more fine-grained domains over fewer coarse-grained ones — downstream L4/L3 design benefits from clear boundaries",
+      "- Integrations should be specific — 'database' is too vague, 'PostgreSQL for order data' is better",
     ].join("\n") +
     languageDirective(input.language ?? "en")
   );

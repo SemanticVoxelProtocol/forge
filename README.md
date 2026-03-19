@@ -27,7 +27,13 @@ SVP doesn't call AI APIs or build compilers. SVP is an **enhancement layer** for
 - **Toolchain**: `forge check` (validation), store (read/write), hash (change tracking)
 - **Skills**: Generate structured context from the five-layer data model, fed into your existing AI tools
 
-Similar to [OpenSpec](https://github.com/Fission-AI/OpenSpec) — we don't build AI, we feed AI better context. SVP's capabilities improve automatically as base models evolve.
+We don't build AI, we feed AI better context. SVP's capabilities improve automatically as base models evolve.
+
+### Works great with OpenSpec
+
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) focuses on **spec before code** — making sure requirements are clear before AI writes anything. SVP focuses on **verify after code** — making sure what AI wrote is consistent and correct across layers.
+
+They're complementary: OpenSpec manages the input quality (what to build), SVP manages the output quality (was it built right). Use both for a complete spec → architecture → verification pipeline.
 
 ## Design Principles
 
