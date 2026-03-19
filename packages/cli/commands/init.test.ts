@@ -431,14 +431,15 @@ describe("forge init", () => {
     expect(stdout).toContain("Windsurf");
   });
 
-  it("shows message when multiple hosts detected and no --host", async () => {
+  it("uses first detected host when multiple hosts found in non-interactive mode", async () => {
     await mkdir(path.join(testRoot, ".claude"), { recursive: true });
     await mkdir(path.join(testRoot, ".cursor"), { recursive: true });
 
     const { stdout, exitCode } = await runInit(testRoot, ["--name", "My App"]);
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Multiple hosts detected");
+    // Non-interactive: uses the first detected host (claude-code)
+    expect(stdout).toContain("Claude Code");
   });
 
   // ── Parameterized i18n tests ──
