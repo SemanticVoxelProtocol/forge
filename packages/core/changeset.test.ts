@@ -2,11 +2,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  computeBaselineFromArtifacts,
-  computeDiff,
-  formatDiffSummary,
-} from "./changeset.js";
+import { computeBaselineFromArtifacts, computeDiff, formatDiffSummary } from "./changeset.js";
 import {
   deleteChangeset,
   findActiveChangeset,
@@ -132,9 +128,7 @@ describe("computeDiff", () => {
     const current = { "l3:validate-order": 4 };
     const diff = computeDiff(baseline, current);
 
-    expect(diff.modified).toEqual([
-      { layer: "l3", id: "validate-order", fromRev: 2, toRev: 4 },
-    ]);
+    expect(diff.modified).toEqual([{ layer: "l3", id: "validate-order", fromRev: 2, toRev: 4 }]);
     expect(diff.created).toEqual([]);
     expect(diff.unchanged).toEqual([]);
   });

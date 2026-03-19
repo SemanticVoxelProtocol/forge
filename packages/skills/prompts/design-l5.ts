@@ -50,9 +50,7 @@ export function buildDesignL5Prompt(input: DesignL5Input): string {
       "",
       input.userIntent,
       "",
-      ...(input.docs === undefined
-        ? []
-        : ["## Project Documentation", "", input.docs, ""]),
+      ...(input.docs === undefined ? [] : ["## Project Documentation", "", input.docs, ""]),
       "## Current State",
       "",
       currentSection,

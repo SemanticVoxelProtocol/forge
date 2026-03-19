@@ -106,11 +106,7 @@ export { runMigrations } from "./migrate.js";
 export type { ScanOptions, ScannedFile, ScanContext } from "./scan.js";
 export { collectScanContext } from "./scan.js";
 export type { Changeset, ChangesetDiff } from "./changeset.js";
-export {
-  computeBaselineFromArtifacts,
-  computeDiff,
-  formatDiffSummary,
-} from "./changeset.js";
+export { computeBaselineFromArtifacts, computeDiff, formatDiffSummary } from "./changeset.js";
 export {
   writeChangeset,
   readChangeset,

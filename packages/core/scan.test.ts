@@ -10,7 +10,10 @@ import type { SignatureExtractor } from "./fingerprint.js";
 let tempDir: string;
 
 async function makeTempProject(files: Record<string, string>): Promise<string> {
-  tempDir = path.join(tmpdir(), `svp-scan-test-${String(Date.now())}-${String(Math.random()).slice(2, 8)}`);
+  tempDir = path.join(
+    tmpdir(),
+    `svp-scan-test-${String(Date.now())}-${String(Math.random()).slice(2, 8)}`,
+  );
   for (const [filePath, content] of Object.entries(files)) {
     const fullPath = path.join(tempDir, filePath);
     await mkdir(path.dirname(fullPath), { recursive: true });
@@ -24,9 +27,7 @@ const stubExtractor: SignatureExtractor = {
   extract: (filePath: string) =>
     Promise.resolve({
       filePath,
-      exports: [
-        { name: "stubExport", kind: "function" as const, signature: "() => void" },
-      ],
+      exports: [{ name: "stubExport", kind: "function" as const, signature: "() => void" }],
     }),
 };
 
@@ -44,10 +45,7 @@ describe("collectScanContext", () => {
       "src/utils.ts": "export const FOO = 1;",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     expect(result.files).toHaveLength(2);
     expect(result.summary.totalFiles).toBe(2);
@@ -68,10 +66,7 @@ describe("collectScanContext", () => {
       "src/index.ts": "export const x = 1;",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     expect(result.files).toHaveLength(3);
 
@@ -87,14 +82,12 @@ describe("collectScanContext", () => {
   it("respects maxFiles cap and sets truncated flag", async () => {
     const files: Record<string, string> = {};
     for (let i = 0; i < 10; i++) {
-      files[`src/file${String(i).padStart(2, "0")}.ts`] = `export const x${String(i)} = ${String(i)};`;
+      files[`src/file${String(i).padStart(2, "0")}.ts`] =
+        `export const x${String(i)} = ${String(i)};`;
     }
     const root = await makeTempProject(files);
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 3 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 3 }, stubExtractor);
 
     expect(result.files).toHaveLength(3);
     expect(result.summary.totalFiles).toBe(3);
@@ -109,10 +102,7 @@ describe("collectScanContext", () => {
       "src/build/output.js": "var y = 2;",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0].filePath).toContain("index.ts");
@@ -126,10 +116,7 @@ describe("collectScanContext", () => {
       "src/utils.test.tsx": "test('renders', () => {});",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0].filePath).toContain("handler.ts");
@@ -142,10 +129,7 @@ describe("collectScanContext", () => {
       "src/types.d.ts": "declare module 'foo' {}",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0].filePath).not.toContain(".d.ts");
@@ -170,9 +154,7 @@ describe("collectScanContext", () => {
       "src/utils.ts": "export const b = 2;",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
 
     expect(result.files).toHaveLength(2);
     expect(result.summary.totalExports).toBe(0);
@@ -188,10 +170,7 @@ describe("collectScanContext", () => {
       "src/m.ts": "",
     });
 
-    const result = await collectScanContext(
-      { root, dir: "src", maxFiles: 50 },
-      stubExtractor,
-    );
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 }, stubExtractor);
 
     const paths = result.files.map((f) => f.filePath);
     expect(paths).toEqual([...paths].toSorted());

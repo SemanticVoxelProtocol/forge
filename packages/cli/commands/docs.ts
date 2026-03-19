@@ -59,9 +59,7 @@ async function hasL5Docs(root: string): Promise<boolean> {
 
 /** 注册 forge docs 子命令组 */
 export function registerDocs(program: Command): void {
-  const docs = program
-    .command("docs")
-    .description("Documentation quality tools");
+  const docs = program.command("docs").description("Documentation quality tools");
 
   // ── forge docs list ──
   docs
@@ -106,9 +104,7 @@ export function registerDocs(program: Command): void {
       const pathWidth = Math.max(4, ...rows.map((r) => r.path.length));
       const artWidth = Math.max(8, ...rows.map((r) => r.artifact.length));
 
-      console.log(
-        `${"PATH".padEnd(pathWidth)}  ${"ARTIFACT".padEnd(artWidth)}  STATUS`,
-      );
+      console.log(`${"PATH".padEnd(pathWidth)}  ${"ARTIFACT".padEnd(artWidth)}  STATUS`);
       console.log(`${"─".repeat(pathWidth)}  ${"─".repeat(artWidth)}  ──────`);
       for (const row of rows) {
         console.log(
@@ -130,9 +126,7 @@ export function registerDocs(program: Command): void {
       try {
         input = await loadCheckInput(root);
       } catch {
-        console.error(
-          `Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`,
-        );
+        console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
         process.exitCode = 1;
         return;
       }
@@ -155,17 +149,12 @@ export function registerDocs(program: Command): void {
 
       // Calculate coverage
       const totalArtifacts =
-        (input.l5 === undefined ? 0 : 1) +
-        input.l3Blocks.length +
-        input.l4Flows.length;
+        (input.l5 === undefined ? 0 : 1) + input.l3Blocks.length + input.l4Flows.length;
       const documented =
         (input.l5 === undefined ? 0 : l5 ? 1 : 0) +
         input.l3Blocks.filter((b) => nodes.has(b.id)).length +
         input.l4Flows.filter((f) => graphs.has(f.id)).length;
-      const coverage =
-        totalArtifacts === 0
-          ? 100
-          : Math.round((documented / totalArtifacts) * 100);
+      const coverage = totalArtifacts === 0 ? 100 : Math.round((documented / totalArtifacts) * 100);
 
       if (options.json === true) {
         console.log(
@@ -175,12 +164,16 @@ export function registerDocs(program: Command): void {
       }
 
       if (issues.length === 0) {
-        console.log(`Documentation coverage: ${String(coverage)}% (${String(documented)}/${String(totalArtifacts)} artifacts)`);
+        console.log(
+          `Documentation coverage: ${String(coverage)}% (${String(documented)}/${String(totalArtifacts)} artifacts)`,
+        );
         console.log("All artifacts have documentation.");
         return;
       }
 
-      console.log(`Documentation coverage: ${String(coverage)}% (${String(documented)}/${String(totalArtifacts)} artifacts)`);
+      console.log(
+        `Documentation coverage: ${String(coverage)}% (${String(documented)}/${String(totalArtifacts)} artifacts)`,
+      );
       console.log();
       console.log("Missing documentation:");
       for (const issue of issues) {

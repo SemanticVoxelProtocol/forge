@@ -255,8 +255,7 @@ const messages: Record<string, Record<string, string>> = {
     "check.nextCycle": 'L4 "{entityName}" 在 next 链中存在环，涉及步骤 "{current}"',
     "check.orphanStep": 'L4 "{entityName}" 步骤 "{stepId}" 从第一个步骤不可达',
     "check.missingLanguage": "L5 blueprint 未设置 language 字段 — 建议添加语言偏好",
-    "check.missingNodeDocs":
-      'L3 block "{blockRef}" 有实现但缺少文档 (nodes/{blockRef}/docs.md)',
+    "check.missingNodeDocs": 'L3 block "{blockRef}" 有实现但缺少文档 (nodes/{blockRef}/docs.md)',
 
     // ── compilePlan.* ──
     "compilePlan.reason.missingL2": 'L3 block "{name}" 没有对应的 L2 code block — 需要初始编译',

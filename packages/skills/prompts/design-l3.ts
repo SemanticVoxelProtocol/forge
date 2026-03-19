@@ -129,9 +129,7 @@ export function buildDesignL3Prompt(input: DesignL3Input): string {
       "",
       input.userIntent,
       "",
-      ...(input.docs === undefined
-        ? []
-        : ["## Module Documentation", "", input.docs, ""]),
+      ...(input.docs === undefined ? [] : ["## Module Documentation", "", input.docs, ""]),
       "## Current State",
       "",
       currentSection,

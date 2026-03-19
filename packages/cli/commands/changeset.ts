@@ -32,9 +32,7 @@ function currentRevsFromInput(
 }
 
 export function registerChangeset(program: Command): void {
-  const cmd = program
-    .command("changeset")
-    .description("Cross-artifact version grouping");
+  const cmd = program.command("changeset").description("Cross-artifact version grouping");
 
   // ── start ──
   cmd
@@ -123,9 +121,10 @@ export function registerChangeset(program: Command): void {
 
       for (const cs of [...active, ...completed]) {
         const marker = cs.status === "active" ? "* " : "  ";
-        const date = cs.status === "completed" && cs.completedAt !== undefined
-          ? ` (completed ${cs.completedAt.slice(0, 10)})`
-          : "";
+        const date =
+          cs.status === "completed" && cs.completedAt !== undefined
+            ? ` (completed ${cs.completedAt.slice(0, 10)})`
+            : "";
         console.log(`${marker}${cs.id} — ${cs.reason}${date}`);
       }
     });
@@ -136,14 +135,14 @@ export function registerChangeset(program: Command): void {
     .description("View changeset diff (defaults to active)")
     .option("-r, --root <path>", "Project root directory", ".")
     .action(async (id: string | undefined, options: { root: string }) => {
-      const cs = id === undefined
-        ? await findActiveChangeset(options.root)
-        : await readChangeset(options.root, id);
+      const cs =
+        id === undefined
+          ? await findActiveChangeset(options.root)
+          : await readChangeset(options.root, id);
 
       if (cs === null) {
-        const msg = id === undefined
-          ? "Error: No active changeset."
-          : `Error: Changeset "${id}" not found.`;
+        const msg =
+          id === undefined ? "Error: No active changeset." : `Error: Changeset "${id}" not found.`;
         console.error(msg);
         process.exitCode = 1;
         return;
@@ -166,14 +165,16 @@ export function registerChangeset(program: Command): void {
     .description("Delete an active changeset")
     .option("-r, --root <path>", "Project root directory", ".")
     .action(async (id: string | undefined, options: { root: string }) => {
-      const cs = id === undefined
-        ? await findActiveChangeset(options.root)
-        : await readChangeset(options.root, id);
+      const cs =
+        id === undefined
+          ? await findActiveChangeset(options.root)
+          : await readChangeset(options.root, id);
 
       if (cs === null) {
-        const msg = id === undefined
-          ? "Error: No active changeset to abandon."
-          : `Error: Changeset "${id}" not found.`;
+        const msg =
+          id === undefined
+            ? "Error: No active changeset to abandon."
+            : `Error: Changeset "${id}" not found.`;
         console.error(msg);
         process.exitCode = 1;
         return;

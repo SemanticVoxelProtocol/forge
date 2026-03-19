@@ -77,9 +77,7 @@ export function buildDesignL4Prompt(input: DesignL4Input): string {
       "",
       input.userIntent,
       "",
-      ...(input.docs === undefined
-        ? []
-        : ["## Graph Documentation", "", input.docs, ""]),
+      ...(input.docs === undefined ? [] : ["## Graph Documentation", "", input.docs, ""]),
       "## Existing Flows",
       "",
       existingFlowsSection,

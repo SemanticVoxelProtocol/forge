@@ -41,12 +41,7 @@ const EXCLUDE_DIRS = new Set([
   "__pycache__",
 ]);
 
-const EXCLUDE_FILE_PATTERNS = [
-  /\.test\.[jt]sx?$/,
-  /\.spec\.[jt]sx?$/,
-  /\.d\.ts$/,
-  /\.min\.[jt]s$/,
-];
+const EXCLUDE_FILE_PATTERNS = [/\.test\.[jt]sx?$/, /\.spec\.[jt]sx?$/, /\.d\.ts$/, /\.min\.[jt]s$/];
 
 function shouldExcludeDir(name: string): boolean {
   return EXCLUDE_DIRS.has(name);

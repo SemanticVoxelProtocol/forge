@@ -3,7 +3,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { readGraphDocs, readNodeDocs, readNodeRefs, readGraphRefs } from "../core/index.js";
-import type { CheckInput, CompileTask, FileContent, RefFile, ResolvedContext } from "../core/index.js";
+import type {
+  CheckInput,
+  CompileTask,
+  FileContent,
+  RefFile,
+  ResolvedContext,
+} from "../core/index.js";
 
 export interface ContextResolver {
   readonly resolve: (task: CompileTask, input: CheckInput) => Promise<ResolvedContext>;

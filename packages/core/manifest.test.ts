@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -14,7 +14,10 @@ import type { Manifest } from "./manifest.js";
 let testRoot: string;
 
 beforeEach(async () => {
-  testRoot = path.join(import.meta.dirname, `__test_manifest_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  testRoot = path.join(
+    import.meta.dirname,
+    `__test_manifest_${String(Date.now())}_${Math.random().toString(36).slice(2)}`,
+  );
   await mkdir(path.join(testRoot, ".svp"), { recursive: true });
 });
 

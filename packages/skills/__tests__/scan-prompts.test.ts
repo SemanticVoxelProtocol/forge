@@ -14,7 +14,10 @@ const baseRevision = {
 };
 
 const makeScanContext = (
-  files: Array<{ filePath: string; exports?: Array<{ name: string; kind: string; signature: string }> }>,
+  files: Array<{
+    filePath: string;
+    exports?: Array<{ name: string; kind: string; signature: string }>;
+  }>,
   truncated = false,
 ): ScanContext => {
   const scannedFiles = files.map((f) => ({
@@ -63,7 +66,10 @@ const makeFlow = (id: string, blockRefs: string[]): L4Flow => ({
 describe("buildScanL3Prompt", () => {
   it("produces valid markdown with complexity header", () => {
     const ctx = makeScanContext([
-      { filePath: "src/index.ts", exports: [{ name: "hello", kind: "function", signature: "() => void" }] },
+      {
+        filePath: "src/index.ts",
+        exports: [{ name: "hello", kind: "function", signature: "() => void" }],
+      },
     ]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });

@@ -72,9 +72,7 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "You are analyzing an existing codebase to extract L3 contract blocks for SVP.",
       "L3 blocks are the interface specifications — each groups related exports into a logical unit.",
       "",
-      ...(input.userIntent === undefined
-        ? []
-        : ["## System Intent", "", input.userIntent, ""]),
+      ...(input.userIntent === undefined ? [] : ["## System Intent", "", input.userIntent, ""]),
       "## Scanned Codebase",
       "",
       `Summary: ${summaryLine(scanContext)}`,
@@ -172,9 +170,7 @@ export function buildScanL4Prompt(input: ScanL4Input): string {
       "You are analyzing L3 contracts and code patterns to infer L4 flow artifacts for SVP.",
       "L4 describes how L3 blocks connect — the orchestration layer.",
       "",
-      ...(input.userIntent === undefined
-        ? []
-        : ["## System Intent", "", input.userIntent, ""]),
+      ...(input.userIntent === undefined ? [] : ["## System Intent", "", input.userIntent, ""]),
       "## Existing L3 Contracts",
       "",
       l3Summary,
@@ -193,9 +189,9 @@ export function buildScanL4Prompt(input: ScanL4Input): string {
       "3. **Call patterns**: Function A calls function B → A's step comes before B's step",
       "",
       "Identify flows and write L4 artifacts:",
-      "- **Request-response pipelines**: trigger → step chain → result → use `kind: \"flow\"`",
-      "- **Event-driven patterns**: shared state + handlers → use `kind: \"event-graph\"`",
-      "- **State machines**: entity lifecycle → use `kind: \"state-machine\"`",
+      '- **Request-response pipelines**: trigger → step chain → result → use `kind: "flow"`',
+      '- **Event-driven patterns**: shared state + handlers → use `kind: "event-graph"`',
+      '- **State machines**: entity lifecycle → use `kind: "state-machine"`',
       "",
       "Write each artifact to `.svp/l4/<flow-id>.json` using this schema (flow example):",
       "",
@@ -207,7 +203,7 @@ export function buildScanL4Prompt(input: ScanL4Input): string {
       "",
       "- Each step references an L3 block via `blockRef`",
       "- `dataFlows` connect output pins of one step to input pins of the next",
-      "- Use format `\"stepId.pinName\"` for dataFlow endpoints",
+      '- Use format `"stepId.pinName"` for dataFlow endpoints',
       "- Steps execute in `next` chain order",
       "- Group related flows by domain (e.g., `order-flow`, `payment-flow`)",
       "",
@@ -257,13 +253,9 @@ const L5_SCHEMA_EXAMPLE = `{
 export function buildScanL5Prompt(input: ScanL5Input): string {
   const { l3Blocks, l4Flows } = input;
 
-  const l4Summary = l4Flows
-    .map((f) => `- **${f.id}** (${f.name})`)
-    .join("\n");
+  const l4Summary = l4Flows.map((f) => `- **${f.id}** (${f.name})`).join("\n");
 
-  const l3Summary = l3Blocks
-    .map((b) => `- **${b.id}** (${b.name})`)
-    .join("\n");
+  const l3Summary = l3Blocks.map((b) => `- **${b.id}** (${b.name})`).join("\n");
 
   return (
     complexityHeader("standard") +
@@ -273,9 +265,7 @@ export function buildScanL5Prompt(input: ScanL5Input): string {
       "You are synthesizing the top-level L5 blueprint from existing L3 and L4 artifacts.",
       "L5 captures the system's intent, constraints, domains, and integrations.",
       "",
-      ...(input.userIntent === undefined
-        ? []
-        : ["## System Intent", "", input.userIntent, ""]),
+      ...(input.userIntent === undefined ? [] : ["## System Intent", "", input.userIntent, ""]),
       "## Existing L4 Flows",
       "",
       l4Summary,
