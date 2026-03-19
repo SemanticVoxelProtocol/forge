@@ -11,6 +11,7 @@ import {
   readL3,
   readL4,
   readL5,
+  checkCompatibility,
   computeSignatureHash,
   createTypescriptExtractor,
 } from "../core/index.js";
@@ -27,6 +28,9 @@ export async function loadCheckInput(
   root: string,
   options: { computeSignatures?: boolean } = {},
 ): Promise<CheckInput> {
+  // Ensure .svp/ schema is compatible before reading
+  await checkCompatibility(root);
+
   const l5 = (await readL5(root)) ?? undefined;
 
   const l4Ids = await listL4(root);

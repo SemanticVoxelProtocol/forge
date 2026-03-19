@@ -5,6 +5,7 @@ import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { computeHash } from "./hash.js";
 import { detectSystemLanguage } from "./i18n.js";
+import { createManifest, writeManifest } from "./manifest.js";
 import { writeL5 } from "./store.js";
 import type { L5Blueprint } from "./l5.js";
 
@@ -73,6 +74,10 @@ export async function init(root: string, options: InitOptions): Promise<InitResu
   };
 
   await writeL5(root, l5);
+
+  // Write manifest.json
+  const manifest = createManifest();
+  await writeManifest(root, manifest);
 
   return { created: true, root, l5 };
 }

@@ -85,3 +85,14 @@ export type {
 } from "./skill.js";
 export { DEFAULT_SKILL_CONFIG, REVIEW_SKILL_CONFIG } from "./skill.js";
 export { t, getLanguage, detectSystemLanguage, languageName, languageDirective } from "./i18n.js";
+export type { Manifest, CompatibilityStatus } from "./manifest.js";
+export {
+  SCHEMA_VERSION,
+  readManifest,
+  writeManifest,
+  createManifest,
+  checkCompatibility,
+  checkSchemaCompatibility,
+} from "./manifest.js";
+export type { Migration } from "./migrate.js";
+export { runMigrations } from "./migrate.js";
