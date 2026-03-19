@@ -2,6 +2,7 @@
 // forge CLI — SVP 工具链的命令行入口
 
 import { Command } from "commander";
+import { VERSION } from "../core/version.js";
 import { registerCheck } from "./commands/check.js";
 import { registerCompilePlan } from "./commands/compile-plan.js";
 import { registerFix } from "./commands/fix.js";
@@ -16,7 +17,7 @@ export function createCLI(): Command {
   const program = new Command()
     .name("forge")
     .description("SVP — Semantic Voxel Protocol toolchain")
-    .version("0.1.0");
+    .version(VERSION);
 
   registerCheck(program);
   registerCompilePlan(program);
