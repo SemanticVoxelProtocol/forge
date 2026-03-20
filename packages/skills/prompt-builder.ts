@@ -192,6 +192,11 @@ function buildCompileInput(input: SkillInput): string[] {
     parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
   }
 
+  // OpenSpec 行为需求
+  if (resolved.openspec !== undefined) {
+    parts.push("", "### Behavioral Requirements (OpenSpec)", "", resolved.openspec);
+  }
+
   return parts;
 }
 
@@ -230,6 +235,11 @@ function buildRecompileInput(input: SkillInput): string[] {
     parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
   }
 
+  // OpenSpec 行为需求
+  if (resolved.openspec !== undefined) {
+    parts.push("", "### Behavioral Requirements (OpenSpec)", "", resolved.openspec);
+  }
+
   return parts;
 }
 
@@ -266,6 +276,11 @@ function buildReviewInput(input: SkillInput): string[] {
   // 参考材料
   if (resolved.refs !== undefined && resolved.refs.length > 0) {
     parts.push("", "### Reference Materials", "", formatRefs(resolved.refs));
+  }
+
+  // OpenSpec 行为需求
+  if (resolved.openspec !== undefined) {
+    parts.push("", "### Behavioral Requirements (OpenSpec)", "", resolved.openspec);
   }
 
   return parts;

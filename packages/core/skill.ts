@@ -21,6 +21,7 @@ export interface ResolvedContext {
   readonly l1Files?: readonly FileContent[];
   readonly docs?: string;
   readonly refs?: readonly RefFile[];
+  readonly openspec?: string;
 }
 
 /** L1 源文件内容 */

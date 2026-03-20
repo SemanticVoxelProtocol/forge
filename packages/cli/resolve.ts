@@ -2,7 +2,13 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { readGraphDocs, readNodeDocs, readNodeRefs, readGraphRefs } from "../core/index.js";
+import {
+  readGraphDocs,
+  readNodeDocs,
+  readNodeRefs,
+  readGraphRefs,
+  readOpenSpecContext,
+} from "../core/index.js";
 import type {
   CheckInput,
   CompileTask,
@@ -27,6 +33,7 @@ export function createResolver(root: string): ContextResolver {
         l1Files?: FileContent[];
         docs?: string;
         refs?: RefFile[];
+        openspec?: string;
       } = {};
 
       for (const ref of task.context) {
@@ -66,6 +73,9 @@ export function createResolver(root: string): ContextResolver {
           ctx.docs = (await readGraphDocs(root, l4Ref.id)) ?? undefined;
           ctx.refs = await readGraphRefs(root, l4Ref.id);
         }
+
+        // Auto-load OpenSpec behavioral requirements if openspec/ exists
+        ctx.openspec = (await readOpenSpecContext(root)) ?? undefined;
       }
 
       return ctx;

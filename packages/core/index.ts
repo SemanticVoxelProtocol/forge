@@ -46,6 +46,7 @@ export {
   readL2Docs,
   readNodeRefs,
   readGraphRefs,
+  readOpenSpecContext,
 } from "./store.js";
 export type { CheckIssue, CheckReport, CheckInput, IssueSeverity } from "./check.js";
 export { check } from "./check.js";

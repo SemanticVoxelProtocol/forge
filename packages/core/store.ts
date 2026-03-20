@@ -186,6 +186,49 @@ async function readRefsDir(root: string, relDir: string): Promise<RefFile[]> {
   return refs;
 }
 
+// ── OpenSpec integration ──
+
+/** Read OpenSpec context if openspec/ exists. Returns null if not present. */
+export async function readOpenSpecContext(root: string): Promise<string | null> {
+  const openspecDir = path.join(root, "openspec");
+  try {
+    await readdir(openspecDir);
+  } catch {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  // Read project.md (global context)
+  try {
+    const projectMd = await readFile(path.join(openspecDir, "project.md"), "utf8");
+    parts.push("### Project Context\n\n" + projectMd);
+  } catch {
+    // no project.md
+  }
+
+  // Read all specs/*/spec.md (behavioral requirements)
+  const specsDir = path.join(openspecDir, "specs");
+  let capabilities: string[];
+  try {
+    capabilities = await readdir(specsDir);
+  } catch {
+    capabilities = [];
+  }
+
+  for (const cap of capabilities.toSorted()) {
+    try {
+      const specPath = path.join(specsDir, cap, "spec.md");
+      const content = await readFile(specPath, "utf8");
+      parts.push(`### ${cap}\n\n${content}`);
+    } catch {
+      // skip non-directories or missing spec.md
+    }
+  }
+
+  return parts.length > 0 ? parts.join("\n\n---\n\n") : null;
+}
+
 // ── Docs ──
 
 /** 读取节点的模块化文档 nodes/<nodeId>/docs.md，不存在返回 null */
