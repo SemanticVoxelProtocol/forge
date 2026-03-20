@@ -65,6 +65,15 @@ export function getProtocolSection(language: string, modelTierLine: string): str
 - 如果 nodes/<id>/docs.md 存在，compile/recompile prompt 会自动包含文档内容
 - 如果 nodes/<id>/refs/ 存在，compile/recompile/review prompt 会自动包含参考材料
 
+**前端代码与 SVP 的关系：**
+- SVP 不管前端怎么写——前端组件、样式、动画等不走 SVP 编译流程
+- 但 AI 写前端时，应按 SVP 的按需加载规范读取 .svp/ 作为后端上下文：
+  - L5 了解系统意图（轻量，总是可以加载）
+  - 相关 L4 了解当前功能的业务流程（按需）
+  - 当前页面调用的 L3 了解 API 契约：输入输出、验证规则、约束（按需，只加载相关的）
+- 读 L3 契约远优于读后端源码——几十行契约比几千行代码更精确、更省 token
+- 如果项目同时使用 OpenSpec，全局规范和业务需求从 OpenSpec 获取，架构上下文从 SVP 获取
+
 **文档与参考材料管理（AI 主动维护，用户无需手动操作）：**
 
 docs.md — 设计文档（AI 在每层对齐后主动生成）：
@@ -94,6 +103,15 @@ refs/ — 参考材料（AI 在识别到参考内容时主动管理）：
 - Report errors when unable to proceed, clearly stating which layer and what the issue is — the user is the reverse feedback loop
 - If nodes/<id>/docs.md exists, compile/recompile prompts will automatically include its content
 - If nodes/<id>/refs/ exists, compile/recompile/review prompts will automatically include reference materials
+
+**Frontend code and SVP:**
+- SVP does NOT manage how frontend is written — components, styling, animations are outside SVP's compilation flow
+- However, when AI writes frontend code, it SHOULD read .svp/ as backend context following SVP's on-demand loading convention:
+  - L5 for system intent (lightweight, always safe to load)
+  - Relevant L4 for the business process context of the current feature (on-demand)
+  - L3 contracts for the APIs the current page calls: inputs, outputs, validation rules, constraints (on-demand, only load relevant ones)
+- Reading L3 contracts is far better than reading backend source code — a few dozen lines of contract vs thousands of lines of code, more precise and token-efficient
+- If the project also uses OpenSpec, get global specs and business requirements from OpenSpec, get architecture context from SVP
 
 **Documentation & Reference Materials Management (AI proactively maintains these — user does NOT manage manually):**
 
