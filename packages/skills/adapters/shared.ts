@@ -63,7 +63,21 @@ export function getProtocolSection(language: string, modelTierLine: string): str
 - 尽量并行派发无依赖的 subagent
 - 做不到就报错，说清哪层什么问题——用户是反向反馈回路
 - 如果 nodes/<id>/docs.md 存在，compile/recompile prompt 会自动包含文档内容
-- 如果 nodes/<id>/refs/ 存在，compile/recompile/review prompt 会自动包含参考材料`;
+- 如果 nodes/<id>/refs/ 存在，compile/recompile/review prompt 会自动包含参考材料
+
+**文档与参考材料管理（AI 主动维护，用户无需手动操作）：**
+
+docs.md — 设计文档（AI 在每层对齐后主动生成）：
+- 完成每个模块的设计后，自动为其创建 nodes/<id>/docs.md
+- 内容包含：设计意图、关键决策理由、边界情况、与其他模块的关系
+- 这份文档既是给用户审查的沟通工具，也是后续编译时的上下文
+- 用户反馈修改需求时，同步更新 docs.md
+
+refs/ — 参考材料（AI 在识别到参考内容时主动管理）：
+- 当用户提到设计稿、截图、参考代码、算法说明等 → 自动创建 nodes/<id>/refs/ 并放入
+- 当用户说"参考这个"、"按照这个来"、"这是设计图" → 识别为参考材料，保存到对应模块的 refs/
+- 当用户粘贴代码片段作为参考 → 保存为 refs/<descriptive-name>.ts（或对应语言）
+- 编译时 refs/ 内容会自动注入 prompt，AI 无需额外操作`;
   }
 
   return `## Protocol (one-time declaration)
@@ -79,7 +93,21 @@ export function getProtocolSection(language: string, modelTierLine: string): str
 - Dispatch independent subagents in parallel when possible
 - Report errors when unable to proceed, clearly stating which layer and what the issue is — the user is the reverse feedback loop
 - If nodes/<id>/docs.md exists, compile/recompile prompts will automatically include its content
-- If nodes/<id>/refs/ exists, compile/recompile/review prompts will automatically include reference materials`;
+- If nodes/<id>/refs/ exists, compile/recompile/review prompts will automatically include reference materials
+
+**Documentation & Reference Materials Management (AI proactively maintains these — user does NOT manage manually):**
+
+docs.md — Design documentation (AI creates after each layer alignment):
+- After completing each module's design, automatically create nodes/<id>/docs.md
+- Content includes: design intent, key decision rationale, edge cases, relationships with other modules
+- This document serves both as a communication tool for user review AND as context for later compilation
+- When user requests changes, update docs.md in sync
+
+refs/ — Reference materials (AI manages when reference content is identified):
+- When user mentions mockups, screenshots, reference code, algorithm specs → automatically create nodes/<id>/refs/ and save the file
+- When user says "refer to this", "follow this pattern", "here's the design" → recognize as reference material, save to the relevant module's refs/
+- When user pastes code snippets as reference → save as refs/<descriptive-name>.ts (or appropriate language)
+- refs/ content is auto-injected into prompts during compilation — no extra action needed`;
 }
 
 // ── Skill file: Workflow content (Step 0 through View) ──
