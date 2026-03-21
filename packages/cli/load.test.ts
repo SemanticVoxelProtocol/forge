@@ -85,7 +85,6 @@ describe("loadCheckInput", () => {
     expect(result.l4Flows).toEqual([]);
     expect(result.l2Blocks).toEqual([]);
     expect(result.l5).toBeUndefined();
-    expect(result.l1SignatureHashes).toBeUndefined();
   });
 
   it("loads L3 blocks correctly", async () => {
@@ -163,22 +162,6 @@ describe("loadCheckInput", () => {
     expect(result.l3Blocks[0]).toEqual(l3);
     expect(result.l2Blocks).toHaveLength(1);
     expect(result.l2Blocks[0]).toEqual(l2);
-  });
-
-  it("computeSignatures: false (default) does not populate l1SignatureHashes", async () => {
-    const cb = makeL2("sig-block", { signatureHash: "some-sig" });
-    await writeL2(root, cb);
-
-    const result = await loadCheckInput(root);
-    expect(result.l1SignatureHashes).toBeUndefined();
-  });
-
-  it("computeSignatures: false explicitly does not populate l1SignatureHashes", async () => {
-    const cb = makeL2("sig-block-2", { signatureHash: "some-sig" });
-    await writeL2(root, cb);
-
-    const result = await loadCheckInput(root, { computeSignatures: false });
-    expect(result.l1SignatureHashes).toBeUndefined();
   });
 
   it("returns empty arrays when .svp/ directories exist but are empty", async () => {

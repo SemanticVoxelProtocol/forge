@@ -14,21 +14,14 @@ const baseRevision = {
 };
 
 const makeScanContext = (
-  files: Array<{
-    filePath: string;
-    exports?: Array<{ name: string; kind: string; signature: string }>;
-  }>,
+  files: Array<{ filePath: string }>,
   truncated = false,
 ): ScanContext => {
-  const scannedFiles = files.map((f) => ({
-    filePath: f.filePath,
-    exports: (f.exports ?? []) as ScanContext["files"][number]["exports"],
-  }));
+  const scannedFiles = files.map((f) => ({ filePath: f.filePath }));
   return {
     files: scannedFiles,
     summary: {
       totalFiles: scannedFiles.length,
-      totalExports: scannedFiles.reduce((sum, f) => sum + f.exports.length, 0),
       truncated,
     },
   };
@@ -65,12 +58,7 @@ const makeFlow = (id: string, blockRefs: string[]): L4Flow => ({
 
 describe("buildScanL3Prompt", () => {
   it("produces valid markdown with complexity header", () => {
-    const ctx = makeScanContext([
-      {
-        filePath: "src/index.ts",
-        exports: [{ name: "hello", kind: "function", signature: "() => void" }],
-      },
-    ]);
+    const ctx = makeScanContext([{ filePath: "src/index.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
@@ -78,21 +66,12 @@ describe("buildScanL3Prompt", () => {
     expect(result).toContain("# Reverse-Engineer L3 Contracts");
   });
 
-  it("includes scanned file tree with exports", () => {
-    const ctx = makeScanContext([
-      {
-        filePath: "src/handler.ts",
-        exports: [
-          { name: "handleRequest", kind: "function", signature: "(req: Request) => Response" },
-        ],
-      },
-    ]);
+  it("includes scanned file list", () => {
+    const ctx = makeScanContext([{ filePath: "src/handler.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
     expect(result).toContain("src/handler.ts");
-    expect(result).toContain("handleRequest");
-    expect(result).toContain("(req: Request) => Response");
   });
 
   it("includes user intent when provided", () => {
@@ -137,22 +116,12 @@ describe("buildScanL3Prompt", () => {
     expect(result).toContain("truncated");
   });
 
-  it("includes summary line with file and export counts", () => {
-    const ctx = makeScanContext([
-      {
-        filePath: "src/a.ts",
-        exports: [
-          { name: "foo", kind: "function", signature: "() => void" },
-          { name: "bar", kind: "variable", signature: "string" },
-        ],
-      },
-      { filePath: "src/b.ts" },
-    ]);
+  it("includes summary line with file count", () => {
+    const ctx = makeScanContext([{ filePath: "src/a.ts" }, { filePath: "src/b.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
     expect(result).toContain("2 files");
-    expect(result).toContain("2 exported symbols");
   });
 
   it("includes L3 schema example", () => {
@@ -201,10 +170,7 @@ describe("buildScanL4Prompt", () => {
   });
 
   it("includes code structure for import pattern analysis", () => {
-    const ctx = makeScanContext([
-      { filePath: "src/order.ts", exports: [{ name: "Order", kind: "class", signature: "Order" }] },
-      { filePath: "src/payment.ts" },
-    ]);
+    const ctx = makeScanContext([{ filePath: "src/order.ts" }, { filePath: "src/payment.ts" }]);
     const blocks = [makeL3("order")];
 
     const result = buildScanL4Prompt({ scanContext: ctx, l3Blocks: blocks });

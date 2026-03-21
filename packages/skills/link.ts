@@ -55,7 +55,6 @@ export function relinkL2(
     ...base,
     sourceHash: l3Block.contentHash,
     contentHash,
-    signatureHash: existing.signatureHash,
     revision: {
       rev: existing.revision.rev + 1,
       parentRev: existing.revision.rev,

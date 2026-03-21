@@ -214,46 +214,6 @@ describe("compilePlan", () => {
     expect(compileTasks).toHaveLength(1);
   });
 
-  it("detects content drift (L1 signatures changed)", () => {
-    const l3 = makeL3("validate", "Validate");
-    const l2: L2CodeBlock = {
-      ...makeL2(l3),
-      signatureHash: "old-sig",
-    };
-
-    const plan = compilePlan({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["validate", "new-sig"]]),
-    });
-
-    expect(plan.summary.review).toBe(1);
-    const task = plan.tasks.find((t) => t.issueCode === "CONTENT_DRIFT");
-    expect(task).toBeDefined();
-    expect(task?.action).toBe("review");
-    expect(task?.targetLayer).toBe("l3");
-    expect(task?.reason).toContain("L1 exported signatures changed");
-  });
-
-  it("no content drift task when signatures match", () => {
-    const l3 = makeL3("validate", "Validate");
-    const l2: L2CodeBlock = {
-      ...makeL2(l3),
-      signatureHash: "same-sig",
-    };
-
-    const plan = compilePlan({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["validate", "same-sig"]]),
-    });
-
-    const task = plan.tasks.find((t) => t.issueCode === "CONTENT_DRIFT");
-    expect(task).toBeUndefined();
-  });
-
   it("returns empty plan for empty input", () => {
     const plan = compilePlan({ l4Flows: [], l3Blocks: [], l2Blocks: [] });
     expect(plan.tasks).toEqual([]);
@@ -386,68 +346,6 @@ describe("compilePlan — recompile context", () => {
   });
 });
 
-describe("compilePlan — content drift context", () => {
-  it("includes L2 and L3 in review task for CONTENT_DRIFT", () => {
-    const l3 = makeL3("svc", "Service");
-    const l2: L2CodeBlock = { ...makeL2(l3), signatureHash: "old-hash" };
-
-    const plan = compilePlan({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["svc", "new-hash"]]),
-    });
-
-    const task = plan.tasks.find((t) => t.issueCode === "CONTENT_DRIFT");
-    expect(task).toBeDefined();
-    const contextLayers = task!.context.map((c) => c.layer);
-    expect(contextLayers).toContain("l2");
-    expect(contextLayers).toContain("l3");
-  });
-
-  it("uses L3 id as targetId when L3 exists", () => {
-    const l3 = makeL3("handler", "Handler");
-    const l2: L2CodeBlock = { ...makeL2(l3), signatureHash: "stale" };
-
-    const plan = compilePlan({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["handler", "fresh"]]),
-    });
-
-    const task = plan.tasks.find((t) => t.issueCode === "CONTENT_DRIFT");
-    expect(task).toBeDefined();
-    expect(task!.targetId).toBe("handler"); // L3 id
-    expect(task!.targetLayer).toBe("l3");
-  });
-
-  it("falls back to entityId when L3 not found for CONTENT_DRIFT", () => {
-    // L2 references a missing L3 (blockRef points nowhere) AND has CONTENT_DRIFT
-    // We need to craft this carefully: the L2 must have a signatureHash mismatch,
-    // but its blockRef must not match any L3 in the input.
-    // The L2 id must be in l1SignatureHashes to trigger CONTENT_DRIFT.
-    const ghostL3 = makeL3("ghost-l3", "Ghost");
-    const l2: L2CodeBlock = {
-      ...makeL2(ghostL3),
-      id: "orphan-block",
-      blockRef: "ghost-l3", // references L3 not in input
-      signatureHash: "outdated",
-    };
-
-    const plan = compilePlan({
-      l4Flows: [],
-      l3Blocks: [], // ghost-l3 is absent
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["orphan-block", "current"]]),
-    });
-
-    const task = plan.tasks.find((t) => t.issueCode === "CONTENT_DRIFT");
-    expect(task).toBeDefined();
-    // l3 not found → targetId falls back to issue.entityId which is the L2 block id
-    expect(task!.targetId).toBe("orphan-block");
-  });
-});
 
 describe("compilePlan — orphaned L2", () => {
   it("generates review task for L2 with MISSING_BLOCK_REF", () => {
@@ -536,25 +434,19 @@ describe("compilePlan — summary", () => {
     const l2Stale = makeL2(l3StaleOrig);
     const l3StaleUpdated = makeL3("stale-block", "Stale Block", { description: "Changed" });
 
-    // review (CONTENT_DRIFT): "drift-block" has signature mismatch
-    const l3Drift = makeL3("drift-block", "Drift Block");
-    const l2Drift: L2CodeBlock = { ...makeL2(l3Drift), signatureHash: "old" };
-
     // update-ref: L4 flow references missing L3 block
     const l4Broken = makeL4("broken-flow", ["nonexistent"]);
 
     const plan = compilePlan({
       l4Flows: [l4Broken],
-      l3Blocks: [l3New, l3StaleUpdated, l3Drift],
-      l2Blocks: [l2Stale, l2Drift],
-      l1SignatureHashes: new Map([["drift-block", "new"]]),
+      l3Blocks: [l3New, l3StaleUpdated],
+      l2Blocks: [l2Stale],
     });
 
     expect(plan.summary.compile).toBe(1);
     expect(plan.summary.recompile).toBe(1);
-    expect(plan.summary.review).toBe(1);
     expect(plan.summary.updateRef).toBe(1);
-    expect(plan.summary.total).toBe(4);
+    expect(plan.summary.total).toBe(3);
   });
 
   it("returns zero counts for empty input", () => {
@@ -617,16 +509,12 @@ describe("compilePlan — complexity", () => {
     const l2Stale = makeL2(l3StaleOrig);
     const l3StaleUpdated = makeL3("stale-block", "Stale Block", { description: "Changed" });
 
-    const l3Drift = makeL3("drift-block", "Drift Block");
-    const l2Drift: L2CodeBlock = { ...makeL2(l3Drift), signatureHash: "old" };
-
     const l4Broken = makeL4("broken-flow", ["nonexistent"]);
 
     const plan = compilePlan({
       l4Flows: [l4Broken],
-      l3Blocks: [l3New, l3StaleUpdated, l3Drift],
-      l2Blocks: [l2Stale, l2Drift],
-      l1SignatureHashes: new Map([["drift-block", "new"]]),
+      l3Blocks: [l3New, l3StaleUpdated],
+      l2Blocks: [l2Stale],
     });
 
     const compileTask = plan.tasks.find((t) => t.action === "compile");
@@ -634,9 +522,6 @@ describe("compilePlan — complexity", () => {
 
     const recompileTask = plan.tasks.find((t) => t.action === "recompile");
     expect(recompileTask?.complexity).toBe("standard");
-
-    const reviewTask = plan.tasks.find((t) => t.action === "review");
-    expect(reviewTask?.complexity).toBe("standard");
 
     const updateRefTask = plan.tasks.find((t) => t.action === "update-ref");
     expect(updateRefTask?.complexity).toBe("light");
@@ -649,21 +534,17 @@ describe("compilePlan — complexity", () => {
     const l2Stale = makeL2(l3StaleOrig);
     const l3StaleUpdated = makeL3("stale-block", "Stale Block", { description: "Changed" });
 
-    const l3Drift = makeL3("drift-block", "Drift Block");
-    const l2Drift: L2CodeBlock = { ...makeL2(l3Drift), signatureHash: "old" };
-
     const l4Broken = makeL4("broken-flow", ["nonexistent"]);
 
     const plan = compilePlan({
       l4Flows: [l4Broken],
-      l3Blocks: [l3New, l3StaleUpdated, l3Drift],
-      l2Blocks: [l2Stale, l2Drift],
-      l1SignatureHashes: new Map([["drift-block", "new"]]),
+      l3Blocks: [l3New, l3StaleUpdated],
+      l2Blocks: [l2Stale],
     });
 
     expect(plan.summary.complexityCounts).toEqual({
       heavy: 0,
-      standard: 3, // compile + recompile + review
+      standard: 2, // compile + recompile
       light: 1, // update-ref
     });
   });

@@ -326,70 +326,6 @@ describe("check — graph structure", () => {
   });
 });
 
-describe("check — content drift (L1 → L2)", () => {
-  it("detects CONTENT_DRIFT when L1 signature hash changed", () => {
-    const l3 = makeL3();
-    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash, signatureHash: "old-sig" });
-
-    const report = check({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["validate-order-ts", "new-sig"]]),
-    });
-
-    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
-    expect(drift).toBeDefined();
-    expect(drift?.severity).toBe("warning");
-    expect(drift?.layer).toBe("l2");
-  });
-
-  it("no CONTENT_DRIFT when signature hash matches", () => {
-    const l3 = makeL3();
-    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash, signatureHash: "same-sig" });
-
-    const report = check({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["validate-order-ts", "same-sig"]]),
-    });
-
-    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
-    expect(drift).toBeUndefined();
-  });
-
-  it("skips CONTENT_DRIFT when l1SignatureHashes not provided", () => {
-    const l3 = makeL3();
-    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash, signatureHash: "old-sig" });
-
-    const report = check({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      // no l1SignatureHashes
-    });
-
-    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
-    expect(drift).toBeUndefined();
-  });
-
-  it("skips CONTENT_DRIFT when L2 has no signatureHash", () => {
-    const l3 = makeL3();
-    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash });
-    // l2 has no signatureHash (legacy data)
-
-    const report = check({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      l1SignatureHashes: new Map([["validate-order-ts", "any-sig"]]),
-    });
-
-    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
-    expect(drift).toBeUndefined();
-  });
-});
 
 // ── EventGraph 校验 ──
 
@@ -855,23 +791,6 @@ describe("check — empty steps", () => {
   });
 });
 
-describe("check — CONTENT_DRIFT edge cases", () => {
-  it("skips CONTENT_DRIFT when l1SignatureHashes map has no entry for L2 id", () => {
-    const l3 = makeL3();
-    const l2 = makeL2({ blockRef: l3.id, sourceHash: l3.contentHash, signatureHash: "old-sig" });
-
-    const report = check({
-      l4Flows: [],
-      l3Blocks: [l3],
-      l2Blocks: [l2],
-      // map exists but does not contain the L2's id "validate-order-ts"
-      l1SignatureHashes: new Map([["some-other-id", "any-sig"]]),
-    });
-
-    const drift = report.issues.find((i) => i.code === "CONTENT_DRIFT");
-    expect(drift).toBeUndefined();
-  });
-});
 
 describe("check — SOURCE_DRIFT edge cases", () => {
   it("skips SOURCE_DRIFT when L3 not found for blockRef", () => {

@@ -55,7 +55,7 @@ export function hashL5(blueprint: Omit<L5Blueprint, "contentHash" | "revision">)
   return computeHash(blueprint as Record<string, unknown>);
 }
 
-/** L2CodeBlock 的 contentHash：基于 id, blockRef, language, files, signatureHash */
+/** L2CodeBlock 的 contentHash：基于 id, blockRef, language, files */
 export function hashL2(
   codeBlock: Omit<L2CodeBlock, "contentHash" | "sourceHash" | "revision">,
 ): string {

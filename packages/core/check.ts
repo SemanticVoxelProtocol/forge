@@ -38,11 +38,6 @@ export interface CheckInput {
   readonly l3Blocks: readonly L3Block[];
   readonly l2Blocks: readonly L2CodeBlock[];
 
-  // L1 语义指纹：L2 block id → 当前 L1 文件的 signatureHash
-  // 由调用方（CLI）提前计算，check 只做比对，不依赖提取器
-  // 省略时跳过 CONTENT_DRIFT 检测
-  readonly l1SignatureHashes?: ReadonlyMap<string, string>;
-
   // 已有文档的 L3 block id 集合（nodes/<id>/docs.md 存在的）
   // 省略时跳过 MISSING_NODE_DOCS 检测
   readonly existingNodeDocs?: ReadonlySet<string>;
@@ -615,19 +610,6 @@ function checkDrift(input: CheckInput, lang: string): CheckIssue[] {
       });
     }
 
-    // CONTENT_DRIFT: L1 导出签名变了，L2 记录的 signatureHash 过期
-    if (input.l1SignatureHashes !== undefined && cb.signatureHash !== undefined) {
-      const currentHash = input.l1SignatureHashes.get(cb.id);
-      if (currentHash !== undefined && currentHash !== cb.signatureHash) {
-        issues.push({
-          severity: "warning",
-          layer: "l2",
-          entityId: cb.id,
-          code: "CONTENT_DRIFT",
-          message: t(lang, "check.contentDrift", { id: cb.id }),
-        });
-      }
-    }
   }
 
   return issues;

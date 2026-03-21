@@ -13,14 +13,7 @@ import type { ScanContext } from "../../core/scan.js";
 function formatFileTree(ctx: ScanContext): string {
   const lines: string[] = [];
   for (const f of ctx.files) {
-    if (f.exports.length === 0) {
-      lines.push(`- ${f.filePath}`);
-    } else {
-      lines.push(`- ${f.filePath}`);
-      for (const exp of f.exports) {
-        lines.push(`    ${exp.kind} ${exp.name}: ${exp.signature}`);
-      }
-    }
+    lines.push(`- ${f.filePath}`);
   }
   if (ctx.summary.truncated) {
     lines.push(`  ... (truncated to ${String(ctx.summary.totalFiles)} files)`);
@@ -29,7 +22,7 @@ function formatFileTree(ctx: ScanContext): string {
 }
 
 function summaryLine(ctx: ScanContext): string {
-  return `${String(ctx.summary.totalFiles)} files, ${String(ctx.summary.totalExports)} exported symbols${ctx.summary.truncated ? " (truncated)" : ""}`;
+  return `${String(ctx.summary.totalFiles)} files${ctx.summary.truncated ? " (truncated)" : ""}`;
 }
 
 // ── Phase 1: L1 → L3 ──
@@ -70,7 +63,7 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "# Reverse-Engineer L3 Contracts from Existing Code",
       "",
       "You are analyzing an existing codebase to extract L3 contract blocks for SVP.",
-      "L3 blocks are the interface specifications — each groups related exports into a logical unit.",
+      "L3 blocks are the interface specifications — each groups related files into a logical unit.",
       "",
       ...(input.userIntent === undefined ? [] : ["## System Intent", "", input.userIntent, ""]),
       "## Scanned Codebase",
@@ -83,11 +76,11 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "",
       "## Instructions",
       "",
-      "Analyze the scanned code and group related exports into logical L3 blocks.",
+      "Analyze the scanned code and group related files into logical L3 blocks.",
       "Each block represents one cohesive responsibility unit.",
       "",
       "For each block:",
-      "1. **Identify cohesion**: Group exports that work together (same domain, shared types)",
+      "1. **Identify cohesion**: Group files that work together (same domain, shared types)",
       "2. **Infer input pins**: From function parameters and imported types",
       "3. **Infer output pins**: From return types",
       "4. **Infer validate rules**: From parameter constraints visible in signatures",
@@ -102,7 +95,7 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "",
       "## Grouping Guidelines",
       "",
-      "- One file with multiple related exports → usually one L3 block",
+      "- One file with multiple related functions → usually one L3 block",
       "- Multiple files sharing a domain concept → consider one L3 block",
       "- A single large class → may split into multiple L3 blocks by responsibility",
       "- Utility/helper files → may group into a shared utility block or skip",

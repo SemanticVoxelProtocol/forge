@@ -117,7 +117,6 @@ function makeL2CodeBlock(overrides?: Partial<L2CodeBlock>): L2CodeBlock {
     files: ["src/orders/validate.ts", "src/orders/types.ts"],
     sourceHash: "l3hash001",
     contentHash: "l2hash001",
-    signatureHash: "sighash001",
     revision: makeRevision(),
     ...overrides,
   };
@@ -638,7 +637,7 @@ describe("hashL5", () => {
 // ── hashL2 ─────────────────────────────────────────────────────────────────
 //
 // L2CodeBlock top-level keys (after stripping contentHash/sourceHash/revision):
-// blockRef, files, id, language, signatureHash.
+// blockRef, files, id, language.
 
 describe("hashL2", () => {
   it("hashes L2CodeBlock fields and returns 16-char hex", () => {
@@ -678,19 +677,6 @@ describe("hashL2", () => {
       revision: makeRevision(99),
     } as never);
     expect(h1).toBe(h2);
-  });
-
-  it("different signatureHash values produce different hash", () => {
-    const h1 = hashL2(makeL2CodeBlock({ signatureHash: "sig001" }));
-    const h2 = hashL2(makeL2CodeBlock({ signatureHash: "sig999" }));
-    expect(h1).not.toBe(h2);
-  });
-
-  it("signatureHash present vs absent changes hash", () => {
-    const withSig = makeL2CodeBlock({ signatureHash: "sig001" });
-    // Construct without signatureHash by omitting it (not just undefined)
-    const { signatureHash: _, ...rest } = withSig;
-    expect(hashL2(withSig)).not.toBe(hashL2(rest as L2CodeBlock));
   });
 
   it("empty files array produces a valid hash", () => {

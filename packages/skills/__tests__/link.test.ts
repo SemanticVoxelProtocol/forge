@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashL2 } from "../../core/hash.js";
 import { createL2Link, relinkL2 } from "../link.js";
-import type { L2CodeBlock } from "../../core/l2.js";
 import type { L3Block } from "../../core/l3.js";
 
 const baseRevision = {
@@ -109,17 +108,8 @@ describe("relinkL2", () => {
     expect(relinked.revision.source).toEqual({ type: "ai", action: "recompile" });
   });
 
-  it("preserves signatureHash from existing L2", () => {
-    const l3 = makeL3();
-    const existing: L2CodeBlock = {
-      ...createL2Link({ l3Block: l3, files: ["src/old.ts"] }),
-      signatureHash: "sig-hash-123",
-    };
-    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
-
-    expect(relinked.signatureHash).toBe("sig-hash-123");
-  });
 });
+
 
 // ── Additional tests ──
 
@@ -151,26 +141,6 @@ describe("createL2Link — additional", () => {
 });
 
 describe("relinkL2 — additional", () => {
-  it("preserves existing signatureHash when it is undefined", () => {
-    const l3 = makeL3();
-    const existing = createL2Link({ l3Block: l3, files: ["src/old.ts"] });
-    // createL2Link does not set signatureHash — should be undefined
-    expect(existing.signatureHash).toBeUndefined();
-
-    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
-    expect(relinked.signatureHash).toBeUndefined();
-  });
-
-  it("preserves existing signatureHash when it is defined", () => {
-    const l3 = makeL3();
-    const existing: L2CodeBlock = {
-      ...createL2Link({ l3Block: l3, files: ["src/old.ts"] }),
-      signatureHash: "sig-abc-999",
-    };
-    const relinked = relinkL2(existing, l3, ["src/new.ts"]);
-    expect(relinked.signatureHash).toBe("sig-abc-999");
-  });
-
   it("revision source is ai/recompile", () => {
     const l3 = makeL3();
     const existing = createL2Link({ l3Block: l3, files: ["src/old.ts"] });

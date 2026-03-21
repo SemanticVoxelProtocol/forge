@@ -94,7 +94,7 @@ function registerTaskPrompt(parent: Command, action: TaskAction, config: TaskPro
 
       let input;
       try {
-        input = await loadCheckInput(root, { computeSignatures: action === "review" });
+        input = await loadCheckInput(root);
       } catch {
         console.error(`Error: cannot load .svp/ data from "${root}". Run \`forge init\` first.`);
         process.exitCode = 1;
@@ -460,10 +460,8 @@ function registerScan(parent: Command): void {
         }
       }
 
-      // Collect scan context (with TS extractor for signature extraction)
-      const { createTypescriptExtractor } = await import("../../core/extractors/typescript.js");
-      const extractor = createTypescriptExtractor();
-      const scanContext = await collectScanContext({ root, dir: scanDir, maxFiles }, extractor);
+      // Collect scan context
+      const scanContext = await collectScanContext({ root, dir: scanDir, maxFiles });
 
       if (scanContext.files.length === 0) {
         console.error(
