@@ -60,14 +60,6 @@ export type {
   Complexity,
 } from "./compile-plan.js";
 export { getDefaultComplexity } from "./compile-plan.js";
-export type {
-  ExportedSymbol,
-  FileFingerprint,
-  SignatureFingerprint,
-  SignatureExtractor,
-} from "./fingerprint.js";
-export { computeSignatureHash, buildFingerprint } from "./fingerprint.js";
-export { createTypescriptExtractor } from "./extractors/typescript.js";
 export { compilePlan } from "./compile-plan.js";
 export type { InitOptions, InitResult } from "./init.js";
 export { init } from "./init.js";

@@ -901,7 +901,7 @@ description → 描述中间（转换逻辑）
 **L4EventGraph**: \`{ kind: "event-graph", id, name, state: {key: {type, description}}, handlers: [{id, event, steps[], dataFlows[]}], contentHash, revision }\`
 **L4StateMachine**: \`{ kind: "state-machine", id, name, entity, initialState, states: {name: {onEntry?, onExit?}}, transitions: [{from, to, event, guard?}], contentHash, revision }\`
 **L3Block**: \`{ id, name, input: Pin[], output: Pin[], validate: {}, constraints[], description, contentHash, revision }\`
-**L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, signatureHash?, revision }\`
+**L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, revision }\`
 
 ### L4 变体选择指南
 
@@ -1076,7 +1076,7 @@ description → describes the MIDDLE (transformation logic)
 **L4EventGraph**: \`{ kind: "event-graph", id, name, state: {key: {type, description}}, handlers: [{id, event, steps[], dataFlows[]}], contentHash, revision }\`
 **L4StateMachine**: \`{ kind: "state-machine", id, name, entity, initialState, states: {name: {onEntry?, onExit?}}, transitions: [{from, to, event, guard?}], contentHash, revision }\`
 **L3Block**: \`{ id, name, input: Pin[], output: Pin[], validate: {}, constraints[], description, contentHash, revision }\`
-**L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, signatureHash?, revision }\`
+**L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, revision }\`
 
 ### L4 Variant Selection Guide
 

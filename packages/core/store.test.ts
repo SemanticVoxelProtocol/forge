@@ -468,23 +468,6 @@ describe("store L2", () => {
     expect(loaded?.language).toBe("python");
   });
 
-  it("L2 with signatureHash undefined", async () => {
-    const block = makeL2("no-sig-hash");
-    // makeL2 does not set signatureHash, so it should be absent
-    expect(block.signatureHash).toBeUndefined();
-    await writeL2(root, block);
-    const loaded = await readL2(root, "no-sig-hash");
-    expect(loaded?.signatureHash).toBeUndefined();
-  });
-
-  it("L2 with signatureHash defined", async () => {
-    const block = makeL2("with-sig-hash", { signatureHash: "sig-fingerprint-abc" });
-    await writeL2(root, block);
-    const loaded = await readL2(root, "with-sig-hash");
-    expect(loaded).toEqual(block);
-    expect(loaded?.signatureHash).toBe("sig-fingerprint-abc");
-  });
-
   it("multiple L2 blocks", async () => {
     const multiRoot = await mkdtemp(path.join(tmpdir(), "svp-l2-multi-"));
     try {

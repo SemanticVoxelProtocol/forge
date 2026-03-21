@@ -63,7 +63,6 @@ export function compilePlan(input: CheckInput, language = "en"): CompilePlan {
   const tasks: CompileTask[] = [
     ...detectMissingCompilations(input, lang),
     ...detectRecompilations(input, lang),
-    ...detectContentDrift(input, lang),
     ...detectBrokenRefs(input, lang),
   ];
 
@@ -147,45 +146,7 @@ function detectRecompilations(input: CheckInput, lang: string): CompileTask[] {
   });
 }
 
-// ── 3. 内容漂移：L1 导出签名变了，需要向上对账 ──
-
-function detectContentDrift(input: CheckInput, lang: string): CompileTask[] {
-  const report = check(input, lang);
-  const driftIssues = report.issues.filter((i) => i.code === "CONTENT_DRIFT");
-
-  return driftIssues.map((issue): CompileTask => {
-    const cb = input.l2Blocks.find((b) => b.id === issue.entityId);
-    const l3 = cb === undefined ? undefined : input.l3Blocks.find((b) => b.id === cb.blockRef);
-
-    const context: ContextRef[] = [];
-    if (cb !== undefined) {
-      context.push({
-        layer: "l2",
-        id: cb.id,
-        label: t(lang, "compilePlan.label.l2CodeBlock", { files: cb.files.join(", ") }),
-      });
-    }
-    if (l3 !== undefined) {
-      context.push({
-        layer: "l3",
-        id: l3.id,
-        label: t(lang, "compilePlan.label.l3Verify", { name: l3.name }),
-      });
-    }
-
-    return {
-      action: "review",
-      targetLayer: "l3",
-      targetId: l3?.id ?? issue.entityId,
-      reason: t(lang, "compilePlan.reason.contentDrift"),
-      issueCode: "CONTENT_DRIFT",
-      context,
-      complexity: "standard",
-    };
-  });
-}
-
-// ── 4. 断裂引用：L4 引用了不存在的 L3 ──
+// ── 3. 断裂引用：L4 引用了不存在的 L3 ──
 
 function detectBrokenRefs(input: CheckInput, lang: string): CompileTask[] {
   const report = check(input, lang);

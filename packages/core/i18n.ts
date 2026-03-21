@@ -96,8 +96,6 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{egName}" handler "{handlerId}" dataFlow {direction} references undeclared state key "{field}"',
     "check.sourceDrift":
       'L2 "{id}" sourceHash ({sourceHash}) does not match L3 "{blockRef}" contentHash ({l3Hash}): L3 has changed since last compilation',
-    "check.contentDrift":
-      'L2 "{id}" signatureHash mismatch: L1 exported signatures have changed since last sync',
     "check.selfReferencingFlow":
       'L4 "{flowName}" step "{stepId}" calls itself (recursive flow reference)',
     "check.duplicateEvent": 'L4 "{egName}" has duplicate event handler for "{event}"',
@@ -121,8 +119,6 @@ const messages: Record<string, Record<string, string>> = {
       'L3 block "{name}" has no corresponding L2 code block — needs initial compilation',
     "compilePlan.reason.sourceDrift":
       "L3 contract changed since last compilation — L2 code is stale",
-    "compilePlan.reason.contentDrift":
-      "L1 exported signatures changed — review whether L3 contract still matches the code",
     "compilePlan.reason.missingBlockRef":
       "Flow references missing L3 block — step needs updating or L3 needs recreating",
     "compilePlan.reason.missingL2BlockRef":
@@ -243,7 +239,6 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{egName}" 处理器 "{handlerId}" dataFlow {direction} 引用了未声明的 state key "{field}"',
     "check.sourceDrift":
       'L2 "{id}" 的 sourceHash ({sourceHash}) 与 L3 "{blockRef}" 的 contentHash ({l3Hash}) 不匹配：L3 自上次编译以来已变更',
-    "check.contentDrift": 'L2 "{id}" signatureHash 不匹配：L1 导出签名自上次同步以来已变更',
     "check.selfReferencingFlow": 'L4 "{flowName}" 步骤 "{stepId}" 调用了自身（递归 flow 引用）',
     "check.duplicateEvent": 'L4 "{egName}" 存在重复的事件处理器 "{event}"',
     "check.emptyState": 'L4 "{egName}" event-graph 没有 state 声明',
@@ -260,7 +255,6 @@ const messages: Record<string, Record<string, string>> = {
     // ── compilePlan.* ──
     "compilePlan.reason.missingL2": 'L3 block "{name}" 没有对应的 L2 code block — 需要初始编译',
     "compilePlan.reason.sourceDrift": "L3 契约自上次编译以来已变更 — L2 代码已过时",
-    "compilePlan.reason.contentDrift": "L1 导出签名已变更 — 请审查 L3 契约是否仍与代码匹配",
     "compilePlan.reason.missingBlockRef": "Flow 引用了缺失的 L3 block — 需要更新步骤或重建 L3",
     "compilePlan.reason.missingL2BlockRef":
       "L2 code block 引用了缺失的 L3 block — 孤立代码需要审查",
