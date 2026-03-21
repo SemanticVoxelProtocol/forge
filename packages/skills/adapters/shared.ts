@@ -429,11 +429,6 @@ const workflowZh = `## Step 0: 诊断路由
 **SOURCE_DRIFT**
 - [AI] 运行 \`forge prompt recompile <l3-id>\` → subagent 更新代码
 
-**CONTENT_DRIFT**
-- [AI] 运行 \`forge prompt review <l3-id>\` → subagent 判断：
-  - L3 需要更新？还是 L1 需要修复？
-  - 向用户展示分析结果
-
 **MISSING_BLOCK_REF**
 - [AI] 运行 \`forge prompt update-ref <l4-id>\` → subagent 判断：
   - 创建缺失的 L3 contract？还是修复 L4 step 引用？
@@ -675,11 +670,6 @@ For each recompile task:
 
 **SOURCE_DRIFT**
 - [AI] Run \`forge prompt recompile <l3-id>\` → subagent updates code
-
-**CONTENT_DRIFT**
-- [AI] Run \`forge prompt review <l3-id>\` → subagent determines:
-  - Does L3 need updating? Or does L1 need fixing?
-  - Show the analysis results to the user
 
 **MISSING_BLOCK_REF**
 - [AI] Run \`forge prompt update-ref <l4-id>\` → subagent determines:
