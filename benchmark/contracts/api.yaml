@@ -1,0 +1,2885 @@
+openapi: 3.1.0
+info:
+  title: Multi-Tenant E-Commerce SaaS Benchmark API
+  version: 1.0.0
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Complete API contract for the 20-round multi-tenant e-commerce SaaS benchmark.
+    Agents implementing this benchmark MUST expose these exact endpoints.
+    Tests validate behavior via data-driven input/output pairs against this contract.
+
+    ## Conventions
+    - **Auth**: JWT Bearer token in `Authorization` header
+    - **Tenant isolation**: `X-Tenant-ID` header required on all endpoints (enforced from R11)
+    - **Response envelope**: `{ "data": ..., "error": ... }`
+    - **Pagination**: `?page=1&limit=20` with response `{ "data": [...], "pagination": { "total", "page", "limit", "totalPages" } }`
+    - **Timestamps**: ISO 8601
+    - **Money**: integer cents (avoids floating point)
+    - **IDs**: string (UUID format)
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: V1 API server
+  - url: http://localhost:3000/api/v2
+    description: V2 API server (R20)
+
+tags:
+  - name: R1-Auth
+    description: "Round 1: Tenants, registration, login, session"
+  - name: R2-Products
+    description: "Round 2: Product CRUD"
+  - name: R3-Cart
+    description: "Round 3: Shopping cart"
+  - name: R4-Orders
+    description: "Round 4: Order creation and listing"
+  - name: R5-Payments
+    description: "Round 5: Payment processing"
+  - name: R6-Inventory
+    description: "Round 6: Stock management"
+  - name: R7-Roles
+    description: "Round 7: Role-based access control"
+  - name: R8-OrderStateMachine
+    description: "Round 8: Order lifecycle transitions"
+  - name: R9-Search
+    description: "Round 9: Search and filtering"
+  - name: R10-Coupons
+    description: "Round 10: Coupon management and application"
+  - name: R11-MultiTenant
+    description: "Round 11: Multi-tenant isolation enforcement"
+  - name: R12-AuditLogs
+    description: "Round 12: Audit logging"
+  - name: R13-Notifications
+    description: "Round 13: User notifications"
+  - name: R14-BulkOps
+    description: "Round 14: Bulk operations"
+  - name: R15-Variants
+    description: "Round 15: Product variants / SKUs"
+  - name: R16-Reviews
+    description: "Round 16: Product reviews and ratings"
+  - name: R17-Dashboard
+    description: "Round 17: Seller analytics dashboard"
+  - name: R18-Refunds
+    description: "Round 18: Refund management"
+  - name: R19-MultiCurrency
+    description: "Round 19: Multi-currency support"
+  - name: R20-APIv2
+    description: "Round 20: V2 API with backward compatibility"
+
+paths:
+  # ──────────────────────────────────────────────
+  # R1: Auth
+  # ──────────────────────────────────────────────
+  /tenants:
+    post:
+      operationId: createTenant
+      tags: [R1-Auth]
+      summary: Register a new tenant
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                  examples: ["Acme Store"]
+                slug:
+                  type: string
+                  pattern: "^[a-z0-9-]+$"
+                  examples: ["acme-store"]
+      responses:
+        "201":
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [R1-Auth]
+      summary: Register a new user
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [R1-Auth]
+      summary: Login
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [R1-Auth]
+      summary: Get current authenticated user
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # R2: Products
+  # ──────────────────────────────────────────────
+  /products:
+    post:
+      operationId: createProduct
+      tags: [R2-Products]
+      summary: Create a product (seller/admin only from R7)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreateRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    get:
+      operationId: listProducts
+      tags: [R2-Products, R9-Search]
+      summary: List products with optional search, filter, sort, and pagination
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: search
+          in: query
+          description: Keyword search across product name and description
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter by category (exact match)
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          description: Minimum price in cents (inclusive)
+          schema:
+            type: integer
+        - name: maxPrice
+          in: query
+          description: Maximum price in cents (inclusive)
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [price_asc, price_desc, name_asc, created_desc]
+      responses:
+        "200":
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /products/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    get:
+      operationId: getProduct
+      tags: [R2-Products]
+      summary: Get a product by ID
+      security: []
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateProduct
+      tags: [R2-Products]
+      summary: Update a product (seller/admin only from R7)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdateRequest"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProduct
+      tags: [R2-Products]
+      summary: Delete a product (seller/admin only from R7)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Product deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      deleted:
+                        type: boolean
+                        const: true
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R3: Cart
+  # ──────────────────────────────────────────────
+  /cart:
+    get:
+      operationId: getCart
+      tags: [R3-Cart]
+      summary: Get current user's cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Current cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: clearCart
+      tags: [R3-Cart]
+      summary: Clear the entire cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Cart cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /cart/items:
+    post:
+      operationId: addCartItem
+      tags: [R3-Cart]
+      summary: Add an item to cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId:
+                  type: string
+                  format: uuid
+                variantId:
+                  type: string
+                  format: uuid
+                  description: "Optional variant ID (from R15)"
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: Item added, returns updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Insufficient stock (from R6)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /cart/items/{productId}:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: updateCartItem
+      tags: [R3-Cart]
+      summary: Update item quantity in cart
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: Cart updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: removeCartItem
+      tags: [R3-Cart]
+      summary: Remove an item from cart
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Item removed, returns updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /cart/apply-coupon:
+    post:
+      operationId: applyCoupon
+      tags: [R10-Coupons]
+      summary: Apply a coupon to the cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Coupon applied, returns updated cart with discount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "400":
+          description: Coupon expired, max usages reached, or minimum order not met
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /cart/coupon:
+    delete:
+      operationId: removeCoupon
+      tags: [R10-Coupons]
+      summary: Remove applied coupon from cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Coupon removed, returns updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # R4: Orders
+  # ──────────────────────────────────────────────
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [R4-Orders]
+      summary: Create an order from the current cart
+      description: |
+        Creates an order from the user's cart. The cart items are snapshotted into
+        the order. From R6, stock is atomically decremented. From R10, coupon discount
+        is applied and coupon usage incremented. From R13, notifications are sent.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Empty object; order is created from cart contents
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "400":
+          description: Cart is empty or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      operationId: listOrders
+      tags: [R4-Orders]
+      summary: List orders (role-scoped from R7)
+      description: |
+        From R7: buyer sees own orders, seller sees orders containing their products,
+        admin sees all orders.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated order list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /orders/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    get:
+      operationId: getOrder
+      tags: [R4-Orders]
+      summary: Get order detail
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R5: Payments
+  # ──────────────────────────────────────────────
+  /orders/{id}/pay:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: initiatePayment
+      tags: [R5-Payments]
+      summary: Initiate payment for an order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method:
+                  type: string
+                  enum: [mock_card]
+      responses:
+        "200":
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [paymentId, status]
+                    properties:
+                      paymentId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [pending, success, failed]
+                  error:
+                    type: "null"
+        "400":
+          description: Order not in payable state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payments/webhook:
+    post:
+      operationId: paymentWebhook
+      tags: [R5-Payments]
+      summary: Mock payment gateway callback
+      security: []
+      description: |
+        Receives payment status from the mock gateway. On success, order transitions
+        to `paid`. On failure, order remains `pending_payment` and from R6,
+        stock is restored.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentId, status]
+              properties:
+                paymentId:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [success, failed]
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        const: true
+                  error:
+                    type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R6: Inventory
+  # ──────────────────────────────────────────────
+  /products/{id}/inventory:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: setInventory
+      tags: [R6-Inventory]
+      summary: Set product stock level (seller/admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stock]
+              properties:
+                stock:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: Stock updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    get:
+      operationId: getInventory
+      tags: [R6-Inventory]
+      summary: Get product stock level
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Stock info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [productId, stock]
+                    properties:
+                      productId:
+                        type: string
+                        format: uuid
+                      stock:
+                        type: integer
+                  error:
+                    type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R7: Roles
+  # ──────────────────────────────────────────────
+  /users/{id}/role:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: assignRole
+      tags: [R7-Roles]
+      summary: Assign a role to a user (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [admin, seller, buyer]
+      responses:
+        "200":
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [R7-Roles]
+      summary: List users (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ──────────────────────────────────────────────
+  # R8: Order State Machine
+  # ──────────────────────────────────────────────
+  /orders/{id}/ship:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: shipOrder
+      tags: [R8-OrderStateMachine]
+      summary: Mark order as shipped (seller only)
+      description: "Valid transition: `paid` -> `shipped`"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trackingNumber]
+              properties:
+                trackingNumber:
+                  type: string
+      responses:
+        "200":
+          description: Order shipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /orders/{id}/deliver:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: deliverOrder
+      tags: [R8-OrderStateMachine]
+      summary: Mark order as delivered (seller/admin)
+      description: "Valid transition: `shipped` -> `delivered`"
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Order delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /orders/{id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: cancelOrder
+      tags: [R8-OrderStateMachine]
+      summary: Cancel order (buyer, only if pending_payment)
+      description: "Valid transition: `pending_payment` -> `cancelled`"
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ──────────────────────────────────────────────
+  # R10: Coupons
+  # ──────────────────────────────────────────────
+  /coupons:
+    post:
+      operationId: createCoupon
+      tags: [R10-Coupons]
+      summary: Create a coupon (admin/seller)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CouponCreateRequest"
+      responses:
+        "201":
+          description: Coupon created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      operationId: listCoupons
+      tags: [R10-Coupons]
+      summary: List coupons
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Coupon list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Coupon"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # R11: Multi-Tenant Isolation
+  # ──────────────────────────────────────────────
+  /tenants/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      operationId: getTenant
+      tags: [R11-MultiTenant]
+      summary: Get tenant info
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Tenant info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R12: Audit Logs
+  # ──────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [R12-AuditLogs]
+      summary: Query audit logs (admin only)
+      description: |
+        All write operations on products, orders, users, and coupons are automatically
+        logged with userId, action, entity, entityId, changes, and timestamp.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: entity
+          in: query
+          schema:
+            type: string
+            enum: [product, order, user, coupon]
+        - name: entityId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [create, update, delete]
+      responses:
+        "200":
+          description: Paginated audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLog"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ──────────────────────────────────────────────
+  # R13: Notifications
+  # ──────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [R13-Notifications]
+      summary: List user's notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /notifications/{id}/read:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: markNotificationRead
+      tags: [R13-Notifications]
+      summary: Mark a notification as read
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Notification"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /notifications/read-all:
+    put:
+      operationId: markAllNotificationsRead
+      tags: [R13-Notifications]
+      summary: Mark all notifications as read
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: integer
+                        description: Number of notifications marked as read
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # R14: Bulk Operations
+  # ──────────────────────────────────────────────
+  /products/bulk:
+    post:
+      operationId: bulkCreateProducts
+      tags: [R14-BulkOps]
+      summary: Bulk create products (seller/admin)
+      description: "Partial success allowed: some items may succeed while others fail."
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [products]
+              properties:
+                products:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ProductCreateRequest"
+                  minItems: 1
+                  maxItems: 100
+      responses:
+        "200":
+          description: Bulk creation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [created, errors]
+                    properties:
+                      created:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Product"
+                      errors:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BulkError"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /products/bulk-price:
+    put:
+      operationId: bulkUpdatePrices
+      tags: [R14-BulkOps]
+      summary: Bulk update product prices (seller/admin)
+      description: "Partial success allowed."
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, priceCents]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      priceCents:
+                        type: integer
+                        minimum: 0
+                  minItems: 1
+                  maxItems: 100
+      responses:
+        "200":
+          description: Bulk price update result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [updated, errors]
+                    properties:
+                      updated:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Product"
+                      errors:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BulkError"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ──────────────────────────────────────────────
+  # R15: Product Variants (SKUs)
+  # ──────────────────────────────────────────────
+  /products/{id}/variants:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: createVariant
+      tags: [R15-Variants]
+      summary: Add a variant to a product (seller/admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VariantCreateRequest"
+      responses:
+        "201":
+          description: Variant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VariantResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Duplicate SKU
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    get:
+      operationId: listVariants
+      tags: [R15-Variants]
+      summary: List product variants
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Variant list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Variant"
+                  error:
+                    type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/{id}/variants/{variantId}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: updateVariant
+      tags: [R15-Variants]
+      summary: Update a product variant (seller/admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VariantUpdateRequest"
+      responses:
+        "200":
+          description: Variant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VariantResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteVariant
+      tags: [R15-Variants]
+      summary: Delete a product variant (seller/admin)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Variant deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      deleted:
+                        type: boolean
+                        const: true
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R16: Reviews
+  # ──────────────────────────────────────────────
+  /products/{id}/reviews:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: createReview
+      tags: [R16-Reviews]
+      summary: Create a product review (buyer who purchased only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, comment]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "400":
+          description: User has not purchased this product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    get:
+      operationId: listReviews
+      tags: [R16-Reviews]
+      summary: List product reviews (with pagination, includes average rating)
+      description: "Only approved reviews are visible to buyers."
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated reviews with aggregate stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Review"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  averageRating:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 5
+                  reviewCount:
+                    type: integer
+                  error:
+                    type: "null"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reviews/{id}/reply:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: replyToReview
+      tags: [R16-Reviews]
+      summary: Seller reply to a review
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Reply added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reviews/{id}/moderate:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: moderateReview
+      tags: [R16-Reviews]
+      summary: Approve or reject a review (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+      responses:
+        "200":
+          description: Review moderated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # R17: Seller Dashboard
+  # ──────────────────────────────────────────────
+  /dashboard/sales:
+    get:
+      operationId: getSalesSummary
+      tags: [R17-Dashboard]
+      summary: Sales summary for the current seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ["7d", "30d", "90d"]
+      responses:
+        "200":
+          description: Sales summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [totalRevenueCents, orderCount, averageOrderCents]
+                    properties:
+                      totalRevenueCents:
+                        type: integer
+                      orderCount:
+                        type: integer
+                      averageOrderCents:
+                        type: integer
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /dashboard/top-products:
+    get:
+      operationId: getTopProducts
+      tags: [R17-Dashboard]
+      summary: Top products by revenue for the current seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Top products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [products]
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, name, revenueCents, unitsSold]
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            revenueCents:
+                              type: integer
+                            unitsSold:
+                              type: integer
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /dashboard/return-rate:
+    get:
+      operationId: getReturnRate
+      tags: [R17-Dashboard]
+      summary: Return/refund rate for the current seller
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Return rate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [totalOrders, returnedOrders, rate]
+                    properties:
+                      totalOrders:
+                        type: integer
+                      returnedOrders:
+                        type: integer
+                      rate:
+                        type: number
+                        format: float
+                        description: "Ratio from 0.0 to 1.0"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ──────────────────────────────────────────────
+  # R18: Refunds
+  # ──────────────────────────────────────────────
+  /orders/{id}/refund:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: requestRefund
+      tags: [R18-Refunds]
+      summary: Request a refund (buyer, only if delivered)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        "201":
+          description: Refund requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResponse"
+        "400":
+          description: Order not in delivered state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /refunds/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: approveRefund
+      tags: [R18-Refunds]
+      summary: Approve a refund (seller/admin)
+      description: "Triggers: payment reversal, inventory restoration, order status -> refunded"
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Refund approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Refund already processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /refunds/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: rejectRefund
+      tags: [R18-Refunds]
+      summary: Reject a refund (seller/admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Refund rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /refunds:
+    get:
+      operationId: listRefunds
+      tags: [R18-Refunds]
+      summary: List refunds (role-scoped like orders)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated refund list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Refund"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+                  error:
+                    type: "null"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # R19: Multi-Currency
+  # ──────────────────────────────────────────────
+  /tenants/{id}/currency:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    put:
+      operationId: setTenantCurrency
+      tags: [R19-MultiCurrency]
+      summary: Set tenant default currency
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currency]
+              properties:
+                currency:
+                  type: string
+                  pattern: "^[A-Z]{3}$"
+                  examples: ["USD", "EUR", "CNY", "GBP", "JPY"]
+      responses:
+        "200":
+          description: Currency updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /exchange-rates:
+    get:
+      operationId: getExchangeRates
+      tags: [R19-MultiCurrency]
+      summary: Get exchange rates (mock/static)
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Exchange rates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [base, rates]
+                    properties:
+                      base:
+                        type: string
+                        const: "USD"
+                      rates:
+                        type: object
+                        additionalProperties:
+                          type: number
+                          format: float
+                        examples:
+                          - EUR: 0.92
+                            GBP: 0.79
+                            CNY: 7.24
+                            JPY: 149.50
+                  error:
+                    type: "null"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ──────────────────────────────────────────────
+  # R20: API v2
+  # ──────────────────────────────────────────────
+  # Note: V2 endpoints use the /api/v2 server base URL.
+  # V1 endpoints MUST continue working with their original format.
+
+# V2 paths are defined relative to the v2 server.
+# In practice the implementation mounts both /api/v1/* and /api/v2/* on the same server.
+# We define the v2-specific paths here with an x-v2 extension for clarity.
+
+  /v2/products:
+    post:
+      operationId: createProductV2
+      tags: [R20-APIv2]
+      summary: "Create product (V2 format: adds tags, metadata, nested pricing)"
+      description: |
+        V2 product format. V1 `POST /api/v1/products` MUST continue to work
+        with the original format for backward compatibility.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductV2CreateRequest"
+      responses:
+        "201":
+          description: Product created (V2 format)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductV2Response"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+      servers:
+        - url: http://localhost:3000/api
+          description: Mounted at /api to allow /v2/products path
+    get:
+      operationId: listProductsV2
+      tags: [R20-APIv2]
+      summary: List products (V2 format with additional fields)
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated product list in V2 format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductV2ListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+      servers:
+        - url: http://localhost:3000/api
+          description: Mounted at /api to allow /v2/products path
+
+  /v2/products/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+      - $ref: "#/components/parameters/TenantId"
+    get:
+      operationId: getProductV2
+      tags: [R20-APIv2]
+      summary: Get product detail (V2 format)
+      security: []
+      responses:
+        "200":
+          description: Product detail in V2 format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductV2Response"
+        "404":
+          $ref: "#/components/responses/NotFound"
+      servers:
+        - url: http://localhost:3000/api
+          description: Mounted at /api to allow /v2/products path
+
+# ════════════════════════════════════════════════
+# Components
+# ════════════════════════════════════════════════
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TenantId:
+      name: X-Tenant-ID
+      in: header
+      description: "Tenant identifier. Required for tenant-scoped operations (enforced from R11)."
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+    Conflict:
+      description: Resource conflict (duplicate)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    # ── Envelope ────────────────────────────────
+    ErrorEnvelope:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+              description: Machine-readable error code
+
+    # ── Pagination ──────────────────────────────
+    Pagination:
+      type: object
+      required: [total, page, limit, totalPages]
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+
+    # ── Tenant ──────────────────────────────────
+    Tenant:
+      type: object
+      required: [id, name, slug, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          default: "USD"
+          description: "Default currency (from R19)"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TenantResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Tenant"
+        error:
+          type: "null"
+
+    # ── User ────────────────────────────────────
+    User:
+      type: object
+      required: [id, email, name, role, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, seller, buyer]
+          default: buyer
+          description: "Role (from R7, default: buyer)"
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required: [user, token]
+          properties:
+            user:
+              $ref: "#/components/schemas/User"
+            token:
+              type: string
+              description: JWT token
+        error:
+          type: "null"
+
+    # ── Product ─────────────────────────────────
+    Product:
+      type: object
+      required: [id, name, description, priceCents, category, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        priceCents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Product currency (from R19)"
+        category:
+          type: string
+        stock:
+          type: integer
+          minimum: 0
+          description: "Available stock (from R6)"
+        sellerId:
+          type: string
+          format: uuid
+          description: "Owning seller's user ID (from R7)"
+        tenantId:
+          type: string
+          format: uuid
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Variant"
+          description: "Product variants (from R15)"
+        averageRating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          description: "Average review rating (from R16)"
+        reviewCount:
+          type: integer
+          description: "Total review count (from R16)"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductCreateRequest:
+      type: object
+      required: [name, description, priceCents, category]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        priceCents:
+          type: integer
+          minimum: 0
+        category:
+          type: string
+
+    ProductUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        priceCents:
+          type: integer
+          minimum: 0
+        category:
+          type: string
+
+    ProductResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Product"
+        error:
+          type: "null"
+
+    ProductListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        error:
+          type: "null"
+
+    # ── Product V2 (R20) ────────────────────────
+    ProductV2:
+      type: object
+      required: [id, name, description, pricing, category, tags, metadata, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        pricing:
+          type: object
+          required: [baseCents, currency]
+          properties:
+            baseCents:
+              type: integer
+              minimum: 0
+            currency:
+              type: string
+              pattern: "^[A-Z]{3}$"
+        priceCents:
+          type: integer
+          minimum: 0
+          description: "Kept for backward compat within V2 response"
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Arbitrary key-value metadata"
+        stock:
+          type: integer
+          minimum: 0
+        sellerId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Variant"
+        averageRating:
+          type: number
+          format: float
+        reviewCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductV2CreateRequest:
+      type: object
+      required: [name, description, pricing, category]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        pricing:
+          type: object
+          required: [baseCents, currency]
+          properties:
+            baseCents:
+              type: integer
+              minimum: 0
+            currency:
+              type: string
+              pattern: "^[A-Z]{3}$"
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+          default: []
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+
+    ProductV2Response:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ProductV2"
+        error:
+          type: "null"
+
+    ProductV2ListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductV2"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        error:
+          type: "null"
+
+    # ── Cart ────────────────────────────────────
+    CartItem:
+      type: object
+      required: [productId, quantity, priceCents]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+          description: "Variant ID (from R15, null if product has no variants)"
+        productName:
+          type: string
+        priceCents:
+          type: integer
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Item currency (from R19)"
+        quantity:
+          type: integer
+          minimum: 1
+
+    Cart:
+      type: object
+      required: [items, totalCents]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalCents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Cart currency (from R19)"
+        couponCode:
+          type: string
+          description: "Applied coupon code (from R10)"
+        discountCents:
+          type: integer
+          minimum: 0
+          description: "Discount amount in cents (from R10)"
+
+    CartResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Cart"
+        error:
+          type: "null"
+
+    # ── Order ───────────────────────────────────
+    OrderItem:
+      type: object
+      required: [productId, productName, priceCents, quantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+          description: "Variant ID (from R15)"
+        productName:
+          type: string
+        priceCents:
+          type: integer
+          description: "Snapshot of price at order time"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Item currency (from R19)"
+        quantity:
+          type: integer
+          minimum: 1
+
+    Order:
+      type: object
+      required: [id, userId, items, totalCents, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        totalCents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Order currency (from R19)"
+        couponCode:
+          type: string
+          description: "Applied coupon code (from R10)"
+        discountCents:
+          type: integer
+          minimum: 0
+          description: "Discount applied (from R10)"
+        status:
+          type: string
+          enum: [pending_payment, paid, shipped, delivered, cancelled, refunded]
+          description: |
+            Order state machine (R8):
+            pending_payment -> paid (via payment webhook)
+            paid -> shipped (via ship endpoint)
+            shipped -> delivered (via deliver endpoint)
+            pending_payment -> cancelled (via cancel endpoint)
+            delivered -> refunded (via refund approval, R18)
+        trackingNumber:
+          type: string
+          description: "Shipping tracking number (from R8)"
+        paymentId:
+          type: string
+          format: uuid
+          description: "Associated payment ID (from R5)"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Order"
+        error:
+          type: "null"
+
+    OrderListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        error:
+          type: "null"
+
+    # ── Coupon ──────────────────────────────────
+    Coupon:
+      type: object
+      required: [id, code, type, value, usageCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum: [percentage, fixed]
+        value:
+          type: integer
+          description: "Percentage (1-100) or fixed amount in cents"
+        minOrderCents:
+          type: integer
+          minimum: 0
+          description: "Minimum order total to apply coupon"
+        maxUsages:
+          type: integer
+          minimum: 1
+          description: "Maximum number of times this coupon can be used"
+        usageCount:
+          type: integer
+          minimum: 0
+          description: "Current usage count"
+        expiresAt:
+          type: string
+          format: date-time
+          description: "Expiration timestamp"
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CouponCreateRequest:
+      type: object
+      required: [code, type, value]
+      properties:
+        code:
+          type: string
+        type:
+          type: string
+          enum: [percentage, fixed]
+        value:
+          type: integer
+          description: "Percentage (1-100) or fixed amount in cents"
+        minOrderCents:
+          type: integer
+          minimum: 0
+        maxUsages:
+          type: integer
+          minimum: 1
+        expiresAt:
+          type: string
+          format: date-time
+
+    CouponResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Coupon"
+        error:
+          type: "null"
+
+    # ── Variant ─────────────────────────────────
+    Variant:
+      type: object
+      required: [id, productId, sku, attributes, priceCents, stock, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          description: "Unique SKU code"
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: "e.g. { size: 'L', color: 'red' }"
+        priceCents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Variant currency (from R19)"
+        stock:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VariantCreateRequest:
+      type: object
+      required: [sku, attributes, priceCents, stock]
+      properties:
+        sku:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceCents:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+
+    VariantUpdateRequest:
+      type: object
+      properties:
+        sku:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceCents:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+
+    VariantResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Variant"
+        error:
+          type: "null"
+
+    # ── Review ──────────────────────────────────
+    Review:
+      type: object
+      required: [id, productId, userId, rating, comment, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          default: pending
+        reply:
+          type: object
+          properties:
+            userId:
+              type: string
+              format: uuid
+            comment:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+          description: "Seller reply (from R16)"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReviewResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Review"
+        error:
+          type: "null"
+
+    # ── Audit Log ───────────────────────────────
+    AuditLog:
+      type: object
+      required: [id, userId, action, entity, entityId, timestamp]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [create, update, delete]
+        entity:
+          type: string
+          enum: [product, order, user, coupon]
+        entityId:
+          type: string
+          format: uuid
+        changes:
+          type: object
+          description: "JSON diff of what changed"
+        tenantId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+
+    # ── Notification ────────────────────────────
+    Notification:
+      type: object
+      required: [id, userId, type, message, read, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [order_status_change, new_order, refund_requested, refund_approved, refund_rejected, review_posted]
+        message:
+          type: string
+        orderId:
+          type: string
+          format: uuid
+          description: "Related order ID (if applicable)"
+        read:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Refund ──────────────────────────────────
+    Refund:
+      type: object
+      required: [id, orderId, userId, reason, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: "Buyer who requested the refund"
+        amountCents:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: "Refund currency (from R19)"
+        reason:
+          type: string
+        rejectionReason:
+          type: string
+          description: "Reason for rejection (if rejected)"
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RefundResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Refund"
+        error:
+          type: "null"
+
+    # ── Bulk Error ──────────────────────────────
+    BulkError:
+      type: object
+      required: [index, message]
+      properties:
+        index:
+          type: integer
+          description: "0-based index of the failed item in the input array"
+        message:
+          type: string
+          description: "Error message for this item"

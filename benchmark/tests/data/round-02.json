@@ -1,0 +1,303 @@
+{
+  "round": 2,
+  "description": "Product catalog CRUD operations",
+  "setup": [
+    {
+      "name": "Create first product (Wireless Headphones)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Wireless Headphones",
+        "description": "Noise-cancelling over-ear headphones with 30hr battery",
+        "priceCents": 14999,
+        "category": "electronics"
+      },
+      "capture": {
+        "productId": "data.id"
+      }
+    },
+    {
+      "name": "Create second product (Organic Coffee Beans)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Organic Coffee Beans",
+        "description": "Single-origin Ethiopian Yirgacheffe, 500g bag",
+        "priceCents": 2495,
+        "category": "food"
+      },
+      "capture": {
+        "product2Id": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Create product with valid data returns 201",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Mechanical Keyboard",
+        "description": "Cherry MX Blue switches, RGB backlight, TKL layout",
+        "priceCents": 8999,
+        "category": "electronics"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.name", "data.priceCents", "data.createdAt"]
+      },
+      "capture": {
+        "product3Id": "data.id"
+      }
+    },
+    {
+      "name": "Create product missing name returns 400",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "description": "A product without a name",
+        "priceCents": 1000,
+        "category": "misc"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Create product with priceCents 0 returns 400",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Free Item",
+        "description": "Should not be allowed",
+        "priceCents": 0,
+        "category": "misc"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Create product with negative priceCents returns 400",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Negative Price Item",
+        "description": "Negative price should be rejected",
+        "priceCents": -500,
+        "category": "misc"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Get product by ID returns 200",
+      "method": "GET",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.name": "Wireless Headphones",
+          "data.priceCents": 14999
+        }
+      }
+    },
+    {
+      "name": "List products returns 200 with pagination",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items", "data.total", "data.page", "data.pageSize"]
+      }
+    },
+    {
+      "name": "Update product name returns 200",
+      "method": "PUT",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Premium Wireless Headphones"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.name": "Premium Wireless Headphones"
+        }
+      }
+    },
+    {
+      "name": "Update product priceCents returns 200",
+      "method": "PUT",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "priceCents": 12999
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.priceCents": 12999
+        }
+      }
+    },
+    {
+      "name": "Delete product returns 200 (soft delete)",
+      "method": "DELETE",
+      "path": "/api/v1/products/$product3Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Get deleted product returns 404",
+      "method": "GET",
+      "path": "/api/v1/products/$product3Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "List products does not include deleted product",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyNotHasFields": ["data.items[?name=Mechanical Keyboard]"]
+      }
+    },
+    {
+      "name": "Create product for cart tests (Running Shoes)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Running Shoes",
+        "description": "Lightweight trail runners with carbon plate, size 42",
+        "priceCents": 16500,
+        "category": "sports"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id"]
+      },
+      "capture": {
+        "product4Id": "data.id"
+      }
+    },
+    {
+      "name": "Create product for order tests (Desk Lamp)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "LED Desk Lamp",
+        "description": "Adjustable brightness, USB-C charging port, matte black",
+        "priceCents": 4599,
+        "category": "home"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id"]
+      },
+      "capture": {
+        "product5Id": "data.id"
+      }
+    },
+    {
+      "name": "Product has correct fields",
+      "method": "GET",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": [
+          "data.id",
+          "data.name",
+          "data.description",
+          "data.priceCents",
+          "data.category",
+          "data.createdAt",
+          "data.updatedAt"
+        ]
+      }
+    },
+    {
+      "name": "Get non-existent product returns 404",
+      "method": "GET",
+      "path": "/api/v1/products/00000000-0000-0000-0000-000000000000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    }
+  ]
+}

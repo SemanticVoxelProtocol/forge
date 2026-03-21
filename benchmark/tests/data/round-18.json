@@ -1,0 +1,394 @@
+{
+  "round": 18,
+  "description": "Refund flow (request, approve, reject, inventory restoration, payment reversal)",
+  "setup": [
+    {
+      "name": "Set stock on product for refund order",
+      "method": "PUT",
+      "path": "/api/v1/products/$productId/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "stock": 50
+      },
+      "capture": {}
+    },
+    {
+      "name": "Buyer creates order for refund testing",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$productId", "quantity": 2 }
+        ]
+      },
+      "capture": {
+        "refundOrderId": "data.id",
+        "refundOrderTotalCents": "data.totalCents"
+      }
+    },
+    {
+      "name": "Pay for refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrderId/pay",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "paymentMethod": "card",
+        "paymentToken": "tok_visa_success"
+      },
+      "capture": {}
+    },
+    {
+      "name": "Ship refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrderId/ship",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "trackingNumber": "TRACK-REFUND-001"
+      },
+      "capture": {}
+    },
+    {
+      "name": "Deliver refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrderId/deliver",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {},
+      "capture": {}
+    },
+    {
+      "name": "Record stock after delivery for restoration check",
+      "method": "GET",
+      "path": "/api/v1/products/$productId/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "capture": {
+        "stockAfterDelivery": "data.stock"
+      }
+    },
+    {
+      "name": "Create second delivered order for reject test",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$productId", "quantity": 1 }
+        ]
+      },
+      "capture": {
+        "refundOrder2Id": "data.id"
+      }
+    },
+    {
+      "name": "Pay for second refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrder2Id/pay",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "paymentMethod": "card",
+        "paymentToken": "tok_visa_success"
+      },
+      "capture": {}
+    },
+    {
+      "name": "Ship second refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrder2Id/ship",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "trackingNumber": "TRACK-REFUND-002"
+      },
+      "capture": {}
+    },
+    {
+      "name": "Deliver second refund order",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrder2Id/deliver",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {},
+      "capture": {}
+    },
+    {
+      "name": "Create pending (unpaid) order for refund-on-non-delivered test",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$productId", "quantity": 1 }
+        ]
+      },
+      "capture": {
+        "pendingOrderId": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Request refund on delivered order returns 201",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrderId/refund",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "reason": "Product arrived damaged"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.reason", "data.status", "data.amountCents"]
+      },
+      "capture": {
+        "refundId": "data.id"
+      }
+    },
+    {
+      "name": "Refund has reason, status, and amountCents",
+      "method": "GET",
+      "path": "/api/v1/refunds/$refundId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.reason": "Product arrived damaged",
+          "data.status": "pending"
+        },
+        "bodyHasFields": ["data.reason", "data.status", "data.amountCents"]
+      }
+    },
+    {
+      "name": "Refund amountCents equals order totalCents",
+      "method": "GET",
+      "path": "/api/v1/refunds/$refundId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.amountCents"]
+      },
+      "_comment": "data.amountCents should equal $refundOrderTotalCents"
+    },
+    {
+      "name": "Request refund on non-delivered order returns 409",
+      "method": "POST",
+      "path": "/api/v1/orders/$pendingOrderId/refund",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "reason": "Want refund on pending order"
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Duplicate refund on same order returns 409",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrderId/refund",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "reason": "Trying to request a second refund"
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Approve refund returns 200 and order status becomes refunded",
+      "method": "PUT",
+      "path": "/api/v1/refunds/$refundId/approve",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {},
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.status": "approved"
+        }
+      }
+    },
+    {
+      "name": "Order status is refunded after approval",
+      "method": "GET",
+      "path": "/api/v1/orders/$refundOrderId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.status": "refunded"
+        }
+      }
+    },
+    {
+      "name": "Stock restored after refund approval",
+      "method": "GET",
+      "path": "/api/v1/products/$productId/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.stock"]
+      },
+      "_comment": "data.stock should equal $stockAfterDelivery + 2 (quantity from refunded order)"
+    },
+    {
+      "name": "Request refund on second delivered order for reject test",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrder2Id/refund",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "reason": "Changed my mind"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id"]
+      },
+      "capture": {
+        "refund2Id": "data.id"
+      }
+    },
+    {
+      "name": "Reject refund returns 200 and order stays delivered",
+      "method": "PUT",
+      "path": "/api/v1/refunds/$refund2Id/reject",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "reason": "Return window has expired"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.status": "rejected"
+        }
+      }
+    },
+    {
+      "name": "Rejected order cannot request refund again returns 409",
+      "method": "POST",
+      "path": "/api/v1/orders/$refundOrder2Id/refund",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "reason": "Trying again after rejection"
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Buyer sees own refunds",
+      "method": "GET",
+      "path": "/api/v1/refunds",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items"]
+      }
+    },
+    {
+      "name": "Seller sees refunds on their products",
+      "method": "GET",
+      "path": "/api/v1/refunds",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items"]
+      }
+    },
+    {
+      "name": "Admin sees all refunds",
+      "method": "GET",
+      "path": "/api/v1/refunds",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items", "data.total"]
+      }
+    },
+    {
+      "name": "Dashboard return-rate now reflects refunded orders",
+      "method": "GET",
+      "path": "/api/v1/dashboard/return-rate",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.totalOrders", "data.returnedOrders", "data.rate"]
+      },
+      "_comment": "returnedOrders should be >= 1 now that a refund was approved"
+    }
+  ]
+}

@@ -1,0 +1,419 @@
+{
+  "round": 7,
+  "description": "Role-based access control (RBAC)",
+  "setup": [
+    {
+      "name": "Register seller user",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "seller@bench-store.com",
+        "password": "SellerP@ss123",
+        "name": "Sam Seller"
+      },
+      "capture": {
+        "sellerUserId": "data.id",
+        "sellerToken": "data.token"
+      }
+    },
+    {
+      "name": "Register second seller user",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "seller2@bench-store.com",
+        "password": "Seller2P@ss123",
+        "name": "Sara Seller"
+      },
+      "capture": {
+        "seller2UserId": "data.id",
+        "seller2Token": "data.token"
+      }
+    },
+    {
+      "name": "Admin assigns seller role to first seller",
+      "method": "PUT",
+      "path": "/api/v1/users/$sellerUserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "role": "seller"
+      }
+    },
+    {
+      "name": "Admin assigns seller role to second seller",
+      "method": "PUT",
+      "path": "/api/v1/users/$seller2UserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "role": "seller"
+      }
+    },
+    {
+      "name": "Seller creates a product for ownership tests",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Seller Widget",
+        "description": "Product owned by Sam Seller",
+        "priceCents": 3000,
+        "category": "widgets"
+      },
+      "capture": {
+        "sellerProductId": "data.id"
+      }
+    },
+    {
+      "name": "Second seller creates a product",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $seller2Token"
+      },
+      "body": {
+        "name": "Seller2 Gadget",
+        "description": "Product owned by Sara Seller",
+        "priceCents": 4500,
+        "category": "gadgets"
+      },
+      "capture": {
+        "seller2ProductId": "data.id"
+      }
+    },
+    {
+      "name": "Set inventory on seller product",
+      "method": "PUT",
+      "path": "/api/v1/products/$sellerProductId/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "stock": 100
+      }
+    },
+    {
+      "name": "Buyer places order containing seller's product",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$sellerProductId", "quantity": 1 }
+        ]
+      },
+      "capture": {
+        "sellerOrderId": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Admin assigns seller role returns 200",
+      "method": "PUT",
+      "path": "/api/v1/users/$sellerUserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "role": "seller"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.role": "seller"
+        }
+      }
+    },
+    {
+      "name": "Admin assigns buyer role returns 200",
+      "method": "PUT",
+      "path": "/api/v1/users/$seller2UserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "role": "buyer"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.role": "buyer"
+        }
+      }
+    },
+    {
+      "name": "Restore seller2 role for remaining tests",
+      "method": "PUT",
+      "path": "/api/v1/users/$seller2UserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "role": "seller"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.role": "seller"
+        }
+      }
+    },
+    {
+      "name": "Non-admin tries to assign role returns 403",
+      "method": "PUT",
+      "path": "/api/v1/users/$sellerUserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "role": "seller"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Seller creates product returns 201",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Seller New Widget",
+        "description": "New product by seller",
+        "priceCents": 1200,
+        "category": "widgets"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.name"]
+      },
+      "capture": {
+        "sellerNewProductId": "data.id"
+      }
+    },
+    {
+      "name": "Buyer creates product returns 403",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "name": "Buyer Illegal Product",
+        "description": "Should not be allowed",
+        "priceCents": 999,
+        "category": "widgets"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Seller edits own product returns 200",
+      "method": "PUT",
+      "path": "/api/v1/products/$sellerProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Seller Widget Updated",
+        "description": "Updated by owner",
+        "priceCents": 3200,
+        "category": "widgets"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.name": "Seller Widget Updated"
+        }
+      }
+    },
+    {
+      "name": "Seller edits other seller's product returns 403",
+      "method": "PUT",
+      "path": "/api/v1/products/$seller2ProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Hijacked Product",
+        "description": "Should not work",
+        "priceCents": 1,
+        "category": "gadgets"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Admin edits any product returns 200",
+      "method": "PUT",
+      "path": "/api/v1/products/$seller2ProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Admin Edited Gadget",
+        "description": "Updated by admin",
+        "priceCents": 4600,
+        "category": "gadgets"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.name": "Admin Edited Gadget"
+        }
+      }
+    },
+    {
+      "name": "Buyer can read products returns 200",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Seller deletes own product returns 200",
+      "method": "DELETE",
+      "path": "/api/v1/products/$sellerNewProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Seller deletes other seller's product returns 403",
+      "method": "DELETE",
+      "path": "/api/v1/products/$seller2ProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Buyer sees own orders returns 200",
+      "method": "GET",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Seller sees orders containing their products returns 200",
+      "method": "GET",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Admin sees all orders returns 200",
+      "method": "GET",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Admin lists users returns 200",
+      "method": "GET",
+      "path": "/api/v1/users",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Buyer lists users returns 403",
+      "method": "GET",
+      "path": "/api/v1/users",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Seller lists users returns 403",
+      "method": "GET",
+      "path": "/api/v1/users",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    }
+  ]
+}

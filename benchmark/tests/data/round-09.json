@@ -1,0 +1,320 @@
+{
+  "round": 9,
+  "description": "Search and filtering",
+  "setup": [
+    {
+      "name": "Create product: Alpha Headphones (electronics, 9999)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Alpha Headphones",
+        "description": "Premium wireless headphones",
+        "priceCents": 9999,
+        "category": "electronics"
+      },
+      "capture": {
+        "searchProd1": "data.id"
+      }
+    },
+    {
+      "name": "Create product: Beta Keyboard (electronics, 4999)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Beta Keyboard",
+        "description": "Mechanical keyboard with RGB",
+        "priceCents": 4999,
+        "category": "electronics"
+      },
+      "capture": {
+        "searchProd2": "data.id"
+      }
+    },
+    {
+      "name": "Create product: Gamma T-Shirt (clothing, 1999)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Gamma T-Shirt",
+        "description": "Cotton t-shirt in navy blue",
+        "priceCents": 1999,
+        "category": "clothing"
+      },
+      "capture": {
+        "searchProd3": "data.id"
+      }
+    },
+    {
+      "name": "Create product: Delta Jacket (clothing, 7500)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Delta Jacket",
+        "description": "Waterproof hiking jacket",
+        "priceCents": 7500,
+        "category": "clothing"
+      },
+      "capture": {
+        "searchProd4": "data.id"
+      }
+    },
+    {
+      "name": "Create product: Epsilon Mug (home, 899)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Epsilon Mug",
+        "description": "Ceramic coffee mug",
+        "priceCents": 899,
+        "category": "home"
+      },
+      "capture": {
+        "searchProd5": "data.id"
+      }
+    },
+    {
+      "name": "Create product to delete later",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Zeta Deleted Item",
+        "description": "This will be deleted",
+        "priceCents": 500,
+        "category": "home"
+      },
+      "capture": {
+        "searchProdDeleted": "data.id"
+      }
+    },
+    {
+      "name": "Delete the product so it is excluded from search",
+      "method": "DELETE",
+      "path": "/api/v1/products/$searchProdDeleted",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Search by keyword returns matching products",
+      "method": "GET",
+      "path": "/api/v1/products?search=Headphones",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Search is case insensitive",
+      "method": "GET",
+      "path": "/api/v1/products?search=headphones",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Filter by category returns exact match",
+      "method": "GET",
+      "path": "/api/v1/products?category=electronics",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Filter by minPrice returns products >= price",
+      "method": "GET",
+      "path": "/api/v1/products?minPrice=5000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Filter by maxPrice returns products <= price",
+      "method": "GET",
+      "path": "/api/v1/products?maxPrice=2000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Filter by price range returns closed interval",
+      "method": "GET",
+      "path": "/api/v1/products?minPrice=2000&maxPrice=8000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Combine search and category filter",
+      "method": "GET",
+      "path": "/api/v1/products?search=Beta&category=electronics",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Combine search and price range",
+      "method": "GET",
+      "path": "/api/v1/products?search=Alpha&minPrice=5000&maxPrice=15000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Sort by price ascending",
+      "method": "GET",
+      "path": "/api/v1/products?sort=price_asc",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Sort by price descending",
+      "method": "GET",
+      "path": "/api/v1/products?sort=price_desc",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Sort by name ascending",
+      "method": "GET",
+      "path": "/api/v1/products?sort=name_asc",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Sort by created descending (default)",
+      "method": "GET",
+      "path": "/api/v1/products?sort=created_desc",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Pagination works with filters",
+      "method": "GET",
+      "path": "/api/v1/products?category=electronics&page=1&limit=1",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "No results returns empty array not error",
+      "method": "GET",
+      "path": "/api/v1/products?search=xyznonexistent999",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyNotHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Deleted products excluded from search results",
+      "method": "GET",
+      "path": "/api/v1/products?search=Zeta%20Deleted",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyNotHasFields": ["error"]
+      }
+    }
+  ]
+}

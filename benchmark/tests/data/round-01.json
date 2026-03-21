@@ -1,0 +1,284 @@
+{
+  "round": 1,
+  "description": "Tenant registration and user authentication",
+  "setup": [
+    {
+      "name": "Create tenant",
+      "method": "POST",
+      "path": "/api/v1/tenants",
+      "body": {
+        "name": "Bench Store",
+        "slug": "bench-store"
+      },
+      "capture": {
+        "tenantId": "data.id"
+      }
+    },
+    {
+      "name": "Register admin user (first user)",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "admin@bench-store.com",
+        "password": "Str0ngP@ss!",
+        "name": "Alice Admin"
+      },
+      "capture": {
+        "adminUserId": "data.id",
+        "adminToken": "data.token"
+      }
+    },
+    {
+      "name": "Login as admin",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "admin@bench-store.com",
+        "password": "Str0ngP@ss!"
+      },
+      "capture": {
+        "token": "data.token"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Create tenant successfully",
+      "method": "POST",
+      "path": "/api/v1/tenants",
+      "body": {
+        "name": "Another Store",
+        "slug": "another-store"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.name", "data.slug"]
+      },
+      "capture": {
+        "otherTenantId": "data.id"
+      }
+    },
+    {
+      "name": "Create tenant with duplicate slug returns 409",
+      "method": "POST",
+      "path": "/api/v1/tenants",
+      "body": {
+        "name": "Duplicate Store",
+        "slug": "bench-store"
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Register user with valid data returns 200 and token",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "buyer@bench-store.com",
+        "password": "BuyerP@ss123",
+        "name": "Bob Buyer"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.token", "data.email"]
+      },
+      "capture": {
+        "buyerUserId": "data.id",
+        "buyerToken": "data.token"
+      }
+    },
+    {
+      "name": "Register user with duplicate email returns 409",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "admin@bench-store.com",
+        "password": "AnotherP@ss1",
+        "name": "Duplicate User"
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Register user with short password returns 400",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "shortpw@bench-store.com",
+        "password": "Ab1!",
+        "name": "Short Password"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Register with missing email returns 400",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "password": "ValidP@ss123",
+        "name": "No Email"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Register with missing password returns 400",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "nopw@bench-store.com",
+        "name": "No Password"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Login with correct credentials returns 200 and token",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "admin@bench-store.com",
+        "password": "Str0ngP@ss!"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.token"]
+      }
+    },
+    {
+      "name": "Login with wrong password returns 401",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "admin@bench-store.com",
+        "password": "WrongPassword!"
+      },
+      "expected": {
+        "status": 401,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Login with non-existent email returns 401",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "nobody@bench-store.com",
+        "password": "Whatever123!"
+      },
+      "expected": {
+        "status": 401,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "GET /auth/me with valid token returns 200 and user data",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.email", "data.name", "data.role"]
+      }
+    },
+    {
+      "name": "GET /auth/me without token returns 401",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "expected": {
+        "status": 401,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "GET /auth/me with invalid token returns 401",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer invalid.jwt.token"
+      },
+      "expected": {
+        "status": 401,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "First registered user has role admin",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $adminToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.role": "admin"
+        }
+      }
+    },
+    {
+      "name": "Second registered user has role buyer",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.role": "buyer"
+        }
+      }
+    }
+  ]
+}

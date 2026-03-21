@@ -1,0 +1,397 @@
+{
+  "round": 15,
+  "description": "Product variants (SKU)",
+  "setup": [
+    {
+      "name": "Create product for variant testing",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Premium T-Shirt",
+        "description": "A t-shirt with multiple size and color variants",
+        "priceCents": 2500,
+        "stock": 0,
+        "category": "clothing"
+      },
+      "capture": {
+        "variantProductId": "data.id"
+      }
+    },
+    {
+      "name": "Create product without variants (backward compat check)",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Simple Mug",
+        "description": "A product with no variants",
+        "priceCents": 1200,
+        "stock": 50,
+        "category": "accessories"
+      },
+      "capture": {
+        "noVariantProductId": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Add first variant to product → 201",
+      "method": "POST",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "sku": "TSHIRT-RED-S",
+        "attributes": {
+          "color": "red",
+          "size": "S"
+        },
+        "priceCents": 2500,
+        "stock": 10
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.sku", "data.attributes", "data.priceCents", "data.stock"]
+      },
+      "capture": {
+        "variant1Id": "data.id"
+      }
+    },
+    {
+      "name": "Add second variant with different attributes → 201",
+      "method": "POST",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "sku": "TSHIRT-RED-M",
+        "attributes": {
+          "color": "red",
+          "size": "M"
+        },
+        "priceCents": 2500,
+        "stock": 15
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.sku"]
+      },
+      "capture": {
+        "variant2Id": "data.id"
+      }
+    },
+    {
+      "name": "Add third variant with different price → 201",
+      "method": "POST",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "sku": "TSHIRT-BLUE-L",
+        "attributes": {
+          "color": "blue",
+          "size": "L"
+        },
+        "priceCents": 2800,
+        "stock": 20
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.sku"]
+      },
+      "capture": {
+        "variant3Id": "data.id"
+      }
+    },
+    {
+      "name": "Variant has sku, attributes, priceCents, stock fields",
+      "method": "GET",
+      "path": "/api/v1/products/$variantProductId/variants/$variant1Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.sku", "data.attributes", "data.priceCents", "data.stock"],
+        "body": {
+          "data.sku": "TSHIRT-RED-S",
+          "data.priceCents": 2500,
+          "data.stock": 10
+        }
+      }
+    },
+    {
+      "name": "List all variants for product",
+      "method": "GET",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 3
+        }
+      }
+    },
+    {
+      "name": "Update variant price → 200",
+      "method": "PUT",
+      "path": "/api/v1/products/$variantProductId/variants/$variant1Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "priceCents": 2200
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.priceCents": 2200
+        }
+      }
+    },
+    {
+      "name": "Delete variant → 200",
+      "method": "DELETE",
+      "path": "/api/v1/products/$variantProductId/variants/$variant3Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Duplicate SKU within tenant → 409",
+      "method": "POST",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "sku": "TSHIRT-RED-S",
+        "attributes": {
+          "color": "red",
+          "size": "S"
+        },
+        "priceCents": 2500,
+        "stock": 5
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Product stock equals sum of variant stocks",
+      "method": "GET",
+      "path": "/api/v1/products/$variantProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.stock": 25
+        }
+      }
+    },
+    {
+      "name": "Add to cart with variantId → 200",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "productId": "$variantProductId",
+        "variantId": "$variant1Id",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Add to cart for variant product WITHOUT variantId → 400",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "productId": "$variantProductId",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Add non-variant product to cart without variantId → 200",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "productId": "$noVariantProductId",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Order captures variantId in OrderItem",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          {
+            "productId": "$variantProductId",
+            "variantId": "$variant1Id",
+            "quantity": 1
+          }
+        ]
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.items"],
+        "bodyArrayItemHasFields": {
+          "path": "data.items",
+          "fields": ["variantId"]
+        }
+      },
+      "capture": {
+        "variantOrderId": "data.id"
+      }
+    },
+    {
+      "name": "Variant inventory tracks independently after order",
+      "method": "GET",
+      "path": "/api/v1/products/$variantProductId/variants/$variant1Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.stock": 9
+        }
+      }
+    },
+    {
+      "name": "Multiple variants with different attributes exist",
+      "method": "GET",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 2
+        }
+      }
+    },
+    {
+      "name": "Product without variants still works (backward compatible)",
+      "method": "GET",
+      "path": "/api/v1/products/$noVariantProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.name", "data.priceCents", "data.stock"],
+        "body": {
+          "data.name": "Simple Mug",
+          "data.stock": 49
+        }
+      }
+    },
+    {
+      "name": "Cart shows variant info (sku, attributes)",
+      "method": "GET",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items"],
+        "bodyArrayContainsItemWithFields": {
+          "path": "data.items",
+          "match": { "variantId": "$variant1Id" },
+          "hasFields": ["sku", "attributes"]
+        }
+      }
+    },
+    {
+      "name": "Variant price can differ from base product price",
+      "method": "POST",
+      "path": "/api/v1/products/$variantProductId/variants",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "sku": "TSHIRT-GOLD-XL",
+        "attributes": {
+          "color": "gold",
+          "size": "XL"
+        },
+        "priceCents": 4500,
+        "stock": 5
+      },
+      "expected": {
+        "status": 201,
+        "body": {
+          "data.priceCents": 4500
+        }
+      },
+      "capture": {
+        "variant4Id": "data.id"
+      }
+    }
+  ]
+}

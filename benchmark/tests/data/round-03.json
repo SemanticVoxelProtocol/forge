@@ -1,0 +1,268 @@
+{
+  "round": 3,
+  "description": "Shopping cart management",
+  "setup": [
+    {
+      "name": "Register buyer user for cart tests",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "body": {
+        "email": "carol@bench-store.com",
+        "password": "C@rolBuyer99",
+        "name": "Carol Customer"
+      },
+      "capture": {
+        "cartBuyerId": "data.id",
+        "cartBuyerToken": "data.token"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Add item to cart returns 200 with cart data",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$productId",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.items", "data.totalCents"]
+      }
+    },
+    {
+      "name": "Get cart returns items with product details and totalCents",
+      "method": "GET",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 12999
+        },
+        "bodyHasFields": ["data.items", "data.totalCents"]
+      }
+    },
+    {
+      "name": "Add same product again increases quantity",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$productId",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 25998
+        }
+      }
+    },
+    {
+      "name": "Update item quantity returns 200",
+      "method": "PUT",
+      "path": "/api/v1/cart/items/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "quantity": 3
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 38997
+        }
+      }
+    },
+    {
+      "name": "Update quantity to 0 returns 400",
+      "method": "PUT",
+      "path": "/api/v1/cart/items/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "quantity": 0
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Add second product to cart",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$product2Id",
+        "quantity": 2
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 43987
+        }
+      }
+    },
+    {
+      "name": "Cart totalCents equals sum of price times quantity",
+      "method": "GET",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 43987
+        }
+      }
+    },
+    {
+      "name": "Remove item from cart returns 200",
+      "method": "DELETE",
+      "path": "/api/v1/cart/items/$product2Id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 38997
+        }
+      }
+    },
+    {
+      "name": "Remove non-existent item returns 404",
+      "method": "DELETE",
+      "path": "/api/v1/cart/items/00000000-0000-0000-0000-000000000000",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Clear cart returns 200",
+      "method": "DELETE",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Empty cart GET returns zero items and totalCents 0",
+      "method": "GET",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.items": [],
+          "data.totalCents": 0
+        }
+      }
+    },
+    {
+      "name": "Add deleted product to cart returns 404",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$product3Id",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Add multiple items and verify totalCents",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$product4Id",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 16500
+        }
+      }
+    },
+    {
+      "name": "Add another item and verify cumulative totalCents",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $cartBuyerToken"
+      },
+      "body": {
+        "productId": "$product5Id",
+        "quantity": 2
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 25698
+        }
+      }
+    },
+    {
+      "name": "Cart without auth token returns 401",
+      "method": "GET",
+      "path": "/api/v1/cart",
+      "headers": {
+        "X-Tenant-ID": "$tenantId"
+      },
+      "expected": {
+        "status": 401,
+        "bodyHasFields": ["error"]
+      }
+    }
+  ]
+}

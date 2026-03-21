@@ -1,0 +1,488 @@
+{
+  "round": 10,
+  "description": "Coupon system",
+  "setup": [
+    {
+      "name": "Create product for coupon tests",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Coupon Test Widget",
+        "description": "Product for testing coupon discounts",
+        "priceCents": 10000,
+        "category": "widgets"
+      },
+      "capture": {
+        "couponProductId": "data.id"
+      }
+    },
+    {
+      "name": "Create second product for coupon tests",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "name": "Coupon Test Gadget",
+        "description": "Another product for coupon testing",
+        "priceCents": 5000,
+        "category": "gadgets"
+      },
+      "capture": {
+        "couponProductId2": "data.id"
+      }
+    },
+    {
+      "name": "Set inventory on coupon product",
+      "method": "PUT",
+      "path": "/api/v1/products/$couponProductId/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "stock": 100
+      }
+    },
+    {
+      "name": "Set inventory on second coupon product",
+      "method": "PUT",
+      "path": "/api/v1/products/$couponProductId2/inventory",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "stock": 100
+      }
+    },
+    {
+      "name": "Create expired coupon for testing",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "EXPIRED10",
+        "type": "percentage",
+        "value": 10,
+        "expiresAt": "2020-01-01T00:00:00.000Z",
+        "maxUsages": 100
+      },
+      "capture": {
+        "expiredCouponId": "data.id"
+      }
+    },
+    {
+      "name": "Create exhausted coupon (maxUsages=0)",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "NOUSESLEFT",
+        "type": "percentage",
+        "value": 15,
+        "maxUsages": 0
+      },
+      "capture": {
+        "exhaustedCouponId": "data.id"
+      }
+    },
+    {
+      "name": "Create coupon with high minOrderCents",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "HIGHMIN50",
+        "type": "percentage",
+        "value": 50,
+        "minOrderCents": 99999,
+        "maxUsages": 100
+      },
+      "capture": {
+        "highMinCouponId": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Create percentage coupon returns 201",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "SAVE20PCT",
+        "type": "percentage",
+        "value": 20,
+        "maxUsages": 100,
+        "minOrderCents": 1000
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.code", "data.type", "data.value"],
+        "body": {
+          "data.type": "percentage",
+          "data.value": 20
+        }
+      },
+      "capture": {
+        "pctCouponId": "data.id"
+      }
+    },
+    {
+      "name": "Create fixed coupon returns 201",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "SAVE500",
+        "type": "fixed",
+        "value": 500,
+        "maxUsages": 50
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.code", "data.type", "data.value"],
+        "body": {
+          "data.type": "fixed",
+          "data.value": 500
+        }
+      },
+      "capture": {
+        "fixedCouponId": "data.id"
+      }
+    },
+    {
+      "name": "Create coupon with duplicate code returns 409",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "SAVE20PCT",
+        "type": "percentage",
+        "value": 10,
+        "maxUsages": 10
+      },
+      "expected": {
+        "status": 409,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Apply percentage coupon shows discount in cart",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "SAVE20PCT",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.subtotalCents", "data.discountCents", "data.totalCents"]
+      }
+    },
+    {
+      "name": "Apply fixed coupon shows discount in cart",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "SAVE500",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.subtotalCents", "data.discountCents", "data.totalCents"],
+        "body": {
+          "data.discountCents": 500
+        }
+      }
+    },
+    {
+      "name": "Create large fixed coupon for floor test",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "code": "HUGEDISCOUNT",
+        "type": "fixed",
+        "value": 999999,
+        "maxUsages": 10
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id"]
+      }
+    },
+    {
+      "name": "Fixed coupon larger than total does not go below 0",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "HUGEDISCOUNT",
+        "items": [
+          { "productId": "$couponProductId2", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.totalCents": 0
+        }
+      }
+    },
+    {
+      "name": "Apply expired coupon returns 400",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "EXPIRED10",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Apply exhausted coupon (maxUsages reached) returns 400",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "NOUSESLEFT",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Apply coupon below minOrderCents returns 400",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "HIGHMIN50",
+        "items": [
+          { "productId": "$couponProductId2", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Remove coupon from cart removes discount",
+      "method": "DELETE",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.discountCents": 0
+        }
+      }
+    },
+    {
+      "name": "Order with coupon reflects discount in totalCents",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ],
+        "couponCode": "SAVE20PCT"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.totalCents", "data.discountCents"],
+        "body": {
+          "data.discountCents": 2000,
+          "data.totalCents": 8000
+        }
+      },
+      "capture": {
+        "couponOrderId": "data.id"
+      }
+    },
+    {
+      "name": "Coupon usage count increments after order",
+      "method": "GET",
+      "path": "/api/v1/coupons/$pctCouponId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.usageCount"]
+      }
+    },
+    {
+      "name": "Coupon code is case insensitive",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "save20pct",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.subtotalCents", "data.discountCents", "data.totalCents"]
+      }
+    },
+    {
+      "name": "List coupons includes all created coupons",
+      "method": "GET",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"]
+      }
+    },
+    {
+      "name": "Create coupon as buyer returns 403",
+      "method": "POST",
+      "path": "/api/v1/coupons",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "BUYERCOUPON",
+        "type": "percentage",
+        "value": 99,
+        "maxUsages": 1000
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Cart with coupon shows subtotalCents, discountCents, totalCents, and coupon info",
+      "method": "POST",
+      "path": "/api/v1/cart/coupon",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "code": "SAVE500",
+        "items": [
+          { "productId": "$couponProductId", "quantity": 2 },
+          { "productId": "$couponProductId2", "quantity": 1 }
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.subtotalCents", "data.discountCents", "data.totalCents", "data.coupon"],
+        "body": {
+          "data.subtotalCents": 25000,
+          "data.discountCents": 500,
+          "data.totalCents": 24500
+        }
+      }
+    },
+    {
+      "name": "Order with fixed coupon on multiple items reflects correct discount",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          { "productId": "$couponProductId2", "quantity": 2 }
+        ],
+        "couponCode": "SAVE500"
+      },
+      "expected": {
+        "status": 201,
+        "bodyHasFields": ["data.id", "data.totalCents", "data.discountCents"],
+        "body": {
+          "data.subtotalCents": 10000,
+          "data.discountCents": 500,
+          "data.totalCents": 9500
+        }
+      }
+    }
+  ]
+}

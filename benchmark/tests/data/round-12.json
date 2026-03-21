@@ -1,0 +1,265 @@
+{
+  "round": 12,
+  "description": "Audit logging",
+  "setup": [
+    {
+      "name": "Create product for audit trail",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Audited Widget",
+        "description": "Product created to generate audit logs",
+        "priceCents": 1500,
+        "stock": 30,
+        "category": "accessories"
+      },
+      "capture": {
+        "auditProductId": "data.id"
+      }
+    },
+    {
+      "name": "Update product to generate update audit log",
+      "method": "PUT",
+      "path": "/api/v1/products/$auditProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Audited Widget v2",
+        "priceCents": 1800
+      }
+    },
+    {
+      "name": "Delete product to generate delete audit log",
+      "method": "DELETE",
+      "path": "/api/v1/products/$auditProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Audit log exists for product creation",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId&action=create",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Audit log exists for product update with action 'update'",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId&action=update",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Audit log exists for product deletion with action 'delete'",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId&action=delete",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Audit log entry has required fields",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayItemHasFields": {
+          "path": "data",
+          "fields": ["userId", "entity", "entityId", "action", "timestamp"]
+        }
+      }
+    },
+    {
+      "name": "Filter audit logs by entity type",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayAllMatch": {
+          "path": "data",
+          "field": "entity",
+          "value": "product"
+        }
+      }
+    },
+    {
+      "name": "Filter audit logs by entityId returns specific entity logs",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entityId=$auditProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayAllMatch": {
+          "path": "data",
+          "field": "entityId",
+          "value": "$auditProductId"
+        }
+      }
+    },
+    {
+      "name": "Filter audit logs by action",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?action=create",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayAllMatch": {
+          "path": "data",
+          "field": "action",
+          "value": "create"
+        }
+      }
+    },
+    {
+      "name": "Audit logs support pagination",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?limit=2&page=1",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data", "data.length"],
+        "bodyArrayMaxLength": {
+          "path": "data",
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "Non-admin cannot access audit logs → 403",
+      "method": "GET",
+      "path": "/api/v1/audit-logs",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 403,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "PUT on audit logs endpoint is not allowed",
+      "method": "PUT",
+      "path": "/api/v1/audit-logs/any-id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "action": "tampered"
+      },
+      "expected": {
+        "statusOneOf": [404, 405],
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "DELETE on audit logs endpoint is not allowed",
+      "method": "DELETE",
+      "path": "/api/v1/audit-logs/any-id",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "statusOneOf": [404, 405],
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Update audit log contains before/after changes",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId&action=update",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayItemHasFields": {
+          "path": "data",
+          "fields": ["changes", "changes.before", "changes.after"]
+        }
+      }
+    },
+    {
+      "name": "Create audit log has only 'after' in changes (no 'before')",
+      "method": "GET",
+      "path": "/api/v1/audit-logs?entity=product&entityId=$auditProductId&action=create",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayItemHasFields": {
+          "path": "data",
+          "fields": ["changes", "changes.after"]
+        },
+        "bodyArrayItemLacksFields": {
+          "path": "data",
+          "fields": ["changes.before"]
+        }
+      }
+    }
+  ]
+}

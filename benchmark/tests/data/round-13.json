@@ -1,0 +1,298 @@
+{
+  "round": 13,
+  "description": "Notification system",
+  "setup": [
+    {
+      "name": "Create product for notification testing",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Notification Test Item",
+        "description": "Product to trigger order notifications",
+        "priceCents": 4500,
+        "stock": 20,
+        "category": "electronics"
+      },
+      "capture": {
+        "notifProductId": "data.id"
+      }
+    },
+    {
+      "name": "Add product to cart",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "productId": "$notifProductId",
+        "quantity": 2
+      }
+    },
+    {
+      "name": "Place order to trigger notifications",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "items": [
+          {
+            "productId": "$notifProductId",
+            "quantity": 2
+          }
+        ]
+      },
+      "capture": {
+        "notifOrderId": "data.id"
+      }
+    },
+    {
+      "name": "Transition order to paid",
+      "method": "PUT",
+      "path": "/api/v1/orders/$notifOrderId/status",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "status": "paid"
+      }
+    },
+    {
+      "name": "Transition order to shipped",
+      "method": "PUT",
+      "path": "/api/v1/orders/$notifOrderId/status",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "status": "shipped"
+      }
+    },
+    {
+      "name": "Transition order to delivered",
+      "method": "PUT",
+      "path": "/api/v1/orders/$notifOrderId/status",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "body": {
+        "status": "delivered"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Buyer receives notification for new order",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Seller receives notification for new order",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Notifications have required fields",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayItemHasFields": {
+          "path": "data",
+          "fields": ["type", "title", "message", "read", "createdAt"]
+        }
+      }
+    },
+    {
+      "name": "Default read status is false",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayContains": {
+          "path": "data",
+          "field": "read",
+          "value": false
+        }
+      },
+      "capture": {
+        "notificationId": "data[0].id"
+      }
+    },
+    {
+      "name": "Mark single notification as read → 200",
+      "method": "PUT",
+      "path": "/api/v1/notifications/$notificationId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "read": true
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.read": true
+        }
+      }
+    },
+    {
+      "name": "Mark all notifications as read → 200",
+      "method": "PUT",
+      "path": "/api/v1/notifications/read-all",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200
+      }
+    },
+    {
+      "name": "Buyer does not see seller notifications",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayDoesNotContain": {
+          "path": "data",
+          "field": "type",
+          "value": "new_order_seller"
+        }
+      }
+    },
+    {
+      "name": "Seller does not see buyer notifications",
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyArrayDoesNotContain": {
+          "path": "data",
+          "field": "type",
+          "value": "order_status_buyer"
+        }
+      }
+    },
+    {
+      "name": "Notifications support pagination",
+      "method": "GET",
+      "path": "/api/v1/notifications?limit=2&page=1",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMaxLength": {
+          "path": "data",
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "Notification created for paid transition",
+      "method": "GET",
+      "path": "/api/v1/notifications?type=order_paid",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Notification created for shipped transition",
+      "method": "GET",
+      "path": "/api/v1/notifications?type=order_shipped",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    },
+    {
+      "name": "Notification created for delivered transition",
+      "method": "GET",
+      "path": "/api/v1/notifications?type=order_delivered",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayMinLength": {
+          "path": "data",
+          "min": 1
+        }
+      }
+    }
+  ]
+}

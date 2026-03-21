@@ -1,0 +1,330 @@
+{
+  "round": 11,
+  "description": "Multi-tenant data isolation",
+  "setup": [
+    {
+      "name": "Create second tenant (Tenant B)",
+      "method": "POST",
+      "path": "/api/v1/tenants",
+      "body": {
+        "name": "Rival Store",
+        "slug": "rival-store"
+      },
+      "capture": {
+        "tenantBId": "data.id"
+      }
+    },
+    {
+      "name": "Register admin for Tenant B",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId"
+      },
+      "body": {
+        "email": "admin@rival-store.com",
+        "password": "R1valAdm!n",
+        "name": "Rival Admin"
+      },
+      "capture": {
+        "tenantBAdminToken": "data.token",
+        "tenantBAdminUserId": "data.id"
+      }
+    },
+    {
+      "name": "Register buyer for Tenant B",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId"
+      },
+      "body": {
+        "email": "buyer@rival-store.com",
+        "password": "R1valBuy3r!",
+        "name": "Rival Buyer"
+      },
+      "capture": {
+        "tenantBBuyerToken": "data.token",
+        "tenantBBuyerUserId": "data.id"
+      }
+    },
+    {
+      "name": "Register seller for Tenant B",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId"
+      },
+      "body": {
+        "email": "seller@rival-store.com",
+        "password": "R1valS3ll!",
+        "name": "Rival Seller"
+      },
+      "capture": {
+        "tenantBSellerToken": "data.token",
+        "tenantBSellerUserId": "data.id"
+      }
+    },
+    {
+      "name": "Assign seller role in Tenant B",
+      "method": "PUT",
+      "path": "/api/v1/users/$tenantBSellerUserId/role",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBAdminToken"
+      },
+      "body": {
+        "role": "seller"
+      }
+    },
+    {
+      "name": "Create product in Tenant B",
+      "method": "POST",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBSellerToken"
+      },
+      "body": {
+        "name": "Rival Gadget",
+        "description": "A product belonging to Tenant B",
+        "priceCents": 2999,
+        "stock": 50,
+        "category": "electronics"
+      },
+      "capture": {
+        "tenantBProductId": "data.id"
+      }
+    },
+    {
+      "name": "Create order in Tenant B",
+      "method": "POST",
+      "path": "/api/v1/orders",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBBuyerToken"
+      },
+      "body": {
+        "items": [
+          {
+            "productId": "$tenantBProductId",
+            "quantity": 1
+          }
+        ]
+      },
+      "capture": {
+        "tenantBOrderId": "data.id"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "Tenant A user can see Tenant A products",
+      "method": "GET",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.name"]
+      }
+    },
+    {
+      "name": "Tenant A user CANNOT see Tenant B products → 404",
+      "method": "GET",
+      "path": "/api/v1/products/$tenantBProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant B user CANNOT see Tenant A products → 404",
+      "method": "GET",
+      "path": "/api/v1/products/$productId",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBBuyerToken"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant A user CANNOT see Tenant B orders → 404",
+      "method": "GET",
+      "path": "/api/v1/orders/$tenantBOrderId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant A user CANNOT see Tenant B users → 404",
+      "method": "GET",
+      "path": "/api/v1/users/$tenantBBuyerUserId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Request without X-Tenant-ID → 400",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 400,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "JWT tenantId mismatch with X-Tenant-ID → 401 or 403",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "statusOneOf": [401, 403],
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "GET own tenant details → 200",
+      "method": "GET",
+      "path": "/api/v1/tenants/$tenantId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.name", "data.slug"]
+      }
+    },
+    {
+      "name": "GET other tenant details → 404",
+      "method": "GET",
+      "path": "/api/v1/tenants/$tenantBId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant B product visible only in Tenant B",
+      "method": "GET",
+      "path": "/api/v1/products/$tenantBProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "data.name": "Rival Gadget"
+        }
+      }
+    },
+    {
+      "name": "Tenant B order visible only in Tenant B",
+      "method": "GET",
+      "path": "/api/v1/orders/$tenantBOrderId",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data.id", "data.items"]
+      }
+    },
+    {
+      "name": "Cross-tenant product ID in cart → 404",
+      "method": "POST",
+      "path": "/api/v1/cart/items",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $buyerToken"
+      },
+      "body": {
+        "productId": "$tenantBProductId",
+        "quantity": 1
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant A admin cannot update Tenant B product → 404",
+      "method": "PUT",
+      "path": "/api/v1/products/$tenantBProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $sellerToken"
+      },
+      "body": {
+        "name": "Hijacked Product"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant A admin cannot delete Tenant B product → 404",
+      "method": "DELETE",
+      "path": "/api/v1/products/$tenantBProductId",
+      "headers": {
+        "X-Tenant-ID": "$tenantId",
+        "Authorization": "Bearer $token"
+      },
+      "expected": {
+        "status": 404,
+        "bodyHasFields": ["error"]
+      }
+    },
+    {
+      "name": "Tenant B product listing does not include Tenant A products",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "headers": {
+        "X-Tenant-ID": "$tenantBId",
+        "Authorization": "Bearer $tenantBBuyerToken"
+      },
+      "expected": {
+        "status": 200,
+        "bodyHasFields": ["data"],
+        "bodyArrayDoesNotContain": {
+          "path": "data",
+          "field": "id",
+          "value": "$productId"
+        }
+      }
+    }
+  ]
+}
