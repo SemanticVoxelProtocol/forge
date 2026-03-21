@@ -99,13 +99,14 @@
         "name": "Sam Seller"
       },
       "capture": {
-        "sellerReviewToken": "data.token"
+        "sellerReviewToken": "data.token",
+        "sellerReviewUserId": "data.user.id"
       }
     },
     {
       "name": "Promote seller user to seller role",
       "method": "PUT",
-      "path": "/api/v1/users/$sellerReviewToken/role",
+      "path": "/api/v1/users/$sellerReviewUserId/role",
       "headers": {
         "X-Tenant-ID": "$tenantId",
         "Authorization": "Bearer $token"
