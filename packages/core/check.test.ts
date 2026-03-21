@@ -326,7 +326,6 @@ describe("check — graph structure", () => {
   });
 });
 
-
 // ── EventGraph 校验 ──
 
 function makeEventGraph(overrides: Partial<L4EventGraph> = {}): L4EventGraph {
@@ -790,7 +789,6 @@ describe("check — empty steps", () => {
     expect(orphanIssues).toHaveLength(0);
   });
 });
-
 
 describe("check — SOURCE_DRIFT edge cases", () => {
   it("skips SOURCE_DRIFT when L3 not found for blockRef", () => {

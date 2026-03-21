@@ -609,7 +609,6 @@ function checkDrift(input: CheckInput, lang: string): CheckIssue[] {
         }),
       });
     }
-
   }
 
   return issues;

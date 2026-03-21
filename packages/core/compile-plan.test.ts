@@ -346,7 +346,6 @@ describe("compilePlan — recompile context", () => {
   });
 });
 
-
 describe("compilePlan — orphaned L2", () => {
   it("generates review task for L2 with MISSING_BLOCK_REF", () => {
     const ghostL3 = makeL3("deleted-block", "Deleted Block");

@@ -13,12 +13,7 @@ import {
   readL5,
   checkCompatibility,
 } from "../core/index.js";
-import type {
-  CheckInput,
-  L2CodeBlock,
-  L3Block,
-  L4Artifact,
-} from "../core/index.js";
+import type { CheckInput, L2CodeBlock, L3Block, L4Artifact } from "../core/index.js";
 
 /** 从 .svp/ 加载所有层数据 */
 export async function loadCheckInput(root: string): Promise<CheckInput> {
@@ -73,5 +68,3 @@ async function scanExistingNodeDocs(root: string): Promise<Set<string>> {
   }
   return result;
 }
-
-

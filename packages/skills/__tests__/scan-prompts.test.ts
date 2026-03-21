@@ -13,10 +13,7 @@ const baseRevision = {
   timestamp: "2024-01-01T00:00:00Z",
 };
 
-const makeScanContext = (
-  files: Array<{ filePath: string }>,
-  truncated = false,
-): ScanContext => {
+const makeScanContext = (files: Array<{ filePath: string }>, truncated = false): ScanContext => {
   const scannedFiles = files.map((f) => ({ filePath: f.filePath }));
   return {
     files: scannedFiles,

@@ -107,9 +107,7 @@ describe("relinkL2", () => {
     expect(relinked.revision.parentRev).toBe(1);
     expect(relinked.revision.source).toEqual({ type: "ai", action: "recompile" });
   });
-
 });
-
 
 // ── Additional tests ──
 
