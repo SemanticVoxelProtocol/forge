@@ -28,11 +28,6 @@
 !i18n/**
 !.github/
 !.github/**
-!.claude/
-!.claude/commands/
-!.claude/commands/**
-!benchmark/
-!benchmark/**
 
 # Within allowed dirs, re-ignore all hidden directories then whitelist specific ones
 **/.*/
@@ -40,8 +35,6 @@
 !**/.svp/**
 !.github/
 !.github/**
-!.claude/
-!.claude/**
 
 # Re-ignore generated/temp files within allowed dirs
 tests/e2e/report-*
