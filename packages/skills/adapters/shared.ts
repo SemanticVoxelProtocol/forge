@@ -54,6 +54,81 @@ export function getSkillIntro(language: string): string {
 - **Only recommend applicable options.** If Scan doesn't apply (no code), don't mention it. If the project is empty, don't list View. Internally exclude inapplicable paths and only present meaningful choices to the user`;
 }
 
+// ── Skill file: Philosophy section ──
+
+export function getPhilosophySection(language: string): string {
+  if (language === "zh") {
+    return `## SVP 核心哲学（内化这些原则，而非死记步骤）
+
+**SVP 是编译器，不是脚手架。** 把 SVP 想象成 C++ 的编译链：意图(.md) → 架构(.json) → 逻辑契约(.json) → 代码骨架 → 源代码。你不会去改 .o 文件然后指望 .cpp 自动更新——同理，你不直接改 L1 代码然后指望上层设计自动同步。
+
+### 原则 1：L3 就是契约
+
+L3 不是"需要翻译成代码的中间文档"。L3 **就是** API 契约本身：
+- L3 的 input pins = 请求参数
+- L3 的 output pins = 响应数据
+- L3 的 constraints = 校验规则、业务逻辑
+- L3 的 description = 端点的语义
+
+如果用户需求说"POST /api/v1/auth/register，从 X-Tenant-ID header 读取租户"，这些信息**必须**体现在 L3 的 description 或 constraints 里。L3 写得越精确，编译出来的 L1 越准确。L3 写得太抽象（比如只写 input: body），编译器只能猜，猜错是必然的。
+
+### 原则 2：单向编译，出错回溯上层
+
+编译结果不对时（路由不对、字段名不对、逻辑有误）：
+- **不要直接改 L1 代码** → 这违反了编译方向
+- **回到 L3 看哪里写得不够精确** → 补充 constraints 或 description → recompile
+- **如果是架构层面的问题** → 回到 L4 甚至 L5 修改
+
+这不是教条——这是效率最优解。改 L3 一行 constraint，recompile 就能修复所有相关 L1 文件。直接改 L1 只能修一个文件，而且下次 recompile 会被覆盖。
+
+### 原则 3：参考文档就是 refs/
+
+用户给了设计稿？API 规范？算法说明？竞品截图？**立刻放进 nodes/<block-id>/refs/**。这不是可选的——refs/ 的内容会自动注入编译 prompt。没有 refs/ 的编译就像没有头文件的 C++ 编译：编译器只能猜接口，猜错是你的问题。
+
+经验法则：如果某份文档影响代码怎么写，它就该在 refs/ 里。
+
+### 原则 4：上下文隔离是核心价值
+
+主 Agent 不读 L1 代码，所有代码工作交给 subagent。这不是限制——这是让主 Agent 保持全局架构视野的关键。读了 L1 的 Agent 会被实现细节带着走，忘记设计层面的一致性。
+
+把自己想象成架构师，subagent 是开发团队。架构师不写代码，但确保每个模块的契约是对的。`;
+  }
+  return `## SVP Core Philosophy (internalize these principles, don't just memorize steps)
+
+**SVP is a compiler, not scaffolding.** Think of SVP like the C++ build chain: intent(.md) → architecture(.json) → logic contracts(.json) → code skeleton → source code. You wouldn't edit a .o file and expect the .cpp to auto-update — likewise, you don't directly edit L1 code and expect the upper layers to stay in sync.
+
+### Principle 1: L3 IS the contract
+
+L3 is not "an intermediate document that needs to be translated into code." L3 **IS** the API contract itself:
+- L3 input pins = request parameters
+- L3 output pins = response data
+- L3 constraints = validation rules, business logic
+- L3 description = endpoint semantics
+
+If the user requirement says "POST /api/v1/auth/register, read tenant from X-Tenant-ID header," this information **must** be reflected in L3's description or constraints. The more precise the L3, the more accurate the compiled L1. If L3 is too abstract (e.g., just "input: body"), the compiler can only guess — and guessing wrong is inevitable.
+
+### Principle 2: One-way compilation, trace errors upward
+
+When compilation output is wrong (wrong routes, wrong field names, logic errors):
+- **Do NOT directly edit L1 code** → this violates the compilation direction
+- **Go back to L3 and find what's imprecise** → add constraints or description → recompile
+- **If it's an architectural issue** → go back to L4 or even L5
+
+This isn't dogma — it's the most efficient approach. Changing one L3 constraint and recompiling fixes all related L1 files. Directly editing L1 only fixes one file, and the next recompile will overwrite it.
+
+### Principle 3: Reference documents belong in refs/
+
+User provided a design spec? API specification? Algorithm description? Competitor screenshot? **Immediately put it in nodes/<block-id>/refs/**. This isn't optional — refs/ contents are automatically injected into compilation prompts. Compiling without refs/ is like compiling C++ without header files: the compiler can only guess the interfaces, and getting it wrong is your fault.
+
+Rule of thumb: if a document affects how code should be written, it belongs in refs/.
+
+### Principle 4: Context isolation is the core value
+
+The main Agent does not read L1 code; all code work goes to subagents. This isn't a limitation — it's the key to keeping the main Agent focused on global architectural vision. An Agent that reads L1 gets pulled into implementation details and loses sight of design-level consistency.
+
+Think of yourself as the architect, subagents as the development team. The architect doesn't write code but ensures every module's contract is correct.`;
+}
+
 // ── Skill file: Protocol section ──
 
 export function getProtocolSection(language: string, modelTierLine: string): string {
@@ -154,6 +229,8 @@ export function buildSkillFileContent(
 ): string {
   const body = [
     getSkillIntro(language),
+    "",
+    getPhilosophySection(language),
     "",
     getProtocolSection(language, modelTierLine),
     "",
