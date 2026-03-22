@@ -2,123 +2,115 @@
 
 You are running a benchmark that measures SVP-guided development stability over 20 rounds of iterative development.
 
-## Your Task
-
-Build a **multi-tenant e-commerce SaaS API** from scratch using the SVP (Semantic Voxel Protocol) methodology. Every change starts at the design layer and compiles down to code.
-
-### Arguments
+## Arguments
 
 - `$ARGUMENTS` — Round number (1-20), "all" to run all rounds, or "N-M" for a range (e.g., "1-5")
 
-### Project Setup
-
-If this is Round 1 (or "all"), create a new project directory and initialize SVP:
-
-1. `mkdir -p benchmark-workspace/svp && cd benchmark-workspace/svp`
-2. Run `npx forge init` to initialize the SVP project
-3. Initialize a Node.js project with your preferred backend framework
-4. Set up the project to run on `http://localhost:3000`
-
-If this is a later round, `cd benchmark-workspace/svp` and continue from existing SVP artifacts.
-
-### Per-Round Workflow (SVP Methodology)
-
-For each round N, follow the SVP top-down compilation flow:
-
-#### Step 1: Update L5 Blueprint (Intent Layer)
-
-Read the Round N section from `benchmark/spec/openspec.md` and update `.svp/l5/blueprint.yaml`:
-- Add the new capability/domain to the blueprint
-- Ensure it integrates with existing domains
-
-#### Step 2: Update L4 Flows (Architecture Layer)
-
-Design or update the architecture in `.svp/l4/`:
-- Define data flows between components
-- Identify which L3 blocks need to be created/modified
-- Ensure architectural consistency with existing flows
-
-#### Step 3: Update L3 Blocks (Logic Layer)
-
-Create or update L3 contract blocks in `.svp/l3/`:
-- Each L3 block defines inputs (Pin[]), outputs (Pin[]), constraints, and description
-- Map directly to the business rules in the spec
-- Use `forge prompt compile <l3-id>` to generate L2 code blocks
-
-#### Step 4: Compile L2 → L1 (Code Generation)
-
-For each new/modified L3 block:
-1. Run `forge prompt compile <l3-id>` to get the AI compilation prompt
-2. Generate implementation code (L1) from the L2 skeleton
-3. Run `forge link <l3-id> --files <paths>` to link L1 files to L2 blocks
-
-#### Step 5: Run Consistency Check
+## Project Setup (Round 1 only)
 
 ```bash
-npx forge check
+mkdir -p benchmark-workspace/svp && cd benchmark-workspace/svp
+npx forge init --host claude-code --lang zh
+npm init -y
 ```
 
-Ensure zero SOURCE_DRIFT warnings. All layers must be consistent before proceeding.
+Tech stack and database: your choice (same freedom as AI-only group).
+Server must run on `http://localhost:3000`.
 
-#### Step 6: Test
+## Per-Round Workflow
+
+For each round N, read the Round N section from `benchmark/spec/openspec.md`, then execute the SVP workflow:
+
+### Round 1: Use Build mode
+
+This is a greenfield project. Follow the **Build** workflow from `/svp`:
+
+1. **设计 L5** — `forge prompt design-l5 --intent "<Round 1 需求>"` → 派发 subagent → 写入 .svp/l5.json → `forge rehash l5`
+2. **设计 L4** — `forge prompt design-l4 --intent "<Round 1 架构>"` → 派发 subagent → 写入 .svp/l4/<id>.json → `forge rehash l4`
+3. **设计 L3** — 对每个 L4 step 的 blockRef: `forge prompt design-l3 <block-id> --flow <flow-id> --step <idx>` → 并行派发 subagent → 写入 .svp/l3/<id>.json → `forge rehash l3/<id>`
+4. **获取编译任务** — `forge compile-plan`
+5. **编译 L1** — 对每个 compile 任务: `forge prompt compile <l3-id>` → 派发 subagent（读取 complexity 选择模型等级）→ subagent 生成源代码
+6. **创建 L2 映射** — `forge link <l3-id> --files <paths>`
+7. **验证** — `forge check` → 确认全绿
+
+**Subagent 派发规则（与 /svp 一致）：**
+- 运行 `forge prompt <action> <id>` 获取提示词
+- 读取 prompt 头部 `complexity` 字段
+- 按 complexity 选择模型: heavy=opus | standard=sonnet | light=haiku
+- 无依赖的 subagent 并行派发
+- 主 Agent 不直接写 L1 代码——全部由 subagent 完成
+
+### Round 2+: Use Add / Change mode
+
+后续轮次是增量添加功能。Follow the **Add** workflow from `/svp`:
+
+1. **创建变更集** — `forge changeset start round-N --reason "<Round N 需求>"`
+2. **了解当前结构** — `forge view l5` + `forge view l4` + `forge view l3`
+3. **修改流程设计** — 编辑 .svp/l4/<flow-id>.json 添加新 step + blockRef → `forge rehash l4`
+4. **设计新模块** — `forge prompt design-l3 <new-block-id> --flow <fid> --step <idx>` → 派发 subagent
+5. **编译新代码** — `forge prompt compile <new-block-id>` → 派发 subagent
+6. **如有已有模块受影响** — `forge compile-plan` 查看 SOURCE_DRIFT → `forge prompt recompile <l3-id>` → 派发 subagent
+7. **创建映射并验证** — `forge link` + `forge check`
+8. **完成变更集** — `forge changeset complete`
+
+**如果 Round N 修改了已有功能的行为（如 R6 给 Product 加 stock、R11 加租户隔离），使用 Change 模式：**
+1. `forge check` 诊断当前状态
+2. 判断变更层级（系统目标 / 流程编排 / 模块规则）
+3. 修改对应 .svp/ JSON → `forge rehash`
+4. `forge compile-plan` 获取受影响任务
+5. `forge prompt recompile <l3-id>` → 派发 subagent
+6. `forge link` + `forge check`
+
+### Testing (every round)
 
 ```bash
-# Start the server in background
+# Start server
 cd benchmark-workspace/svp && npm start &
 SERVER_PID=$!
 sleep 3
 
-# Run tests for this round and all previous rounds
+# Run cumulative tests
 cd ../.. && npx tsx benchmark/tests/runner/run.ts --up-to N
 
 # Stop server
 kill $SERVER_PID
 ```
 
-#### Step 7: Record Results
+Save output to `benchmark-workspace/svp/results/round-NN.txt`
 
-Save test output to `benchmark-workspace/svp/results/round-NN.txt`
+## SVP Core Rules
 
-### SVP Rules
+- **单向编译**：需求变更从 L5/L4/L3 开始，向下编译到代码。永远不反向修改上层
+- **L1 是编译产物**：出了问题回到 L3 修，然后 recompile
+- **主 Agent 不碰 L1**：所有代码生成/修改由 subagent 完成，主 Agent 只做编排
+- **`forge check` 必须全绿**：每轮测试前确保跨层一致性
+- **并行派发**：无依赖的 subagent 并行执行
+- **禁止读测试文件**：`benchmark/tests/data/round-*.json` 是盲测
 
-- **Always start from L5/L4/L3 when requirements change** — never jump straight to code
-- **L1 code is a compiled artifact** — if something is wrong, fix it at L3 and recompile
-- **Run `forge check` before testing** — ensure cross-layer consistency
-- **Every L1 file must be linked to an L2 block** via `forge link`
-- You may choose any tech stack and database (same freedom as AI-only approach)
-- You must NOT read the test files (`benchmark/tests/data/round-*.json`)
-- The server must run on `http://localhost:3000`
+## Response Envelope
 
-### Response Envelope
+All endpoints: `{ "data": <result>, "error": <null | string> }`
 
-All endpoints must return:
-```json
-{ "data": <result>, "error": <null | string> }
-```
-
-### Key Conventions
+## Key Conventions
 
 - Auth: JWT Bearer token in `Authorization` header
-- Tenant isolation: `X-Tenant-ID` header
-- Pagination: `?page=1&limit=20` → response includes `pagination: { total, page, limit, totalPages }`
-- Money: integer cents
-- IDs: UUID strings
-- Timestamps: ISO 8601
+- Tenant: `X-Tenant-ID` header
+- Pagination: `?page=1&limit=20` → `{ pagination: { total, page, limit, totalPages } }`
+- Money: integer cents | IDs: UUID | Timestamps: ISO 8601
 
-### After Each Round
+## After Each Round
 
 Report:
-- SVP artifacts updated (which L3/L4/L5 changed)
-- `forge check` output (any drift detected?)
-- What code was generated/modified
-- Test results (pass/fail counts)
-- Any issues encountered
+- SVP artifacts changed (which L3/L4/L5)
+- `forge check` output
+- Subagent count and model tiers used
+- Test results (pass/fail)
 
-### After All Rounds
+## After All Rounds
 
-Generate a final summary at `benchmark-workspace/svp/results/summary.md`:
+Generate `benchmark-workspace/svp/results/summary.md`:
 - Per-round pass rates
 - Cumulative regression data
 - Total pass rate at Round 20
-- `forge check` drift history across rounds
-- SVP artifact evolution summary
+- `forge check` drift history
+- Subagent dispatch statistics
