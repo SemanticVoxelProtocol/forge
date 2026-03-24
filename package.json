@@ -1,6 +1,6 @@
 {
   "name": "@svporg/forge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "Semantic Voxel Protocol — five-layer observability framework for AI-assisted development",
   "license": "MIT",
