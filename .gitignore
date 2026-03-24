@@ -29,7 +29,7 @@
 !.github/
 !.github/**
 
-# Within allowed dirs, re-ignore all hidden directories then whitelist .svp/ and .github/
+# Within allowed dirs, re-ignore all hidden directories then whitelist specific ones
 **/.*/
 !**/.svp/
 !**/.svp/**

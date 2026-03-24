@@ -54,6 +54,199 @@ export function getSkillIntro(language: string): string {
 - **Only recommend applicable options.** If Scan doesn't apply (no code), don't mention it. If the project is empty, don't list View. Internally exclude inapplicable paths and only present meaningful choices to the user`;
 }
 
+// ── Skill file: Philosophy section ──
+
+export function getPhilosophySection(language: string): string {
+  if (language === "zh") {
+    return `## SVP 哲学
+
+### 为什么需要 SVP
+
+软件系统的崩坏从来不是从代码开始的——是从设计与实现的脱节开始的。
+
+一个函数写错了，修一行就好。但如果十个模块各自对"订单"的定义不一致，你改哪行？当模块之间的隐式假设开始矛盾，系统就进入了熵增螺旋：每次修复引入新的不一致，每次新功能让旧功能以意想不到的方式崩溃。
+
+传统软件工程用架构评审、接口文档、设计规范来对抗这种熵增。但这些都依赖人的纪律——而 AI 时代的编码速度让人的纪律跟不上了。AI 可以一小时写完一个模块，但没有任何机制保证这个模块跟其他九个模块在架构上是自洽的。
+
+SVP 把"先设计，再实现"这个常识形式化为一个可执行的协议。
+
+### 编译模型
+
+SVP 的核心抽象是一条编译链：
+
+\`\`\`
+L5 意图 → L4 架构 → L3 逻辑契约 → L2 代码骨架 → L1 源代码
+\`\`\`
+
+每一层只从上一层派生，不反向依赖下层。这保证了一个关键性质：**任何时候你都可以从任意层开始向下重新编译，而不破坏上层的设计完整性。**
+
+这跟传统编译链的性质一样：改了 .cpp 重新编译就能得到正确的 .o，不需要去想 .o 的内部结构。SVP 让你改了 L3 契约重新编译就能得到正确的 L1 代码，不需要去想 L1 的实现细节。
+
+反过来不成立。直接改 L1 不会让 L3 自动更新——就像直接 patch .o 文件不会让 .cpp 自动更新。这不是技术限制，是数学事实：信息从高层流向低层时会展开和增殖，这个过程不可逆。
+
+### L3：枢纽层
+
+L3 是整个体系的重心。
+
+L5（意图）和 L4（架构）相对稳定——系统的目标和大模块划分不会频繁变化。L2（骨架）和 L1（代码）是自动派生的。真正需要精心设计、频繁演进的是 L3——每个功能模块的精确契约。
+
+L3 定义了模块的边界：它接受什么、产出什么、遵守什么规则。对于 REST API 项目：
+
+- 一个 L3 block ≈ 一个功能端点
+- input pins ≈ 请求参数
+- output pins ≈ 响应数据
+- constraints ≈ 路由路径、HTTP 方法、状态码、校验规则、业务逻辑
+
+**L3 的精确度直接决定编译质量。** 写 \`input: body\` 等于什么都没说——编译器只能猜。写 \`constraint: "POST /api/v1/auth/register, 租户 ID 从 X-Tenant-ID header 读取, 密码最少 8 位, 首个注册用户自动成为 admin"\` 就几乎不给编译器猜的空间。
+
+### 参考文档 = 头文件
+
+C/C++ 的编译依赖头文件来了解其他模块的接口。SVP 的编译依赖 \`nodes/<block-id>/refs/\` 来了解外部约束。
+
+API 规范、设计稿、第三方 SDK 文档、算法论文——任何影响代码实现方式的信息都应该放进 refs/。forge 在生成编译 prompt 时会自动注入 refs/ 的内容。
+
+没有 refs/ 的编译像没有 #include 的编译：编译器看不到接口定义，只能靠自己推断。推断可能碰巧正确，但你不该依赖这种运气。
+
+### 出错时的正确反应
+
+编译结果不对时，自然反应是"去修代码"。在 SVP 里，正确反应是"去看哪层契约不够精确"。
+
+\`\`\`
+编译出的路由是 /users/register 但应该是 /auth/register
+  → L3 的 constraints 里没有指定路由路径
+  → 补充 constraint → recompile → 自动正确
+\`\`\`
+
+这不是教条。这是效率最优解：
+
+- 改 L3 一行 → recompile 修复所有相关文件
+- 改 L1 一处 → 只修一个文件，下次 recompile 覆盖
+- L3 的改动有持久性和传播性，L1 的改动是临时的和局部的
+
+### 上下文隔离
+
+主 Agent 不读 L1 代码。这个约束的意义不是"分工"，而是**认知保护**。
+
+读了 L1 的 Agent 会不自觉地被实现细节锚定。它开始关心"这个 if 语句的分支覆盖"而不是"这个模块的接口定义是否完备"。它从架构师变成了调试工程师。
+
+SVP 的 subagent 模型强制主 Agent 停留在契约层：
+
+- 主 Agent 看 L3 契约 → 发现问题 → 修改契约 → 派发 subagent recompile
+- Subagent 在独立上下文中执行编译 → 只看到当前模块的契约和参考文档
+
+这种隔离让主 Agent 始终保持全局视野，不被局部实现干扰。
+
+### 验证：Translation Validation
+
+SVP 不证明编译器（AI）永远正确——这不现实。
+
+SVP 采用 Translation Validation 范式：**验证每次编译的产物，而不是编译器本身。**
+
+- \`forge check\` 验证跨层一致性（hash 比对）
+- L3 的 constraints 提供可检验的断言
+- 未来可以基于 L3 自动生成合约测试
+
+这是唯一对非确定性编译器（如 LLM）有效的验证策略。
+
+### 一句话
+
+**架构是因，代码是果。SVP 确保你永远在改因，而不是在补果。**`;
+  }
+  return `## SVP Philosophy
+
+### Why SVP Exists
+
+Software systems never break starting from code — they break when design and implementation drift apart.
+
+A wrong function? Fix one line. But when ten modules each define "order" differently, which line do you fix? When implicit assumptions between modules start contradicting each other, the system enters an entropy spiral: every fix introduces new inconsistencies, every new feature breaks old features in unexpected ways.
+
+Traditional software engineering uses architecture reviews, interface documents, and design specs to fight this entropy. But these all depend on human discipline — and AI-era coding speed has outpaced human discipline. AI can write a complete module in an hour, but nothing guarantees that module is architecturally consistent with the other nine.
+
+SVP formalizes the common sense of "design first, implement second" into an executable protocol.
+
+### The Compilation Model
+
+SVP's core abstraction is a one-way compilation chain:
+
+\`\`\`
+L5 Intent → L4 Architecture → L3 Logic Contracts → L2 Code Skeleton → L1 Source Code
+\`\`\`
+
+Each layer derives only from the layer above, never depending on layers below. This guarantees a key property: **you can always recompile downward from any layer without breaking the design integrity of upper layers.**
+
+This is the same property as traditional compilation: edit the .cpp, recompile, and you get a correct .o without thinking about .o internals. SVP lets you edit an L3 contract, recompile, and get correct L1 code without thinking about L1 implementation details.
+
+The reverse doesn't hold. Editing L1 directly won't update L3 — just like patching a .o file won't update the .cpp. This isn't a technical limitation; it's mathematical fact: information expands and multiplies as it flows from high to low levels, and this process is irreversible.
+
+### L3: The Pivot Layer
+
+L3 is the center of gravity of the entire system.
+
+L5 (intent) and L4 (architecture) are relatively stable — system goals and major module divisions don't change frequently. L2 (skeleton) and L1 (code) are auto-derived. What truly needs careful design and frequent evolution is L3 — the precise contract of each functional module.
+
+L3 defines a module's boundaries: what it accepts, what it produces, what rules it follows. For REST API projects:
+
+- One L3 block ≈ one functional endpoint
+- Input pins ≈ request parameters
+- Output pins ≈ response data
+- Constraints ≈ route paths, HTTP methods, status codes, validation rules, business logic
+
+**L3 precision directly determines compilation quality.** Writing \`input: body\` says nothing — the compiler can only guess. Writing \`constraint: "POST /api/v1/auth/register, tenant ID from X-Tenant-ID header, password min 8 chars, first registered user auto-becomes admin"\` leaves the compiler almost no room to guess.
+
+### Reference Documents = Header Files
+
+C/C++ compilation depends on header files to understand other modules' interfaces. SVP compilation depends on \`nodes/<block-id>/refs/\` to understand external constraints.
+
+API specs, design mockups, third-party SDK docs, algorithm papers — any information that affects how code should be written belongs in refs/. Forge automatically injects refs/ contents when generating compilation prompts.
+
+Compiling without refs/ is like compiling without #include: the compiler can't see interface definitions and can only infer. The inference might happen to be correct, but you shouldn't rely on that luck.
+
+### The Correct Response to Errors
+
+When compilation output is wrong, the natural reaction is "go fix the code." In SVP, the correct reaction is "find which layer's contract is imprecise."
+
+\`\`\`
+Compiled route is /users/register but should be /auth/register
+  → L3 constraints didn't specify the route path
+  → Add constraint → recompile → automatically correct
+\`\`\`
+
+This isn't dogma. It's the most efficient approach:
+
+- Change one L3 line → recompile fixes all related files
+- Change one L1 spot → fixes only one file, next recompile overwrites it
+- L3 changes are persistent and propagating; L1 changes are temporary and local
+
+### Context Isolation
+
+The main Agent doesn't read L1 code. This constraint isn't about "division of labor" — it's **cognitive protection**.
+
+An Agent that reads L1 unconsciously anchors on implementation details. It starts caring about "this if-statement's branch coverage" instead of "is this module's interface definition complete?" It transforms from architect to debug engineer.
+
+SVP's subagent model forces the main Agent to stay at the contract layer:
+
+- Main Agent reads L3 contracts → finds issues → modifies contracts → dispatches subagent to recompile
+- Subagent compiles in an isolated context → only sees the current module's contract and reference docs
+
+This isolation keeps the main Agent's global vision intact, undistracted by local implementation.
+
+### Verification: Translation Validation
+
+SVP doesn't prove the compiler (AI) is always correct — that's unrealistic.
+
+SVP adopts the Translation Validation paradigm: **verify the product of each compilation, not the compiler itself.**
+
+- \`forge check\` verifies cross-layer consistency (hash comparison)
+- L3 constraints provide verifiable assertions
+- Future: auto-generate contract tests from L3
+
+This is the only verification strategy that works for non-deterministic compilers (like LLMs).
+
+### In One Sentence
+
+**Architecture is the cause; code is the effect. SVP ensures you're always fixing causes, never patching effects.**`;
+}
+
 // ── Skill file: Protocol section ──
 
 export function getProtocolSection(language: string, modelTierLine: string): string {
@@ -154,6 +347,8 @@ export function buildSkillFileContent(
 ): string {
   const body = [
     getSkillIntro(language),
+    "",
+    getPhilosophySection(language),
     "",
     getProtocolSection(language, modelTierLine),
     "",
@@ -429,11 +624,6 @@ const workflowZh = `## Step 0: 诊断路由
 **SOURCE_DRIFT**
 - [AI] 运行 \`forge prompt recompile <l3-id>\` → subagent 更新代码
 
-**CONTENT_DRIFT**
-- [AI] 运行 \`forge prompt review <l3-id>\` → subagent 判断：
-  - L3 需要更新？还是 L1 需要修复？
-  - 向用户展示分析结果
-
 **MISSING_BLOCK_REF**
 - [AI] 运行 \`forge prompt update-ref <l4-id>\` → subagent 判断：
   - 创建缺失的 L3 contract？还是修复 L4 step 引用？
@@ -675,11 +865,6 @@ For each recompile task:
 
 **SOURCE_DRIFT**
 - [AI] Run \`forge prompt recompile <l3-id>\` → subagent updates code
-
-**CONTENT_DRIFT**
-- [AI] Run \`forge prompt review <l3-id>\` → subagent determines:
-  - Does L3 need updating? Or does L1 need fixing?
-  - Show the analysis results to the user
 
 **MISSING_BLOCK_REF**
 - [AI] Run \`forge prompt update-ref <l4-id>\` → subagent determines:
