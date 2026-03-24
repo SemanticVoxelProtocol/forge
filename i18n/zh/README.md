@@ -1,87 +1,132 @@
-# SVP — Semantic Voxel Protocol
+<p align="center">
+  <img src="https://img.shields.io/npm/v/@svporg/forge?style=flat-square" alt="npm version" />
+  <img src="https://img.shields.io/github/license/SemanticVoxelProtocol/forge?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen?style=flat-square" alt="node" />
+</p>
 
-五层数据模型，让人类在 AI 写代码时不失控。
+# forge
 
-## 核心理念
+**forge** 是 [Semantic Voxel Protocol (SVP)](https://github.com/SemanticVoxelProtocol) 的 CLI 工具 — 一个分层编译模型，为 AI 辅助开发带来软件工程规范。
 
-AI 会出错。SVP 不试图消灭错误，而是让错误**可见、可定位、可修复**。
+[English](../../README.md)
 
-五层结构是五个观测窗口：
+## TL;DR
+
+- AI 写代码快，搞坏东西更快。SVP 确保每次变更从架构开始，向下编译到代码 — 而不是反过来。
+- **L3 契约**定义每个模块做什么（输入、输出、约束）。AI 把它们编译成源代码。
+- `forge check` 在跨层漂移变成 bug 之前就捕捉到它。
+- 支持任何 AI 工具：Claude Code、Cursor、Windsurf、Codex、GitHub Copilot、Kimi Code 等。
+
+## 安装
+
+```bash
+npm install -g @svporg/forge
+```
+
+## 快速开始
+
+```bash
+# 在项目中初始化 SVP
+forge init
+
+# 指定 AI 工具的 adapter
+forge init --host claude-code
+forge init --host cursor
+```
+
+这会创建 `.svp/` 目录并生成对应 AI 工具的 skill 文件。然后在你的 AI 工具中使用 `/svp`（或等价命令）启动引导式工作流。
+
+## 工作原理
+
+SVP 把软件建模为单向编译链：
 
 ```
-L5  Blueprint    系统的意图和边界
-L4  Logic Chain  流程如何编排
-L3  Logic Block  每个单元做什么（契约盒）
-L2  Code Block   L3 ↔ L1 的映射
-L1  Code         最终实现
+L5 意图  →  L4 架构  →  L3 契约  →  L2 骨架  →  L1 代码
 ```
 
-出问题时逐层问：意图对吗？流程对吗？契约写够了吗？代码结构对吗？实现忠实吗？
+你在 L3 层设计（每个模块接受什么、返回什么、遵守什么规则）。AI 把 L3 向下编译成可运行的代码。需求变更时，更新 L3 然后重新编译 — 就像改了 `.cpp` 重新 build，而不是去 patch `.so`。
 
-## 定位
+### 五层模型
 
-SVP 不自己调 AI API，不造编译器。SVP 是 AI 编码工具（Claude Code、Cursor、Windsurf、Kimi Code、Codex、GitHub Copilot）的**增强层**：
+| 层 | 捕获什么 | 谁来编辑 |
+|---|---|---|
+| **L5 Blueprint** | 系统意图、领域划分、约束 | 人类 |
+| **L4 Flow** | 流程编排、模块间数据流 | 人类 |
+| **L3 Block** | 模块契约：输入、输出、校验规则 | 人类 |
+| **L2 Code Block** | L3 ↔ L1 文件映射、对账 hash | 自动生成 |
+| **L1 Code** | 实现源代码 | AI 编译 |
 
-- **工具链**：`forge check`（校验）、store（读写）、hash（变更追踪）
-- **Skills**：基于五层数据模型生成结构化 context，喂给用户已有的 AI 工具
+### 核心概念
 
-不造 AI，给 AI 喂更好的上下文。SVP 的能力随 base model 进化自动提升。
+**L3 就是契约。** 不是文档，不是注释 — L3 constraints 是 AI 编译时依据的规范。L3 写得越精确，编译出的代码越准确。
 
-### 推荐搭配 OpenSpec 使用
+**参考文档 = 头文件。** 把 API 规范、设计稿、算法说明放进 `nodes/<id>/refs/`。它们会自动注入编译 prompt，就像 C 的 `#include`。
 
-[OpenSpec](https://github.com/Fission-AI/OpenSpec) 专注**写代码之前**——确保需求规范清晰再让 AI 动手。SVP 专注**写代码之后**——确保 AI 写出来的东西在各层之间一致且正确。
+**forge check 捕捉漂移。** 基于 hash 的跨层校验，在运行时出 bug 之前发现层间不一致。
 
-两者互补：OpenSpec 管输入质量（要造什么），SVP 管输出质量（造对了没）。搭配使用可以形成完整的 需求 → 架构 → 验证 流水线。
+## CLI 命令
 
-## 设计原则
+| 命令 | 说明 |
+|------|------|
+| `forge init` | 在项目中初始化 SVP |
+| `forge check` | 校验跨层一致性 |
+| `forge compile-plan` | 显示哪些需要重新编译 |
+| `forge prompt <action> <id>` | 生成 AI 编译 prompt |
+| `forge link <l3-id> --files <paths>` | 将源文件映射到 L3 block |
+| `forge view <layer>` | 查看层内容 |
+| `forge rehash` | 重新计算内容 hash |
+| `forge changeset start <name>` | 追踪一组相关变更 |
+| `forge docs check` | 校验文档覆盖度 |
 
-1. **透明优先于正确** — 追求错误可见，不追求 AI 不犯错
-2. **AI 即编译器** — 格式优化 AI 理解，不是 parser 解析
-3. **只做真正的声明式** — 伪声明式不如自然语言
-4. **存得少算得多** — 单一数据源 + 计算，避免不一致
-5. **协议与实现分离** — SVP 是语言无关的规范，工具链是独立的
+## 支持的 AI 工具
 
-## 数据模型
+forge 为每个 AI 工具生成对应格式的 skill 文件：
 
-核心是四层有独立数据模型的结构（L1 是文件系统）：
+| 工具 | Skill 位置 | 调用方式 |
+|------|-----------|---------|
+| Claude Code | `.claude/commands/svp.md` | `/svp` |
+| Cursor | `.cursor/rules/svp.mdc` | 自动加载 |
+| Windsurf | `.windsurfrules/svp.md` | 自动加载 |
+| Codex | `AGENTS.md` 章节 | 自动加载 |
+| GitHub Copilot | `.github/copilot-instructions.md` | 自动加载 |
+| Kimi Code | `.kimi/rules/svp.md` | 自动加载 |
+| Gemini CLI | `GEMINI.md` 章节 | 自动加载 |
 
-| 层 | 数据模型 | 结构化部分 | 自然语言部分 |
-|---|---|---|---|
-| L5 | `L5Blueprint` | 领域拓扑、集成点 | 意图、约束 |
-| L4 | `L4Flow` | 步骤、数据流 | — |
-| L3 | `L3Block` | 输入输出 pins | validate、constraints、description |
-| L2 | `L2CodeBlock` | 文件映射、对账哈希 | — |
+```bash
+forge init --host cursor       # 生成 Cursor skill 文件
+forge init --host claude-code  # 生成 Claude Code slash command
+```
 
-类型定义在 `packages/core/`。
+## 推荐搭配 OpenSpec
 
-## forge check
-
-层间一致性校验，检查四类问题：
-
-1. **Hash 一致性** — contentHash 和实际内容是否匹配
-2. **引用完整性** — 层间引用的实体是否存在，pin 是否匹配
-3. **漂移检测** — L2 sourceHash 和 L3 contentHash 是否一致
-4. **图结构** — L4 step 链是否有环、是否有孤立节点
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) 确保 AI 写代码**之前**需求清晰。SVP 确保 AI 写完**之后**各层一致。搭配使用形成完整的 需求 → 架构 → 验证 流水线。
 
 ## 开发
 
 ```bash
+git clone https://github.com/SemanticVoxelProtocol/forge.git
+cd forge
 npm install
-npm test         # vitest
-npm run check    # tsc + eslint + prettier
+npm test          # vitest
+npm run check     # tsc + eslint + prettier
+```
+
+### 目录结构
+
+```
+packages/
+├── core/        数据模型类型、hash 函数、校验逻辑
+├── skills/      Prompt 生成器 + 各 AI 工具的 skill 文件
+└── cli/         CLI 入口（forge 命令）
 ```
 
 ## 社区
 
 - [贡献指南](../../CONTRIBUTING.md)（[中文](../../i18n/zh/CONTRIBUTING.md)）
 - [行为准则](../../CODE_OF_CONDUCT.md)（[中文](../../i18n/zh/CODE_OF_CONDUCT.md)）
+- [安全政策](../../SECURITY.md)
 - [AI 政策](../../AI_POLICY.md)（[中文](../../i18n/zh/AI_POLICY.md)）
 
-## 目录
+## License
 
-```
-packages/
-├── core/        五层数据模型的 TypeScript 类型定义 + 核心函数
-├── skills/      Prompt 生成器（design-l3、compile、recompile 等）
-└── cli/         CLI 入口（forge 命令）
-```
+[MIT](../../LICENSE)

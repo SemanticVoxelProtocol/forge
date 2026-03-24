@@ -1,99 +1,129 @@
-# SVP — Semantic Voxel Protocol
+<p align="center">
+  <img src="https://img.shields.io/npm/v/@svporg/forge?style=flat-square" alt="npm version" />
+  <img src="https://img.shields.io/github/license/SemanticVoxelProtocol/forge?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen?style=flat-square" alt="node" />
+</p>
 
-[中文版](./i18n/zh/README.md)
+# forge
 
-A five-layer data model that keeps humans in control when AI writes code.
+**forge** is the CLI for [Semantic Voxel Protocol (SVP)](https://github.com/SemanticVoxelProtocol) — a layered compilation model that brings software engineering discipline to AI-assisted development.
 
-## Core Idea
+## TL;DR
 
-AI makes mistakes. SVP doesn't try to eliminate errors — it makes them **visible, locatable, and fixable**.
+- AI writes code fast, but breaks things faster. SVP ensures every change starts from architecture and compiles down to code — not the other way around.
+- **L3 contracts** define what each module does (inputs, outputs, constraints). AI compiles them into source code.
+- `forge check` catches cross-layer drift before it becomes a bug.
+- Works with any AI tool: Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Kimi Code, and more.
 
-The five layers are five observation windows:
+## Install
 
+```bash
+npm install -g @svporg/forge
 ```
-L5  Blueprint    System intent and boundaries
-L4  Logic Chain  How flows are orchestrated
-L3  Logic Block  What each unit does (contract box)
-L2  Code Block   L3 ↔ L1 mapping
-L1  Code         Final implementation
-```
-
-When something goes wrong, ask layer by layer: Is the intent correct? Is the flow correct? Are the contracts sufficient? Is the code structure correct? Is the implementation faithful?
-
-## What SVP Is
-
-SVP doesn't call AI APIs or build compilers. SVP is an **enhancement layer** for AI coding tools (Claude Code, Cursor, Windsurf, Kimi Code, Codex, GitHub Copilot):
-
-- **Toolchain**: `forge check` (validation), store (read/write), hash (change tracking)
-- **Skills**: Generate structured context from the five-layer data model, fed into your existing AI tools
-
-We don't build AI, we feed AI better context. SVP's capabilities improve automatically as base models evolve.
-
-### Works great with OpenSpec
-
-[OpenSpec](https://github.com/Fission-AI/OpenSpec) focuses on **spec before code** — making sure requirements are clear before AI writes anything. SVP focuses on **verify after code** — making sure what AI wrote is consistent and correct across layers.
-
-They're complementary: OpenSpec manages the input quality (what to build), SVP manages the output quality (was it built right). Use both for a complete spec → architecture → verification pipeline.
-
-## Design Principles
-
-1. **Transparency over correctness** — Make errors visible, don't try to prevent AI mistakes
-2. **AI as compiler** — Formats optimized for AI comprehension, not parser consumption
-3. **Truly declarative only** — Pseudo-declarative is worse than natural language
-4. **Store less, compute more** — Single source of truth + computation, avoid inconsistency
-5. **Protocol vs implementation** — SVP is a language-agnostic spec; tooling is separate
-
-## Data Model
-
-Four layers with independent data models (L1 is the file system):
-
-| Layer | Data Model | Structured | Natural Language |
-|---|---|---|---|
-| L5 | `L5Blueprint` | Domain topology, integration points | Intent, constraints |
-| L4 | `L4Flow` | Steps, data flow | — |
-| L3 | `L3Block` | Input/output pins | validate, constraints, description |
-| L2 | `L2CodeBlock` | File mappings, reconciliation hashes | — |
-
-Type definitions are in `packages/core/`.
-
-## forge check
-
-Cross-layer consistency validation, checking four categories:
-
-1. **Hash consistency** — Does contentHash match actual content?
-2. **Referential integrity** — Do cross-layer references exist? Do pins match?
-3. **Drift detection** — Are L2 sourceHash and L3 contentHash in sync?
-4. **Graph structure** — Are L4 step chains acyclic? Any orphaned nodes?
 
 ## Getting Started
 
 ```bash
-npm install -g @svporg/forge
+# Initialize SVP in your project
 forge init
+
+# With a specific AI host adapter
+forge init --host claude-code
+forge init --host cursor
 ```
+
+This creates a `.svp/` directory and generates the appropriate skill file for your AI tool. Then use `/svp` (or equivalent) in your AI tool to start the guided workflow.
+
+## How It Works
+
+SVP models software as a one-way compilation chain:
+
+```
+L5 Intent  →  L4 Architecture  →  L3 Contracts  →  L2 Skeleton  →  L1 Code
+```
+
+You design at L3 (what each module accepts, returns, and enforces). AI compiles L3 down to working code. When requirements change, you update L3 and recompile — like changing a `.cpp` and rebuilding, not patching a `.so`.
+
+### The Five Layers
+
+| Layer | What it captures | Who edits |
+|-------|-----------------|-----------|
+| **L5 Blueprint** | System intent, domains, constraints | Human |
+| **L4 Flow** | Process orchestration, data flow between modules | Human |
+| **L3 Block** | Module contracts: inputs, outputs, validation rules | Human |
+| **L2 Code Block** | L3 ↔ L1 file mappings, reconciliation hashes | Auto-generated |
+| **L1 Code** | Implementation source code | AI-compiled |
+
+### Key Concepts
+
+**L3 is the contract.** Not documentation, not comments — L3 constraints are the specification that AI compiles from. The more precise your L3, the more accurate the compiled code.
+
+**Reference docs = header files.** Put API specs, design mockups, or algorithm docs in `nodes/<id>/refs/`. They're automatically injected into compilation prompts, just like `#include` in C.
+
+**forge check catches drift.** Hash-based cross-layer validation detects when layers fall out of sync — before you hit a runtime bug.
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `forge init` | Initialize SVP in a project |
+| `forge check` | Validate cross-layer consistency |
+| `forge compile-plan` | Show what needs recompilation |
+| `forge prompt <action> <id>` | Generate AI compilation prompts |
+| `forge link <l3-id> --files <paths>` | Map source files to L3 blocks |
+| `forge view <layer>` | Inspect layer contents |
+| `forge rehash` | Recompute content hashes |
+| `forge changeset start <name>` | Track a set of related changes |
+| `forge docs check` | Validate documentation coverage |
+
+## Supported AI Hosts
+
+forge generates skill files for each AI tool's native extension format:
+
+| Host | Skill location | Command |
+|------|---------------|---------|
+| Claude Code | `.claude/commands/svp.md` | `/svp` |
+| Cursor | `.cursor/rules/svp.mdc` | Auto-attached |
+| Windsurf | `.windsurfrules/svp.md` | Auto-attached |
+| Codex | `AGENTS.md` section | Auto-attached |
+| GitHub Copilot | `.github/copilot-instructions.md` | Auto-attached |
+| Kimi Code | `.kimi/rules/svp.md` | Auto-attached |
+| Gemini CLI | `GEMINI.md` section | Auto-attached |
+
+```bash
+forge init --host cursor    # generates Cursor-specific skill file
+forge init --host claude-code  # generates Claude Code slash command
+```
+
+## Works Great With OpenSpec
+
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) ensures requirements are clear **before** AI writes code. SVP ensures what AI wrote is consistent **after**. Use both for a complete spec → architecture → verification pipeline.
 
 ## Development
 
 ```bash
+git clone https://github.com/SemanticVoxelProtocol/forge.git
+cd forge
 npm install
-npm test         # vitest
-npm run check    # tsc + eslint + prettier
+npm test          # vitest
+npm run check     # tsc + eslint + prettier
+```
+
+### Project Structure
+
+```
+packages/
+├── core/        Data model types, hash functions, validation logic
+├── skills/      Prompt generators + host adapter skill files
+└── cli/         CLI entry point (forge command)
 ```
 
 ## Community
 
 - [Contributing Guide](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
 - [AI Policy](AI_POLICY.md)
-
-## Project Structure
-
-```
-packages/
-├── core/        Five-layer data model TypeScript types + core functions
-├── skills/      Prompt generators (design-l3, compile, recompile, etc.)
-└── cli/         CLI entry point (forge command)
-```
 
 ## License
 
