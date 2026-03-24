@@ -4,6 +4,8 @@
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen?style=flat-square" alt="node" />
 </p>
 
+[中文版](./i18n/zh/README.md)
+
 # forge
 
 **forge** is the CLI for [Semantic Voxel Protocol (SVP)](https://github.com/SemanticVoxelProtocol) — a layered compilation model that brings software engineering discipline to AI-assisted development.
