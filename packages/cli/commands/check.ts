@@ -2,7 +2,7 @@
 // 读取 .svp/ 目录下的所有数据，调用 core.check()，格式化输出结果
 
 import { check } from "../../core/index.js";
-import { loadCheckInput } from "../load.js";
+import { loadCheckInput, summarizeLoadedArtifacts } from "../load.js";
 import type { CheckIssue } from "../../core/index.js";
 import type { Command } from "commander";
 
@@ -22,14 +22,9 @@ export function registerCheck(program: Command): void {
     .action(async (options: { root: string; json: boolean }) => {
       const input = await loadCheckInput(options.root);
 
-      // 统计加载的实体数
-      const entityCount =
-        (input.l5 === undefined ? 0 : 1) +
-        input.l4Flows.length +
-        input.l3Blocks.length +
-        input.l2Blocks.length;
+      const summary = summarizeLoadedArtifacts(input);
 
-      if (entityCount === 0) {
+      if (summary.entityCount === 0) {
         if (options.json) {
           console.log(JSON.stringify({ issues: [], summary: { errors: 0, warnings: 0 } }));
         } else {
@@ -46,16 +41,7 @@ export function registerCheck(program: Command): void {
       }
 
       // 人类可读输出
-      const loaded = [
-        input.l5 === undefined ? "" : "L5",
-        input.l4Flows.length > 0 ? `L4(${String(input.l4Flows.length)})` : "",
-        input.l3Blocks.length > 0 ? `L3(${String(input.l3Blocks.length)})` : "",
-        input.l2Blocks.length > 0 ? `L2(${String(input.l2Blocks.length)})` : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      console.log(`forge check — loaded: ${loaded}`);
+      console.log(`forge check — loaded: ${summary.layers}`);
       console.log();
 
       if (report.issues.length === 0) {

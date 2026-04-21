@@ -1,6 +1,7 @@
 // E2E tests — exercise the full SVP pipeline across layers
 // Uses real temp directories, no mocks.
 
+import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
@@ -21,6 +22,7 @@ import type { ArtifactVersion } from "../core/version.js";
 // ── Shared helpers ──
 
 const TEST_ROOT = path.resolve(import.meta.dirname, "../../.test-e2e");
+const SVP_CLI = path.resolve(import.meta.dirname, "../cli/index.ts");
 
 const REV1: ArtifactVersion = {
   rev: 1,
@@ -30,6 +32,34 @@ const REV1: ArtifactVersion = {
 };
 
 let tmpDir: string;
+
+function runSvp(args: string, cwd: string): { ok: boolean; stdout: string; stderr: string } {
+  const cmd = `npx tsx ${SVP_CLI} ${args}`;
+
+  try {
+    const stdout = execSync(cmd, {
+      cwd,
+      encoding: "utf8",
+      timeout: 30_000,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    return { ok: true, stdout, stderr: "" };
+  } catch (error: unknown) {
+    const failure = error as {
+      status?: number;
+      stdout?: string;
+      stderr?: string;
+      message?: string;
+    };
+
+    return {
+      ok: failure.status === 0,
+      stdout: failure.stdout ?? "",
+      stderr: failure.stderr ?? failure.message ?? "unknown error",
+    };
+  }
+}
 
 function makeL3(overrides: Partial<L3Block> = {}): L3Block {
   const base = {
@@ -426,6 +456,105 @@ describe("E2E: SVP Pipeline", () => {
       report = check(input);
       const remainingHashErrors = report.issues.filter((i) => i.code === "HASH_MISMATCH");
       expect(remainingHashErrors).toHaveLength(0);
+    });
+  });
+
+  describe("7. Governed file/function workflow", () => {
+    it("links governed manifests via CLI, surfaces missing function manifests in compile-plan, and relink shrink removes stale governed artifacts", async () => {
+      await init(tmpDir, { name: "governed-workflow-test" });
+
+      const l3 = makeL3({ id: "governed-block", name: "governed-block" });
+      await writeL3(tmpDir, l3);
+
+      const primaryFileId = "file-src-governed-block-ts";
+      const helperFileId = "file-src-governed-block-helper-ts";
+      const primaryFunctionId = `${primaryFileId}.run-block`;
+      const helperFunctionId = `${helperFileId}.normalize-block`;
+
+      const initialLinkResult = runSvp(
+        `link governed-block --files src/governed-block.ts src/governed-block.helper.ts --exports src/governed-block.ts=runBlock --exports src/governed-block.helper.ts=normalizeBlock -r "${tmpDir}"`,
+        tmpDir,
+      );
+      expect(initialLinkResult.ok).toBe(true);
+      expect(initialLinkResult.stdout).toContain(
+        "Linked l3/governed-block -> l2/governed-block (2 file(s))",
+      );
+
+      let input = await loadCheckInput(tmpDir);
+      expect(input.fileManifests).toHaveLength(2);
+      expect(input.functionManifests).toHaveLength(2);
+
+      let report = check(input);
+      const governanceIssues = report.issues.filter((issue) =>
+        [
+          "MISSING_FILE_MANIFEST",
+          "FILE_EXPORT_UNREGISTERED",
+          "MISSING_FILE_REF",
+          "MISSING_EXPORT_REF",
+        ].includes(issue.code),
+      );
+      expect(governanceIssues).toHaveLength(0);
+
+      const checkResult = runSvp(`check -r "${tmpDir}"`, tmpDir);
+      expect(checkResult.ok).toBe(true);
+      expect(checkResult.stdout).toContain("forge check — loaded: L5 L3(1) L2(1) FILE(2) FN(2)");
+
+      expect(existsSync(path.join(tmpDir, ".svp", "file", `${primaryFileId}.json`))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "file", `${helperFileId}.json`))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "fn", `${primaryFunctionId}.json`))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "fn", `${helperFunctionId}.json`))).toBe(true);
+
+      await rm(path.join(tmpDir, ".svp", "fn", `${primaryFunctionId}.json`));
+
+      input = await loadCheckInput(tmpDir);
+      report = check(input);
+      const missingFunctionIssues = report.issues.filter(
+        (issue) => issue.code === "FILE_EXPORT_UNREGISTERED",
+      );
+      expect(missingFunctionIssues).toHaveLength(1);
+
+      const plan = compilePlan(input);
+      const fnReviewTask = plan.tasks.find(
+        (task) => task.targetLayer === "fn" && task.issueCode === "FILE_EXPORT_UNREGISTERED",
+      );
+      expect(fnReviewTask).toBeDefined();
+      expect(fnReviewTask?.targetId).toBe(primaryFunctionId);
+
+      const compilePlanResult = runSvp(`compile-plan -r "${tmpDir}"`, tmpDir);
+      expect(compilePlanResult.ok).toBe(true);
+      expect(compilePlanResult.stdout).toContain(
+        "forge compile-plan — scanned 6 entities: L5 L3(1) L2(1) FILE(2) FN(1)",
+      );
+      expect(compilePlanResult.stdout).toContain(`REVIEW fn/${primaryFunctionId}`);
+
+      const relinkResult = runSvp(
+        `link governed-block --files src/governed-block.ts --exports src/governed-block.ts=runBlock -r "${tmpDir}"`,
+        tmpDir,
+      );
+      expect(relinkResult.ok).toBe(true);
+      expect(relinkResult.stdout).toContain(
+        "Relinked l3/governed-block -> l2/governed-block (1 file(s))",
+      );
+
+      expect(existsSync(path.join(tmpDir, ".svp", "file", `${primaryFileId}.json`))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "fn", `${primaryFunctionId}.json`))).toBe(true);
+      expect(existsSync(path.join(tmpDir, ".svp", "file", `${helperFileId}.json`))).toBe(false);
+      expect(existsSync(path.join(tmpDir, ".svp", "fn", `${helperFunctionId}.json`))).toBe(false);
+
+      input = await loadCheckInput(tmpDir);
+      expect(input.fileManifests).toHaveLength(1);
+      expect(input.functionManifests).toHaveLength(1);
+
+      report = check(input);
+      const postRelinkGovernanceIssues = report.issues.filter((issue) =>
+        [
+          "MISSING_FILE_MANIFEST",
+          "FILE_EXPORT_UNREGISTERED",
+          "MISSING_FILE_REF",
+          "MISSING_EXPORT_REF",
+        ].includes(issue.code),
+      );
+      expect(postRelinkGovernanceIssues).toHaveLength(0);
     });
   });
 });

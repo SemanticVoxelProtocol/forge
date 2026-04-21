@@ -137,4 +137,52 @@ describe("collectScanContext", () => {
     const paths = result.files.map((f) => f.filePath);
     expect(paths).toEqual([...paths].toSorted());
   });
+
+  it("captures exported function candidates only for TypeScript files", async () => {
+    const root = await makeTempProject({
+      "src/index.ts": [
+        "export const alpha = 1;",
+        "export function beta() {",
+        "  return alpha;",
+        "}",
+        "export class Gamma {}",
+        "export { delta, epsilon as renamedEpsilon };",
+        "const hidden = 3;",
+      ].join("\n"),
+    });
+
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
+
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].exportNames).toEqual(["beta"]);
+  });
+
+  it("always includes exportNames array on scanned files", async () => {
+    const root = await makeTempProject({
+      "src/config.json": "{}",
+      "src/index.ts": "const localValue = 1;",
+    });
+
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
+
+    expect(result.files).toHaveLength(2);
+    expect(result.files.every((file) => Array.isArray(file.exportNames))).toBe(true);
+    expect(result.files.find((file) => file.filePath === "src/config.json")?.exportNames).toEqual(
+      [],
+    );
+    expect(result.files.find((file) => file.filePath === "src/index.ts")?.exportNames).toEqual([]);
+  });
+
+  it("treats exportNames as exported function candidate names only", async () => {
+    const root = await makeTempProject({
+      "src/index.ts": [
+        "export async function runTask() { return true; }",
+        "export const VALUE = 1;",
+      ].join("\n"),
+    });
+
+    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
+
+    expect(result.files[0].exportNames).toEqual(["runTask"]);
+  });
 });

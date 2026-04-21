@@ -13,8 +13,14 @@ const baseRevision = {
   timestamp: "2024-01-01T00:00:00Z",
 };
 
-const makeScanContext = (files: Array<{ filePath: string }>, truncated = false): ScanContext => {
-  const scannedFiles = files.map((f) => ({ filePath: f.filePath }));
+const makeScanContext = (
+  files: Array<{ filePath: string; exportNames?: readonly string[] }>,
+  truncated = false,
+): ScanContext => {
+  const scannedFiles = files.map((f) => ({
+    filePath: f.filePath,
+    exportNames: f.exportNames ?? [],
+  }));
   return {
     files: scannedFiles,
     summary: {
@@ -69,6 +75,17 @@ describe("buildScanL3Prompt", () => {
     const result = buildScanL3Prompt({ scanContext: ctx });
 
     expect(result).toContain("src/handler.ts");
+  });
+
+  it("includes exported function candidates in the scanned codebase tree", () => {
+    const ctx = makeScanContext([
+      { filePath: "src/handler.ts", exportNames: ["handleOrder", "normalizeOrder"] },
+    ]);
+
+    const result = buildScanL3Prompt({ scanContext: ctx });
+
+    expect(result).toContain("handleOrder");
+    expect(result).toContain("normalizeOrder");
   });
 
   it("includes user intent when provided", () => {
@@ -138,6 +155,29 @@ describe("buildScanL3Prompt", () => {
 
     expect(result).toContain("forge rehash l3");
     expect(result).toContain("forge prompt scan");
+  });
+
+  it("instructs phase 1 to emit governed file and function manifests", () => {
+    const ctx = makeScanContext([{ filePath: "src/index.ts", exportNames: ["validateOrder"] }]);
+
+    const result = buildScanL3Prompt({ scanContext: ctx });
+
+    expect(result).toContain(".svp/file/<file-id>.json");
+    expect(result).toContain(".svp/fn/<file-id>.<export-id>.json");
+    expect(result).toContain("dotted function manifest IDs");
+    expect(result).toContain("exportNames");
+  });
+
+  it("does not ask for unsupported function-level inference beyond exported names", () => {
+    const ctx = makeScanContext([{ filePath: "src/index.ts", exportNames: ["validateOrder"] }]);
+
+    const result = buildScanL3Prompt({ scanContext: ctx });
+
+    expect(result).not.toContain(
+      "Infer signatures, preconditions, postconditions, and plugin policy",
+    );
+    expect(result).toContain("use conservative placeholders/default governance values");
+    expect(result).toContain("`<exportName>(…): unknown`");
   });
 });
 

@@ -139,6 +139,8 @@ function registerTaskPrompt(parent: Command, action: TaskAction, config: TaskPro
         }
       }
 
+      appendGovernedContext(contextRefs, input, l3Id);
+
       const task: CompileTask = {
         action,
         targetLayer: config.targetLayer,
@@ -161,6 +163,52 @@ function registerTaskPrompt(parent: Command, action: TaskAction, config: TaskPro
       const structured = buildPrompt(skillInput);
       console.log(renderPrompt(structured));
     });
+}
+
+function appendGovernedContext(
+  contextRefs: ContextRef[],
+  input: Awaited<ReturnType<typeof loadCheckInput>>,
+  l3Id: string,
+): void {
+  const l2 = input.l2Blocks.find((cb) => cb.blockRef === l3Id);
+  const fileManifests = (input.fileManifests ?? [])
+    .filter((manifest) => {
+      if (manifest.blockRefs.includes(l3Id)) {
+        return true;
+      }
+
+      if (l2 === undefined) {
+        return false;
+      }
+
+      return manifest.l2BlockRef === l2.id || l2.files.includes(manifest.path);
+    })
+    .toSorted((left, right) => left.path.localeCompare(right.path));
+
+  if (fileManifests.length === 0) {
+    return;
+  }
+
+  for (const fileManifest of fileManifests) {
+    contextRefs.push({
+      layer: "file",
+      id: fileManifest.id,
+      label: `file manifest "${fileManifest.path}"`,
+    });
+  }
+
+  const fileIds = new Set(fileManifests.map((manifest) => manifest.id));
+  const functionManifests = (input.functionManifests ?? [])
+    .filter((manifest) => fileIds.has(manifest.fileRef))
+    .toSorted((left, right) => left.id.localeCompare(right.id));
+
+  for (const functionManifest of functionManifests) {
+    contextRefs.push({
+      layer: "function",
+      id: functionManifest.id,
+      label: `function manifest "${functionManifest.exportName}"`,
+    });
+  }
 }
 
 function registerUpdateRef(parent: Command): void {

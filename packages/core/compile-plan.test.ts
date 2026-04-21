@@ -3,6 +3,8 @@
 import { describe, it, expect } from "vitest";
 import { compilePlan, getDefaultComplexity } from "./compile-plan.js";
 import { computeHash } from "./hash.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Flow } from "./l4.js";
@@ -61,6 +63,41 @@ function makeL2(l3: L3Block, overrides: Partial<L2CodeBlock> = {}): L2CodeBlock 
   };
   const contentHash = computeHash(base as Record<string, unknown>);
   return { ...base, revision: REV1, sourceHash: l3.contentHash, contentHash };
+}
+
+function makeFileManifest(l2: L2CodeBlock, overrides: Partial<FileManifest> = {}): FileManifest {
+  const base: Omit<FileManifest, "contentHash" | "revision"> = {
+    id: `file-${l2.id}`,
+    path: l2.files[0],
+    purpose: `Govern ${l2.id}`,
+    l2BlockRef: l2.id,
+    blockRefs: [l2.blockRef],
+    exports: ["run"],
+    ownership: ["packages/core"],
+    dependencyBoundary: ["packages/core/*", "node:*"],
+    pluginGroups: ["trace"],
+    ...overrides,
+  };
+
+  return { ...base, revision: REV1, contentHash: computeHash(base as Record<string, unknown>) };
+}
+
+function makeFunctionManifest(
+  file: FileManifest,
+  overrides: Partial<FunctionManifest> = {},
+): FunctionManifest {
+  const base: Omit<FunctionManifest, "contentHash" | "revision"> = {
+    id: `${file.id}:run`,
+    fileRef: file.id,
+    exportName: "run",
+    signature: "run(): Promise<void>",
+    preconditions: ["context is initialized"],
+    postconditions: ["execution completes"],
+    pluginPolicy: ["trace"],
+    ...overrides,
+  };
+
+  return { ...base, revision: REV1, contentHash: computeHash(base as Record<string, unknown>) };
 }
 
 function makeL5(): L5Blueprint {
@@ -218,6 +255,130 @@ describe("compilePlan", () => {
     const plan = compilePlan({ l4Flows: [], l3Blocks: [], l2Blocks: [] });
     expect(plan.tasks).toEqual([]);
     expect(plan.summary.total).toBe(0);
+  });
+
+  it("generates a file compile task when an L2 source file has no manifest", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [],
+      functionManifests: [],
+    });
+
+    const task = plan.tasks.find((entry) => entry.targetLayer === "file");
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("compile");
+    expect(task?.targetId).toBe("src/validate.ts");
+    expect(task?.issueCode).toBe("MISSING_FILE_MANIFEST");
+  });
+
+  it("generates a fn review task with dotted target id when a governed export has no manifest", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const file = makeFileManifest(l2, { exports: ["run"] });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const task = plan.tasks.find((entry) => entry.targetLayer === "fn");
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("review");
+    expect(task?.targetId).toBe("file-validate.run");
+    expect(task?.issueCode).toBe("FILE_EXPORT_UNREGISTERED");
+    expect(task?.context.map((ref) => ref.layer)).toContain("file");
+  });
+
+  it("generates a file update-ref task for file manifests with missing L3 refs", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const file = makeFileManifest(l2, { blockRefs: ["ghost-block"] });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "file" && entry.issueCode === "MISSING_BLOCK_REF",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("update-ref");
+    expect(task?.targetId).toBe(file.id);
+  });
+
+  it("generates a file review task for file manifests with missing L2 refs", () => {
+    const l3 = makeL3("validate", "Validate");
+    const file = makeFileManifest(makeL2(l3), { l2BlockRef: "missing-l2" });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "file" && entry.issueCode === "MISSING_L2_REF",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("review");
+    expect(task?.targetId).toBe(file.id);
+  });
+
+  it("generates a fn update-ref task when a function manifest references a missing file manifest", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const fn = makeFunctionManifest(makeFileManifest(l2), { fileRef: "missing-file" });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [],
+      functionManifests: [fn],
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "fn" && entry.issueCode === "MISSING_FILE_REF",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("update-ref");
+    expect(task?.targetId).toBe(fn.id);
+  });
+
+  it("generates a function ref update task when the manifest export drifts", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const file = makeFileManifest(l2, { exports: ["run"] });
+    const fn = makeFunctionManifest(file, { exportName: "execute" });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [fn],
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "fn" && entry.issueCode === "MISSING_EXPORT_REF",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("update-ref");
+    expect(task?.targetId).toBe(fn.id);
   });
 });
 

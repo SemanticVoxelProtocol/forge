@@ -519,6 +519,7 @@ const workflowZh = `## Step 0: 诊断路由
 对每个 compile 任务：
 - 运行 \`forge prompt compile <l3-id>\`
 - 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
+- 如果 prompt 提供了 file/function 治理上下文，保持生成文件路径、导出函数与点号函数 ID 对齐
 - Subagent 生成 src/<id>.ts 代码文件
 - **无依赖的任务并行派发**
 
@@ -596,6 +597,7 @@ const workflowZh = `## Step 0: 诊断路由
 对每个 recompile 任务：
 - 运行 \`forge prompt recompile <l3-id>\`
 - 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
+- 如果 prompt 提供了 file/function 治理上下文，保持受治理文件与函数约束不漂移
 - Subagent 更新 L1 代码
 
 ### Step 6: [Toolchain] 更新映射并验证
@@ -619,10 +621,12 @@ const workflowZh = `## Step 0: 诊断路由
 
 **MISSING_L2**
 - [AI] 运行 \`forge prompt compile <l3-id>\` → subagent 生成代码
+- 如 prompt 含治理上下文，按受治理文件/函数要求生成
 - [Toolchain] 运行 \`forge link <l3-id> --files <paths>\`
 
 **SOURCE_DRIFT**
 - [AI] 运行 \`forge prompt recompile <l3-id>\` → subagent 更新代码
+- 如 prompt 含治理上下文，按受治理文件/函数要求修复
 
 **MISSING_BLOCK_REF**
 - [AI] 运行 \`forge prompt update-ref <l4-id>\` → subagent 判断：
@@ -655,7 +659,7 @@ const workflowZh = `## Step 0: 诊断路由
 ### Phase 1: [AI] 从代码提取功能模块
 - 运行 \`forge prompt scan [--dir <path>] [--intent "<描述>"]\`（自动检测 Phase 1）
 - 将 stdout 输出派发给 subagent（读取 complexity 选择模型等级）
-- Subagent 分析代码，生成模块规格 → 写入 .svp/l3/
+- Subagent 分析代码，生成模块规格；如发现导出函数则同时产出 file/function 治理清单 → 写入 .svp/l3/、.svp/file/、.svp/fn/
 - [Toolchain] 运行 \`forge rehash l3\`
 - 用自然语言向用户描述发现了哪些功能模块、各自做什么，等待确认
 
@@ -761,6 +765,7 @@ For each blockRef in L4 steps:
 For each compile task:
 - Run \`forge prompt compile <l3-id>\`
 - Dispatch stdout output to subagent (read complexity to select model tier)
+- If the prompt includes file/function governance context, keep generated file paths, exports, and dotted function IDs aligned
 - Subagent generates src/<id>.ts code file
 - **Dispatch independent tasks in parallel**
 
@@ -838,6 +843,7 @@ For each compile task:
 For each recompile task:
 - Run \`forge prompt recompile <l3-id>\`
 - Dispatch stdout output to subagent (read complexity to select model tier)
+- If the prompt includes file/function governance context, preserve the governed file/function constraints while updating code
 - Subagent updates L1 code
 
 ### Step 6: [Toolchain] Update Mappings and Verify
@@ -861,10 +867,12 @@ For each recompile task:
 
 **MISSING_L2**
 - [AI] Run \`forge prompt compile <l3-id>\` → subagent generates code
+- If the prompt includes governance context, generate the governed files/functions accordingly
 - [Toolchain] Run \`forge link <l3-id> --files <paths>\`
 
 **SOURCE_DRIFT**
 - [AI] Run \`forge prompt recompile <l3-id>\` → subagent updates code
+- If the prompt includes governance context, repair drift without breaking governed files/functions
 
 **MISSING_BLOCK_REF**
 - [AI] Run \`forge prompt update-ref <l4-id>\` → subagent determines:
@@ -897,7 +905,7 @@ For each recompile task:
 ### Phase 1: [AI] Extract Functional Modules from Code
 - Run \`forge prompt scan [--dir <path>] [--intent "<description>"]\` (auto-detects Phase 1)
 - Dispatch stdout output to subagent (read complexity to select model tier)
-- Subagent analyzes code, generates module specifications → writes to .svp/l3/
+- Subagent analyzes code, generates module specifications; when exported functions are discovered, also emit file/function governance manifests → writes to .svp/l3/, .svp/file/, and .svp/fn/
 - [Toolchain] Run \`forge rehash l3\`
 - Describe discovered modules to user in natural language, wait for confirmation
 

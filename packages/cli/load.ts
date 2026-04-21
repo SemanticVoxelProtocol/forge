@@ -7,13 +7,29 @@ import {
   listL2,
   listL3,
   listL4,
+  listFileManifests,
+  listFunctionManifests,
   readL2,
   readL3,
   readL4,
   readL5,
+  readFileManifest,
+  readFunctionManifest,
   checkCompatibility,
 } from "../core/index.js";
-import type { CheckInput, L2CodeBlock, L3Block, L4Artifact } from "../core/index.js";
+import type {
+  CheckInput,
+  FileManifest,
+  FunctionManifest,
+  L2CodeBlock,
+  L3Block,
+  L4Artifact,
+} from "../core/index.js";
+
+export interface LoadedArtifactSummary {
+  readonly entityCount: number;
+  readonly layers: string;
+}
 
 /** 从 .svp/ 加载所有层数据 */
 export async function loadCheckInput(root: string): Promise<CheckInput> {
@@ -43,10 +59,51 @@ export async function loadCheckInput(root: string): Promise<CheckInput> {
     if (cb !== null) l2Blocks.push(cb);
   }
 
+  const fileManifestIds = await listFileManifests(root);
+  const fileManifests: FileManifest[] = [];
+  for (const id of fileManifestIds) {
+    const manifest = await readFileManifest(root, id);
+    if (manifest !== null) fileManifests.push(manifest);
+  }
+
+  const functionManifestIds = await listFunctionManifests(root);
+  const functionManifests: FunctionManifest[] = [];
+  for (const id of functionManifestIds) {
+    const manifest = await readFunctionManifest(root, id);
+    if (manifest !== null) functionManifests.push(manifest);
+  }
+
   // 扫描 nodes/ 目录收集已有文档列表
   const existingNodeDocs = await scanExistingNodeDocs(root);
 
-  return { l5, l4Flows, l3Blocks, l2Blocks, existingNodeDocs };
+  return { l5, l4Flows, l3Blocks, l2Blocks, fileManifests, functionManifests, existingNodeDocs };
+}
+
+export function summarizeLoadedArtifacts(input: CheckInput): LoadedArtifactSummary {
+  const layers = [
+    input.l5 === undefined ? "" : "L5",
+    input.l4Flows.length > 0 ? `L4(${String(input.l4Flows.length)})` : "",
+    input.l3Blocks.length > 0 ? `L3(${String(input.l3Blocks.length)})` : "",
+    input.l2Blocks.length > 0 ? `L2(${String(input.l2Blocks.length)})` : "",
+    (input.fileManifests?.length ?? 0) > 0
+      ? `FILE(${String(input.fileManifests?.length ?? 0)})`
+      : "",
+    (input.functionManifests?.length ?? 0) > 0
+      ? `FN(${String(input.functionManifests?.length ?? 0)})`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const entityCount =
+    (input.l5 === undefined ? 0 : 1) +
+    input.l4Flows.length +
+    input.l3Blocks.length +
+    input.l2Blocks.length +
+    (input.fileManifests?.length ?? 0) +
+    (input.functionManifests?.length ?? 0);
+
+  return { entityCount, layers };
 }
 
 /** Scan nodes/{id}/docs.md, return nodeId set with existing docs */

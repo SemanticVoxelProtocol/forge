@@ -1,14 +1,23 @@
 // forge prompt CLI 命令的集成测试
 // 创建临时 .svp/ 目录，写入测试数据，验证 prompt 输出
 
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Command } from "commander";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { computeHash } from "../../core/hash.js";
-import { writeL3, writeL4, writeL5, writeL2 } from "../../core/store.js";
+import {
+  writeL3,
+  writeL4,
+  writeL5,
+  writeL2,
+  writeFileManifest,
+  writeFunctionManifest,
+} from "../../core/store.js";
 import { registerPrompt } from "./prompt.js";
+import type { FileManifest } from "../../core/file.js";
+import type { FunctionManifest } from "../../core/function.js";
 import type { L2CodeBlock } from "../../core/l2.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Flow } from "../../core/l4.js";
@@ -83,6 +92,60 @@ function makeL2(l3: L3Block, overrides: Partial<L2CodeBlock> = {}): L2CodeBlock 
   };
   const contentHash = computeHash(base as Record<string, unknown>);
   return { ...base, revision: REV1, sourceHash: l3.contentHash, contentHash };
+}
+
+function makeFileManifest(l2: L2CodeBlock, overrides: Partial<FileManifest> = {}): FileManifest {
+  const base: Omit<FileManifest, "contentHash" | "revision"> = {
+    id: "file-src-validate-order-ts",
+    path: "src/validate-order.ts",
+    purpose: `Govern src/validate-order.ts for L2 ${l2.id}`,
+    l2BlockRef: l2.id,
+    blockRefs: [l2.blockRef],
+    exports: ["validateOrder"],
+    ownership: ["src"],
+    dependencyBoundary: ["src/*"],
+    pluginGroups: ["governance"],
+    ...overrides,
+  };
+  const contentHash = computeHash(base as Record<string, unknown>);
+  return { ...base, revision: REV1, contentHash };
+}
+
+function makeFunctionManifest(
+  fileManifest: FileManifest,
+  overrides: Partial<FunctionManifest> = {},
+): FunctionManifest {
+  const base: Omit<FunctionManifest, "contentHash" | "revision"> = {
+    id: `${fileManifest.id}.validate-order`,
+    fileRef: fileManifest.id,
+    exportName: "validateOrder",
+    signature: "validateOrder(request: OrderRequest): ValidationResult",
+    preconditions: ["request is defined"],
+    postconditions: ["returns validation result"],
+    pluginPolicy: ["governance"],
+    ...overrides,
+  };
+  const contentHash = computeHash(base as Record<string, unknown>);
+  return { ...base, revision: REV1, contentHash };
+}
+
+function makeSecondaryFileManifest(l2: L2CodeBlock): FileManifest {
+  return makeFileManifest(l2, {
+    id: "file-src-validate-order-types-ts",
+    path: "src/validate-order.types.ts",
+    purpose: `Govern src/validate-order.types.ts for L2 ${l2.id}`,
+    exports: ["normalizeOrder"],
+  });
+}
+
+function makeSecondaryFunctionManifest(fileManifest: FileManifest): FunctionManifest {
+  return makeFunctionManifest(fileManifest, {
+    id: `${fileManifest.id}.normalize-order`,
+    exportName: "normalizeOrder",
+    signature: "normalizeOrder(request: OrderRequest): OrderRequest",
+    preconditions: ["request has raw order fields"],
+    postconditions: ["returns normalized order request"],
+  });
 }
 
 /** 捕获 console.log 输出并运行 prompt 子命令 */
@@ -183,6 +246,63 @@ describe("forge prompt", () => {
       expect(exitCode).toBe(0);
       expect(stdout).toContain("order-flow");
     });
+
+    it("includes governed file and function manifest context in normal compile prompt generation", async () => {
+      const l3 = makeL3();
+      const l2 = makeL2(l3);
+      const l4 = makeL4(["validate-order"]);
+      const fileManifest = makeFileManifest(l2);
+      const functionManifest = makeFunctionManifest(fileManifest);
+
+      await writeL3(testRoot, l3);
+      await writeL2(testRoot, l2);
+      await writeL4(testRoot, l4);
+      await writeFileManifest(testRoot, fileManifest);
+      await writeFunctionManifest(testRoot, functionManifest);
+
+      const { stdout, exitCode } = await runPrompt(testRoot, [
+        "compile",
+        "validate-order",
+        "-r",
+        testRoot,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("### Governed File Manifests");
+      expect(stdout).toContain("### Governed Function Manifests");
+      expect(stdout).toContain("file-src-validate-order-ts.validate-order");
+    });
+
+    it("includes multiple governed files and functions without collapsing them", async () => {
+      const l3 = makeL3();
+      const l2 = makeL2(l3, { files: ["src/validate-order.ts", "src/validate-order.types.ts"] });
+      const l4 = makeL4(["validate-order"]);
+      const fileManifest = makeFileManifest(l2);
+      const fileManifest2 = makeSecondaryFileManifest(l2);
+      const functionManifest = makeFunctionManifest(fileManifest);
+      const functionManifest2 = makeSecondaryFunctionManifest(fileManifest2);
+
+      await writeL3(testRoot, l3);
+      await writeL2(testRoot, l2);
+      await writeL4(testRoot, l4);
+      await writeFileManifest(testRoot, fileManifest);
+      await writeFileManifest(testRoot, fileManifest2);
+      await writeFunctionManifest(testRoot, functionManifest);
+      await writeFunctionManifest(testRoot, functionManifest2);
+
+      const { stdout, exitCode } = await runPrompt(testRoot, [
+        "compile",
+        "validate-order",
+        "-r",
+        testRoot,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("src/validate-order.ts");
+      expect(stdout).toContain("src/validate-order.types.ts");
+      expect(stdout).toContain("file-src-validate-order-ts.validate-order");
+      expect(stdout).toContain("file-src-validate-order-types-ts.normalize-order");
+    });
   });
 
   describe("recompile", () => {
@@ -207,6 +327,32 @@ describe("forge prompt", () => {
       expect(stdout).toContain("L3 Contract");
       expect(stdout).toContain("L2 Mapping");
     });
+
+    it("includes governed file and function manifest context in normal prompt generation", async () => {
+      const l3 = makeL3();
+      const l2 = makeL2(l3);
+      const l4 = makeL4(["validate-order"]);
+      const fileManifest = makeFileManifest(l2);
+      const functionManifest = makeFunctionManifest(fileManifest);
+
+      await writeL3(testRoot, l3);
+      await writeL2(testRoot, l2);
+      await writeL4(testRoot, l4);
+      await writeFileManifest(testRoot, fileManifest);
+      await writeFunctionManifest(testRoot, functionManifest);
+
+      const { stdout, exitCode } = await runPrompt(testRoot, [
+        "recompile",
+        "validate-order",
+        "-r",
+        testRoot,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("### Governed File Manifests");
+      expect(stdout).toContain("### Governed Function Manifests");
+      expect(stdout).toContain("file-src-validate-order-ts.validate-order");
+    });
   });
 
   describe("review", () => {
@@ -227,6 +373,55 @@ describe("forge prompt", () => {
       expect(exitCode).toBe(0);
       expect(stdout).toContain("SVP review subagent");
       expect(stdout).toContain("L3 Contract");
+    });
+
+    it("includes governed file and function manifest context in normal review prompt generation", async () => {
+      const l3 = makeL3();
+      const l2 = makeL2(l3);
+      const fileManifest = makeFileManifest(l2);
+      const functionManifest = makeFunctionManifest(fileManifest);
+
+      await writeL3(testRoot, l3);
+      await writeL2(testRoot, l2);
+      await writeFileManifest(testRoot, fileManifest);
+      await writeFunctionManifest(testRoot, functionManifest);
+
+      const { stdout, exitCode } = await runPrompt(testRoot, [
+        "review",
+        "validate-order",
+        "-r",
+        testRoot,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("### Governed File Manifests");
+      expect(stdout).toContain("### Governed Function Manifests");
+      expect(stdout).toContain("validateOrder(request: OrderRequest): ValidationResult");
+    });
+
+    it("loads current L1 files for review prompts", async () => {
+      const l3 = makeL3();
+      const l2 = makeL2(l3);
+
+      await writeL3(testRoot, l3);
+      await writeL2(testRoot, l2);
+      await mkdir(path.join(testRoot, "src"), { recursive: true });
+      await writeFile(
+        path.join(testRoot, "src", "validate-order.ts"),
+        "// drifted review code\n",
+        "utf8",
+      );
+
+      const { stdout, exitCode } = await runPrompt(testRoot, [
+        "review",
+        "validate-order",
+        "-r",
+        testRoot,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("### L1 Actual Source Files");
+      expect(stdout).toContain("// drifted review code");
     });
   });
 

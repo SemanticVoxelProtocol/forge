@@ -1,7 +1,7 @@
 // forge compile-plan — 变更检测 + 重编译任务生成的 CLI 命令
 
 import { compilePlan } from "../../core/index.js";
-import { loadCheckInput } from "../load.js";
+import { loadCheckInput, summarizeLoadedArtifacts } from "../load.js";
 import type { CompileTask } from "../../core/index.js";
 import type { Command } from "commander";
 
@@ -41,13 +41,9 @@ export function registerCompilePlan(program: Command): void {
     .action(async (options: { root: string; json: boolean }) => {
       const input = await loadCheckInput(options.root);
 
-      const entityCount =
-        (input.l5 === undefined ? 0 : 1) +
-        input.l4Flows.length +
-        input.l3Blocks.length +
-        input.l2Blocks.length;
+      const summary = summarizeLoadedArtifacts(input);
 
-      if (entityCount === 0) {
+      if (summary.entityCount === 0) {
         if (options.json) {
           console.log(
             JSON.stringify({
@@ -69,7 +65,10 @@ export function registerCompilePlan(program: Command): void {
       }
 
       // 人类可读输出
-      console.log(`forge compile-plan — scanned ${String(entityCount)} entities`);
+      const detailSuffix = summary.layers.length > 0 ? `: ${summary.layers}` : "";
+      console.log(
+        `forge compile-plan — scanned ${String(summary.entityCount)} entities${detailSuffix}`,
+      );
       console.log();
 
       if (plan.tasks.length === 0) {
