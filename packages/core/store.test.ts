@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  deleteFileManifest,
+  deleteFunctionManifest,
   listL2,
   listL3,
   listL4,
@@ -21,6 +23,9 @@ import {
   writeL4,
   writeL5,
 } from "./store.js";
+import * as store from "./store.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4EventGraph, L4Flow, L4StateMachine } from "./l4.js";
@@ -123,6 +128,37 @@ const makeL2 = (id: string, overrides?: Partial<L2CodeBlock>): L2CodeBlock => ({
   ...overrides,
 });
 
+const makeFileManifest = (id: string, overrides?: Partial<FileManifest>): FileManifest => ({
+  id,
+  path: `packages/core/${id}.ts`,
+  purpose: "Govern a source file",
+  l2BlockRef: `l2-${id}`,
+  blockRefs: [`l3-${id}`],
+  exports: ["main"],
+  ownership: ["packages/core"],
+  dependencyBoundary: ["packages/core/*", "node:*"],
+  pluginGroups: ["governance"],
+  revision: REV,
+  contentHash: `file-manifest-${id}`,
+  ...overrides,
+});
+
+const makeFunctionManifest = (
+  id: string,
+  overrides?: Partial<FunctionManifest>,
+): FunctionManifest => ({
+  id,
+  fileRef: `file-${id}`,
+  exportName: "main",
+  signature: "main(): Promise<void>",
+  preconditions: ["runtime context is ready"],
+  postconditions: ["returns after pipeline execution"],
+  pluginPolicy: ["trace"],
+  revision: REV,
+  contentHash: `function-manifest-${id}`,
+  ...overrides,
+});
+
 // ── store L3 ──
 
 describe("store L3", () => {
@@ -218,6 +254,42 @@ describe("store L3", () => {
     const loaded = await readL3(root, "unicode-l3");
     expect(loaded).toEqual(block);
     expect(loaded?.name).toBe("用户认证块 🔐");
+  });
+});
+
+describe("store governed manifests", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-store-manifest-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("deletes persisted file and function manifests", async () => {
+    const fileManifest = makeFileManifest("governed-file", {
+      id: "file-src-governed-file-ts",
+      path: "src/governed-file.ts",
+    });
+    const functionManifest = makeFunctionManifest("governed-file.main", {
+      id: "file-src-governed-file-ts.main",
+      fileRef: fileManifest.id,
+      exportName: "main",
+    });
+
+    await store.writeFileManifest(root, fileManifest);
+    await store.writeFunctionManifest(root, functionManifest);
+
+    expect(await store.readFileManifest(root, fileManifest.id)).not.toBeNull();
+    expect(await store.readFunctionManifest(root, functionManifest.id)).not.toBeNull();
+
+    await deleteFileManifest(root, fileManifest.id);
+    await deleteFunctionManifest(root, functionManifest.id);
+
+    expect(await store.readFileManifest(root, fileManifest.id)).toBeNull();
+    expect(await store.readFunctionManifest(root, functionManifest.id)).toBeNull();
   });
 });
 
@@ -487,6 +559,62 @@ describe("store L2", () => {
     await writeFile(malformedPath, "{{{{ definitely not json", "utf8");
     const result = await readL2(root, "malformed-l2");
     expect(result).toBeNull();
+  });
+});
+
+describe("store file/function manifests", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "svp-manifest-store-"));
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true });
+  });
+
+  it("exports file and function manifest store helpers", () => {
+    expect("readFileManifest" in store).toBe(true);
+    expect("writeFileManifest" in store).toBe(true);
+    expect("listFileManifests" in store).toBe(true);
+    expect("readFunctionManifest" in store).toBe(true);
+    expect("writeFunctionManifest" in store).toBe(true);
+    expect("listFunctionManifests" in store).toBe(true);
+  });
+
+  it("writes, reads, and lists file manifests under .svp/file", async () => {
+    const manifest = makeFileManifest("store");
+
+    await store.writeFileManifest(root, manifest);
+
+    await expect(store.readFileManifest(root, "store")).resolves.toEqual(manifest);
+    await expect(store.listFileManifests(root)).resolves.toContain("store");
+    expect(manifest.revision).toEqual(REV);
+    expect(manifest.contentHash).toBe("file-manifest-store");
+  });
+
+  it("writes, reads, and lists function manifests under .svp/fn", async () => {
+    const manifest = makeFunctionManifest("store-read", { fileRef: "store" });
+
+    await store.writeFunctionManifest(root, manifest);
+
+    await expect(store.readFunctionManifest(root, "store-read")).resolves.toEqual(manifest);
+    await expect(store.listFunctionManifests(root)).resolves.toContain("store-read");
+    expect(manifest.revision).toEqual(REV);
+    expect(manifest.contentHash).toBe("function-manifest-store-read");
+  });
+
+  it("returns null or empty arrays when file/function manifests are missing", async () => {
+    const emptyRoot = await mkdtemp(path.join(tmpdir(), "svp-manifest-empty-"));
+
+    try {
+      await expect(store.readFileManifest(emptyRoot, "missing")).resolves.toBeNull();
+      await expect(store.readFunctionManifest(emptyRoot, "missing")).resolves.toBeNull();
+      await expect(store.listFileManifests(emptyRoot)).resolves.toEqual([]);
+      await expect(store.listFunctionManifests(emptyRoot)).resolves.toEqual([]);
+    } finally {
+      await rm(emptyRoot, { recursive: true });
+    }
   });
 });
 

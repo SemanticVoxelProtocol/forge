@@ -3,6 +3,8 @@
 // 编排层负责 IO（解析上下文、写磁盘、跑收敛循环）
 
 import type { CompileTask, TaskAction } from "./compile-plan.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Artifact } from "./l4.js";
@@ -18,6 +20,8 @@ export interface ResolvedContext {
   readonly l3?: L3Block;
   readonly l2?: L2CodeBlock;
   readonly l4?: L4Artifact;
+  readonly fileManifests?: readonly FileManifest[];
+  readonly functionManifests?: readonly FunctionManifest[];
   readonly l1Files?: readonly FileContent[];
   readonly docs?: string;
   readonly refs?: readonly RefFile[];

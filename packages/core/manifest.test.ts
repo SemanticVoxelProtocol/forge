@@ -26,6 +26,10 @@ afterEach(async () => {
 });
 
 describe("createManifest", () => {
+  it("bumps the schema version for file/function manifest support", () => {
+    expect(SCHEMA_VERSION).toBe("1.2.0");
+  });
+
   it("creates manifest with current versions", () => {
     const manifest = createManifest();
     expect(manifest.schemaVersion).toBe(SCHEMA_VERSION);

@@ -16,9 +16,17 @@ export type { BlockContext } from "./l4.js";
 export { getL4Kind, extractBlockRefs, findBlockContext } from "./l4.js";
 export type { L5Blueprint, Domain, Integration } from "./l5.js";
 export type { L2CodeBlock } from "./l2.js";
+export type { FileManifest } from "./file.js";
+export type { FunctionManifest } from "./function.js";
 export type { ArtifactVersion, VersionSource } from "./version.js";
 export type { Result, Ok, Err } from "./result.js";
 export { ok, err, unwrap } from "./result.js";
+export type { ExecutionContext } from "./runtime/context.js";
+export { createRuntimeContext } from "./runtime/context.js";
+export type { RuntimePlugin } from "./runtime/plugin.js";
+export { selectRuntimePlugins } from "./runtime/plugin.js";
+export type { ExecuteFunctionUnitOptions } from "./runtime/execute.js";
+export { executeFunctionUnit } from "./runtime/execute.js";
 
 export { computeHash, hashL3, hashL4, hashL5, hashL2 } from "./hash.js";
 export {
@@ -40,6 +48,14 @@ export {
   readL2,
   writeL2,
   listL2,
+  readFileManifest,
+  writeFileManifest,
+  deleteFileManifest,
+  listFileManifests,
+  readFunctionManifest,
+  writeFunctionManifest,
+  deleteFunctionManifest,
+  listFunctionManifests,
   readNodeDocs,
   readGraphDocs,
   readL5Docs,

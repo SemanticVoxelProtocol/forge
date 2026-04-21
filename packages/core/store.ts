@@ -4,6 +4,8 @@
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Changeset } from "./changeset.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Artifact } from "./l4.js";
@@ -24,6 +26,14 @@ async function ensureDir(dir: string): Promise<void> {
 /** 写 JSON 文件（格式化，方便 diff） */
 async function writeJson(filePath: string, data: unknown): Promise<void> {
   await writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+async function deleteJson(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath);
+  } catch {
+    // ignore missing files
+  }
 }
 
 /** 读 JSON 文件 */
@@ -112,6 +122,58 @@ export async function writeL2(root: string, codeBlock: L2CodeBlock): Promise<voi
 
 export async function listL2(root: string): Promise<string[]> {
   return listIds(svpPath(root, "l2"));
+}
+
+// ── File manifests ──
+
+export async function readFileManifest(root: string, id: string): Promise<FileManifest | null> {
+  try {
+    return await readJson<FileManifest>(svpPath(root, "file", `${id}.json`));
+  } catch {
+    return null;
+  }
+}
+
+export async function writeFileManifest(root: string, manifest: FileManifest): Promise<void> {
+  await ensureDir(svpPath(root, "file"));
+  await writeJson(svpPath(root, "file", `${manifest.id}.json`), manifest);
+}
+
+export async function deleteFileManifest(root: string, id: string): Promise<void> {
+  await deleteJson(svpPath(root, "file", `${id}.json`));
+}
+
+export async function listFileManifests(root: string): Promise<string[]> {
+  return listIds(svpPath(root, "file"));
+}
+
+// ── Function manifests ──
+
+export async function readFunctionManifest(
+  root: string,
+  id: string,
+): Promise<FunctionManifest | null> {
+  try {
+    return await readJson<FunctionManifest>(svpPath(root, "fn", `${id}.json`));
+  } catch {
+    return null;
+  }
+}
+
+export async function writeFunctionManifest(
+  root: string,
+  manifest: FunctionManifest,
+): Promise<void> {
+  await ensureDir(svpPath(root, "fn"));
+  await writeJson(svpPath(root, "fn", `${manifest.id}.json`), manifest);
+}
+
+export async function deleteFunctionManifest(root: string, id: string): Promise<void> {
+  await deleteJson(svpPath(root, "fn", `${id}.json`));
+}
+
+export async function listFunctionManifests(root: string): Promise<string[]> {
+  return listIds(svpPath(root, "fn"));
 }
 
 // ── Refs ──

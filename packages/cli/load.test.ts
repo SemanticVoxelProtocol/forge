@@ -2,8 +2,17 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { writeL2, writeL3, writeL4, writeL5 } from "../core/store.js";
+import {
+  writeFileManifest,
+  writeFunctionManifest,
+  writeL2,
+  writeL3,
+  writeL4,
+  writeL5,
+} from "../core/store.js";
 import { loadCheckInput } from "./load.js";
+import type { FileManifest } from "../core/file.js";
+import type { FunctionManifest } from "../core/function.js";
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
 import type { L4Flow } from "../core/l4.js";
@@ -63,6 +72,37 @@ const makeL2 = (id: string, overrides?: Partial<L2CodeBlock>): L2CodeBlock => ({
   sourceHash: "src-hash-abc",
   contentHash: "content-hash-xyz",
   revision: REV,
+  ...overrides,
+});
+
+const makeFileManifest = (id: string, overrides?: Partial<FileManifest>): FileManifest => ({
+  id,
+  path: `src/${id}.ts`,
+  purpose: "Govern a source file",
+  l2BlockRef: `l2-${id}`,
+  blockRefs: [`l3-${id}`],
+  exports: ["main"],
+  ownership: ["packages/core"],
+  dependencyBoundary: ["packages/core/*", "node:*"],
+  pluginGroups: ["trace"],
+  revision: REV,
+  contentHash: `file-hash-${id}`,
+  ...overrides,
+});
+
+const makeFunctionManifest = (
+  id: string,
+  overrides?: Partial<FunctionManifest>,
+): FunctionManifest => ({
+  id,
+  fileRef: `file-${id}`,
+  exportName: "main",
+  signature: "main(): Promise<void>",
+  preconditions: ["runtime context is ready"],
+  postconditions: ["pipeline execution completes"],
+  pluginPolicy: ["trace"],
+  revision: REV,
+  contentHash: `function-hash-${id}`,
   ...overrides,
 });
 
@@ -162,6 +202,22 @@ describe("loadCheckInput", () => {
     expect(result.l3Blocks[0]).toEqual(l3);
     expect(result.l2Blocks).toHaveLength(1);
     expect(result.l2Blocks[0]).toEqual(l2);
+  });
+
+  it("loads file and function manifests", async () => {
+    const file = makeFileManifest("file-load", {
+      l2BlockRef: "l2-file-load",
+      blockRefs: ["l3-file-load"],
+    });
+    const fn = makeFunctionManifest("fn-load", { fileRef: file.id });
+
+    await writeFileManifest(root, file);
+    await writeFunctionManifest(root, fn);
+
+    const result = await loadCheckInput(root);
+
+    expect(result.fileManifests).toEqual([file]);
+    expect(result.functionManifests).toEqual([fn]);
   });
 
   it("returns empty arrays when .svp/ directories exist but are empty", async () => {

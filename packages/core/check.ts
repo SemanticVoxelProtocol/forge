@@ -4,6 +4,8 @@
 import { computeHash } from "./hash.js";
 import { t } from "./i18n.js";
 import { getL4Kind } from "./l4.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4Artifact, L4EventGraph, L4Flow, L4StateMachine, Step } from "./l4.js";
@@ -15,7 +17,7 @@ export type IssueSeverity = "error" | "warning";
 
 export interface CheckIssue {
   readonly severity: IssueSeverity;
-  readonly layer: "l2" | "l3" | "l4" | "l5";
+  readonly layer: "l2" | "l3" | "l4" | "l5" | "file" | "function";
   readonly entityId: string;
   readonly code: string;
   readonly message: string;
@@ -37,10 +39,20 @@ export interface CheckInput {
 
   readonly l3Blocks: readonly L3Block[];
   readonly l2Blocks: readonly L2CodeBlock[];
+  readonly fileManifests?: readonly FileManifest[];
+  readonly functionManifests?: readonly FunctionManifest[];
 
   // 已有文档的 L3 block id 集合（nodes/<id>/docs.md 存在的）
   // 省略时跳过 MISSING_NODE_DOCS 检测
   readonly existingNodeDocs?: ReadonlySet<string>;
+}
+
+function fileManifestsOf(input: CheckInput): readonly FileManifest[] {
+  return input.fileManifests ?? [];
+}
+
+function functionManifestsOf(input: CheckInput): readonly FunctionManifest[] {
+  return input.functionManifests ?? [];
 }
 
 // ── 主入口 ──
@@ -50,6 +62,7 @@ export function check(input: CheckInput, language = "en"): CheckReport {
   const issues: CheckIssue[] = [
     ...checkHashConsistency(input, lang),
     ...checkReferentialIntegrity(input, lang),
+    ...checkManifestCoverage(input, lang),
     ...checkDrift(input, lang),
     ...checkGraphStructure(input, lang),
     ...checkDocsPresence(input, lang),
@@ -150,6 +163,42 @@ function checkHashConsistency(input: CheckInput, lang: string): CheckIssue[] {
     }
   }
 
+  for (const manifest of fileManifestsOf(input)) {
+    const { contentHash: _, revision: _r, ...rest } = manifest;
+    const expected = computeHash(rest as Record<string, unknown>);
+    if (expected !== manifest.contentHash) {
+      issues.push({
+        severity: "error",
+        layer: "file",
+        entityId: manifest.id,
+        code: "HASH_MISMATCH",
+        message: t(lang, "check.hashMismatch.file", {
+          id: manifest.id,
+          stored: manifest.contentHash,
+          computed: expected,
+        }),
+      });
+    }
+  }
+
+  for (const manifest of functionManifestsOf(input)) {
+    const { contentHash: _, revision: _r, ...rest } = manifest;
+    const expected = computeHash(rest as Record<string, unknown>);
+    if (expected !== manifest.contentHash) {
+      issues.push({
+        severity: "error",
+        layer: "function",
+        entityId: manifest.id,
+        code: "HASH_MISMATCH",
+        message: t(lang, "check.hashMismatch.function", {
+          id: manifest.id,
+          stored: manifest.contentHash,
+          computed: expected,
+        }),
+      });
+    }
+  }
+
   return issues;
 }
 
@@ -160,6 +209,10 @@ function checkReferentialIntegrity(input: CheckInput, lang: string): CheckIssue[
 
   const l3Ids = new Set(input.l3Blocks.map((b) => b.id));
   const l4Ids = new Set(input.l4Flows.map((f) => f.id));
+  const l2Ids = new Set(input.l2Blocks.map((b) => b.id));
+  const fileManifests = fileManifestsOf(input);
+  const functionManifests = functionManifestsOf(input);
+  const fileById = new Map(fileManifests.map((manifest) => [manifest.id, manifest]));
 
   for (const l4 of input.l4Flows) {
     const kind = getL4Kind(l4);
@@ -190,6 +243,118 @@ function checkReferentialIntegrity(input: CheckInput, lang: string): CheckIssue[
         code: "MISSING_BLOCK_REF",
         message: t(lang, "check.missingBlockRef.l2", { id: cb.id, blockRef: cb.blockRef }),
       });
+    }
+  }
+
+  for (const manifest of fileManifests) {
+    if (!l2Ids.has(manifest.l2BlockRef)) {
+      issues.push({
+        severity: "error",
+        layer: "file",
+        entityId: manifest.id,
+        code: "MISSING_L2_REF",
+        message: t(lang, "check.missingL2Ref.file", {
+          id: manifest.id,
+          l2BlockRef: manifest.l2BlockRef,
+        }),
+      });
+    }
+
+    for (const blockRef of manifest.blockRefs) {
+      if (!l3Ids.has(blockRef)) {
+        issues.push({
+          severity: "error",
+          layer: "file",
+          entityId: manifest.id,
+          code: "MISSING_BLOCK_REF",
+          message: t(lang, "check.missingBlockRef.file", {
+            id: manifest.id,
+            blockRef,
+          }),
+        });
+      }
+    }
+  }
+
+  for (const manifest of functionManifests) {
+    const file = fileById.get(manifest.fileRef);
+    if (file === undefined) {
+      issues.push({
+        severity: "error",
+        layer: "function",
+        entityId: manifest.id,
+        code: "MISSING_FILE_REF",
+        message: t(lang, "check.missingFileRef.function", {
+          id: manifest.id,
+          fileRef: manifest.fileRef,
+        }),
+      });
+      continue;
+    }
+
+    if (!file.exports.includes(manifest.exportName)) {
+      issues.push({
+        severity: "error",
+        layer: "function",
+        entityId: manifest.id,
+        code: "MISSING_EXPORT_REF",
+        message: t(lang, "check.missingExportRef.function", {
+          id: manifest.id,
+          exportName: manifest.exportName,
+          fileRef: manifest.fileRef,
+        }),
+      });
+    }
+  }
+
+  return issues;
+}
+
+function checkManifestCoverage(input: CheckInput, lang: string): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+  const fileManifests = fileManifestsOf(input);
+  const functionManifests = functionManifestsOf(input);
+  const governedPaths = new Set(fileManifests.map((manifest) => manifest.path));
+  const governedFunctions = new Set(
+    functionManifests.map((manifest) => `${manifest.fileRef}:${manifest.exportName}`),
+  );
+
+  if (input.fileManifests !== undefined) {
+    for (const l2 of input.l2Blocks) {
+      for (const filePath of l2.files) {
+        if (!governedPaths.has(filePath)) {
+          issues.push({
+            severity: "warning",
+            layer: "file",
+            entityId: filePath,
+            code: "MISSING_FILE_MANIFEST",
+            message: t(lang, "check.missingFileManifest", {
+              filePath,
+              l2Id: l2.id,
+            }),
+          });
+        }
+      }
+    }
+  }
+
+  if (input.fileManifests !== undefined && input.functionManifests !== undefined) {
+    for (const manifest of fileManifests) {
+      for (const exportName of manifest.exports) {
+        const key = `${manifest.id}:${exportName}`;
+        if (!governedFunctions.has(key)) {
+          issues.push({
+            severity: "warning",
+            layer: "file",
+            entityId: manifest.id,
+            code: "FILE_EXPORT_UNREGISTERED",
+            message: t(lang, "check.fileExportUnregistered", {
+              fileId: manifest.id,
+              exportName,
+            }),
+          });
+        }
+      }
     }
   }
 

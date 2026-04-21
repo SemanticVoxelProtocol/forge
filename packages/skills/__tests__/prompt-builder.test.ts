@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildPrompt, renderPrompt } from "../prompt-builder.js";
 import type { CompileTask } from "../../core/compile-plan.js";
+import type { FileManifest } from "../../core/file.js";
+import type { FunctionManifest } from "../../core/function.js";
 import type { L2CodeBlock } from "../../core/l2.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4Flow } from "../../core/l4.js";
@@ -70,6 +72,66 @@ function makeL2(): L2CodeBlock {
     sourceHash: "l3-hash",
     contentHash: "l2-hash",
     revision: baseRevision,
+  };
+}
+
+function makeFileManifest(): FileManifest {
+  return {
+    id: "file-src-validate-order-ts",
+    path: "src/validate-order.ts",
+    purpose: "Govern src/validate-order.ts for validate-order",
+    l2BlockRef: "validate-order",
+    blockRefs: ["validate-order"],
+    exports: ["validateOrder"],
+    ownership: ["src"],
+    dependencyBoundary: ["src/*"],
+    pluginGroups: ["governance"],
+    revision: baseRevision,
+    contentHash: "file-hash",
+  };
+}
+
+function makeFunctionManifest(): FunctionManifest {
+  return {
+    id: "file-src-validate-order-ts.validate-order",
+    fileRef: "file-src-validate-order-ts",
+    exportName: "validateOrder",
+    signature: "validateOrder(request: OrderRequest): ValidationResult",
+    preconditions: ["request is defined"],
+    postconditions: ["returns validation result"],
+    pluginPolicy: ["governance"],
+    revision: baseRevision,
+    contentHash: "fn-hash",
+  };
+}
+
+function makeFileManifest2(): FileManifest {
+  return {
+    id: "file-src-validate-order-types-ts",
+    path: "src/validate-order.types.ts",
+    purpose: "Govern src/validate-order.types.ts for validate-order",
+    l2BlockRef: "validate-order",
+    blockRefs: ["validate-order"],
+    exports: ["normalizeOrder"],
+    ownership: ["src"],
+    dependencyBoundary: ["src/*"],
+    pluginGroups: ["governance"],
+    revision: baseRevision,
+    contentHash: "file-hash-2",
+  };
+}
+
+function makeFunctionManifest2(): FunctionManifest {
+  return {
+    id: "file-src-validate-order-types-ts.normalize-order",
+    fileRef: "file-src-validate-order-types-ts",
+    exportName: "normalizeOrder",
+    signature: "normalizeOrder(request: OrderRequest): OrderRequest",
+    preconditions: ["request has raw order fields"],
+    postconditions: ["returns normalized order request"],
+    pluginPolicy: ["governance"],
+    revision: baseRevision,
+    contentHash: "fn-hash-2",
   };
 }
 
@@ -222,6 +284,137 @@ describe("buildPrompt", () => {
     expect(prompt.outputSpec).toContain("Documentation");
   });
 
+  it("renders governed file and function manifest context for compile prompts", () => {
+    const input = makeInput("compile", {
+      l3: makeL3(),
+      l2: makeL2(),
+      fileManifests: [makeFileManifest()],
+      functionManifests: [makeFunctionManifest()],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Governed File Manifests");
+    expect(prompt.input).toContain("src/validate-order.ts");
+    expect(prompt.input).toContain("validateOrder");
+    expect(prompt.input).toContain("### Governed Function Manifests");
+    expect(prompt.input).toContain("file-src-validate-order-ts.validate-order");
+    expect(prompt.input).toContain("validateOrder(request: OrderRequest): ValidationResult");
+  });
+
+  it("renders governed file and function manifest context for recompile prompts", () => {
+    const input = makeInput("recompile", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l4: makeL4(),
+      l1Files: [{ path: "src/validate-order.ts", content: "export function validate() {}" }],
+      fileManifests: [makeFileManifest()],
+      functionManifests: [makeFunctionManifest()],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Governed File Manifests");
+    expect(prompt.input).toContain("### Governed Function Manifests");
+    expect(prompt.outputSpec).toContain("preserve their file ownership");
+  });
+
+  it("renders governed file and function manifest context for review prompts", () => {
+    const input = makeInput("review", {
+      l3: makeL3(),
+      l2: makeL2(),
+      l1Files: [{ path: "src/validate-order.ts", content: "// drifted code" }],
+      fileManifests: [makeFileManifest()],
+      functionManifests: [makeFunctionManifest()],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("### Governed File Manifests");
+    expect(prompt.input).toContain("### Governed Function Manifests");
+    expect(prompt.outputSpec).toContain("report any drift against their file paths");
+  });
+
+  it("builds file-targeted review prompts with file remediation wording", () => {
+    const task: CompileTask = {
+      action: "review",
+      targetLayer: "file",
+      targetId: "file-src-validate-order-ts",
+      reason: "Review broken file governance",
+      issueCode: "MISSING_L2_REF",
+      context: [],
+      complexity: "standard",
+    };
+
+    const prompt = buildPrompt({
+      task,
+      resolved: {
+        l3: makeL3(),
+        l2: makeL2(),
+        fileManifests: [makeFileManifest()],
+        l1Files: [{ path: "src/validate-order.ts", content: "// governed file drift" }],
+      },
+      config: defaultConfig,
+    });
+
+    expect(prompt.role).toContain("governed file review");
+    expect(prompt.task).toContain("Review broken file governance");
+    expect(prompt.input).toContain("### Governed File Manifest Under Review");
+    expect(prompt.input).toContain("// governed file drift");
+    expect(prompt.outputSpec).toContain("assess whether the file manifest should be updated");
+  });
+
+  it("builds function-targeted update-ref prompts with function remediation wording", () => {
+    const task: CompileTask = {
+      action: "update-ref",
+      targetLayer: "fn",
+      targetId: "file-src-validate-order-ts.validate-order",
+      reason: "Repair missing function reference",
+      issueCode: "MISSING_EXPORT_REF",
+      context: [],
+      complexity: "light",
+    };
+
+    const prompt = buildPrompt({
+      task,
+      resolved: {
+        l3: makeL3(),
+        l2: makeL2(),
+        fileManifests: [makeFileManifest()],
+        functionManifests: [makeFunctionManifest()],
+      },
+      config: defaultConfig,
+    });
+
+    expect(prompt.role).toContain("function reference repair");
+    expect(prompt.input).toContain("### Governed Function Manifest Under Repair");
+    expect(prompt.input).toContain("### Backing Governed File Manifest");
+    expect(prompt.outputSpec).toContain("Repair the broken governed function linkage");
+    expect(prompt.outputSpec).toContain("forge rehash fn/<id>");
+  });
+
+  it("renders multiple governed file and function manifests without collapsing them", () => {
+    const l2 = makeL2();
+    const multiFileL2: L2CodeBlock = {
+      ...l2,
+      files: ["src/validate-order.ts", "src/validate-order.types.ts"],
+    };
+
+    const input = makeInput("compile", {
+      l3: makeL3(),
+      l2: multiFileL2,
+      fileManifests: [makeFileManifest(), makeFileManifest2()],
+      functionManifests: [makeFunctionManifest(), makeFunctionManifest2()],
+    });
+
+    const prompt = buildPrompt(input);
+
+    expect(prompt.input).toContain("src/validate-order.ts");
+    expect(prompt.input).toContain("src/validate-order.types.ts");
+    expect(prompt.input).toContain("validateOrder(request: OrderRequest): ValidationResult");
+    expect(prompt.input).toContain("normalizeOrder(request: OrderRequest): OrderRequest");
+  });
+
   it("includes complexity from task", () => {
     const input = makeInput("compile", { l3: makeL3() });
     const prompt = buildPrompt(input);
@@ -325,6 +518,22 @@ describe("renderPrompt", () => {
     for (const section of sections.slice(1)) {
       expect(section.trim().length).toBeGreaterThan(0);
     }
+  });
+
+  it("renders governed manifest sections into markdown output", () => {
+    const input = makeInput("compile", {
+      l3: makeL3(),
+      l2: makeL2(),
+      fileManifests: [makeFileManifest()],
+      functionManifests: [makeFunctionManifest()],
+    });
+
+    const prompt = buildPrompt(input);
+    const md = renderPrompt(prompt);
+
+    expect(md).toContain("### Governed File Manifests");
+    expect(md).toContain("### Governed Function Manifests");
+    expect(md).toContain("file-src-validate-order-ts.validate-order");
   });
 });
 

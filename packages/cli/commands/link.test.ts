@@ -6,7 +6,14 @@ import path from "node:path";
 import { Command } from "commander";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { computeHash } from "../../core/hash.js";
-import { readL2, writeL2, writeL3 } from "../../core/store.js";
+import {
+  readFileManifest,
+  readFunctionManifest,
+  readL2,
+  writeFunctionManifest,
+  writeL2,
+  writeL3,
+} from "../../core/store.js";
 import { registerLink } from "./link.js";
 import type { L2CodeBlock } from "../../core/l2.js";
 import type { L3Block } from "../../core/l3.js";
@@ -240,5 +247,236 @@ describe("forge link", () => {
     expect(parsed).toHaveProperty("sourceHash");
     expect(parsed).toHaveProperty("contentHash");
     expect(parsed).toHaveProperty("revision");
+  });
+
+  it("writes governed file manifests alongside the L2 link", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const { exitCode } = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "src/validate-order.types.ts",
+    ]);
+
+    expect(exitCode).toBe(0);
+
+    const mainFile = await readFileManifest(testRoot, "file-src-validate-order-ts");
+    const typesFile = await readFileManifest(testRoot, "file-src-validate-order-types-ts");
+
+    expect(mainFile).toMatchObject({
+      path: "src/validate-order.ts",
+      l2BlockRef: "validate-order",
+      blockRefs: ["validate-order"],
+      exports: [],
+      pluginGroups: ["governance"],
+    });
+    expect(typesFile).toMatchObject({
+      path: "src/validate-order.types.ts",
+      exports: [],
+    });
+  });
+
+  it("writes function manifests when governed exports are provided", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const { exitCode } = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts=validateOrder,normalizeOrder",
+    ]);
+
+    expect(exitCode).toBe(0);
+
+    const fileManifest = await readFileManifest(testRoot, "file-src-validate-order-ts");
+    const validateOrder = await readFunctionManifest(
+      testRoot,
+      "file-src-validate-order-ts.validate-order",
+    );
+    const normalizeOrder = await readFunctionManifest(
+      testRoot,
+      "file-src-validate-order-ts.normalize-order",
+    );
+
+    expect(fileManifest?.exports).toEqual(["validateOrder", "normalizeOrder"]);
+    expect(validateOrder).toMatchObject({
+      fileRef: "file-src-validate-order-ts",
+      exportName: "validateOrder",
+      pluginPolicy: ["governance"],
+    });
+    expect(normalizeOrder).toMatchObject({
+      fileRef: "file-src-validate-order-ts",
+      exportName: "normalizeOrder",
+      pluginPolicy: ["governance"],
+    });
+  });
+
+  it("preserves existing governed function manifests on relink when --exports is omitted", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const initial = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts=validateOrder",
+    ]);
+
+    expect(initial.exitCode).toBe(0);
+
+    const customizedBase = {
+      id: "file-src-validate-order-ts.validate-order",
+      fileRef: "file-src-validate-order-ts",
+      exportName: "validateOrder",
+      signature: "validateOrder(request: OrderRequest): ValidationResult",
+      preconditions: ["request contains an order id"],
+      postconditions: ["returns a validation result"],
+      pluginPolicy: ["trace"],
+    };
+    const customizedManifest = {
+      ...customizedBase,
+      revision: {
+        rev: 3,
+        parentRev: 2,
+        source: { type: "human" as const },
+        timestamp: "2024-01-03T00:00:00.000Z",
+      },
+      contentHash: computeHash(customizedBase as Record<string, unknown>),
+    };
+    await writeFunctionManifest(testRoot, customizedManifest);
+
+    const relink = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "src/validate-order.helper.ts",
+    ]);
+
+    expect(relink.exitCode).toBe(0);
+    expect(relink.stdout).toContain("Relinked");
+
+    const functionManifest = await readFunctionManifest(
+      testRoot,
+      "file-src-validate-order-ts.validate-order",
+    );
+    expect(functionManifest).toMatchObject({
+      id: "file-src-validate-order-ts.validate-order",
+      fileRef: "file-src-validate-order-ts",
+      exportName: "validateOrder",
+      signature: "validateOrder(request: OrderRequest): ValidationResult",
+      preconditions: ["request contains an order id"],
+      postconditions: ["returns a validation result"],
+      pluginPolicy: ["trace"],
+    });
+    expect(functionManifest?.revision).toEqual(customizedManifest.revision);
+  });
+
+  it("removes stale governed file and function manifests when relink shrinks the file set", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const initial = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "src/validate-order.helper.ts",
+      "--exports",
+      "src/validate-order.ts=validateOrder",
+      "--exports",
+      "src/validate-order.helper.ts=normalizeOrder",
+    ]);
+
+    expect(initial.exitCode).toBe(0);
+
+    const relink = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts=validateOrder",
+    ]);
+
+    expect(relink.exitCode).toBe(0);
+    expect(relink.stdout).toContain("Relinked");
+
+    expect(await readFileManifest(testRoot, "file-src-validate-order-ts")).not.toBeNull();
+    expect(
+      await readFunctionManifest(testRoot, "file-src-validate-order-ts.validate-order"),
+    ).not.toBeNull();
+    expect(await readFileManifest(testRoot, "file-src-validate-order-helper-ts")).toBeNull();
+    expect(
+      await readFunctionManifest(testRoot, "file-src-validate-order-helper-ts.normalize-order"),
+    ).toBeNull();
+  });
+
+  it("treats explicit relink exports for a kept file as authoritative", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const initial = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts=runA,runB",
+    ]);
+
+    expect(initial.exitCode).toBe(0);
+
+    const relink = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts=runA",
+    ]);
+
+    expect(relink.exitCode).toBe(0);
+    expect(relink.stdout).toContain("Relinked");
+
+    const fileManifest = await readFileManifest(testRoot, "file-src-validate-order-ts");
+    expect(fileManifest?.exports).toEqual(["runA"]);
+
+    expect(await readFunctionManifest(testRoot, "file-src-validate-order-ts.run-a")).not.toBeNull();
+    expect(await readFunctionManifest(testRoot, "file-src-validate-order-ts.run-b")).toBeNull();
+  });
+
+  it("rejects governed exports for files outside the link set", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const { stderr, exitCode } = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/other.ts=validateOrder",
+    ]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("src/other.ts");
+    expect(stderr).toContain("--files");
+  });
+
+  it("rejects malformed --exports entries", async () => {
+    const l3 = makeL3();
+    await writeL3(testRoot, l3);
+
+    const { stderr, exitCode } = await runLink(testRoot, [
+      "validate-order",
+      "--files",
+      "src/validate-order.ts",
+      "--exports",
+      "src/validate-order.ts",
+    ]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("--exports");
+    expect(stderr).toContain("file=export1,export2");
   });
 });

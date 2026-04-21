@@ -30,6 +30,8 @@ export function createResolver(root: string): ContextResolver {
         l3?: ResolvedContext["l3"];
         l2?: ResolvedContext["l2"];
         l4?: ResolvedContext["l4"];
+        fileManifests?: NonNullable<ResolvedContext["fileManifests"]>;
+        functionManifests?: NonNullable<ResolvedContext["functionManifests"]>;
         l1Files?: FileContent[];
         docs?: string;
         refs?: RefFile[];
@@ -54,11 +56,36 @@ export function createResolver(root: string): ContextResolver {
             ctx.l2 = input.l2Blocks.find((cb) => cb.id === ref.id);
             break;
           }
+          case "file": {
+            const fileManifest = input.fileManifests?.find((manifest) => manifest.id === ref.id);
+            if (
+              fileManifest !== undefined &&
+              !(ctx.fileManifests ?? []).some((manifest) => manifest.id === fileManifest.id)
+            ) {
+              ctx.fileManifests = [...(ctx.fileManifests ?? []), fileManifest];
+            }
+            break;
+          }
+          case "function": {
+            const functionManifest = input.functionManifests?.find(
+              (manifest) => manifest.id === ref.id,
+            );
+            if (
+              functionManifest !== undefined &&
+              !(ctx.functionManifests ?? []).some((manifest) => manifest.id === functionManifest.id)
+            ) {
+              ctx.functionManifests = [...(ctx.functionManifests ?? []), functionManifest];
+            }
+            break;
+          }
         }
       }
 
-      // compile/recompile 需要读 L1 源文件
-      if ((task.action === "compile" || task.action === "recompile") && ctx.l2 !== undefined) {
+      // compile/recompile/review 需要读 L1 源文件
+      if (
+        (task.action === "compile" || task.action === "recompile" || task.action === "review") &&
+        ctx.l2 !== undefined
+      ) {
         ctx.l1Files = await readL1Files(root, ctx.l2.files);
       }
 

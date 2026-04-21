@@ -65,6 +65,10 @@ const messages: Record<string, Record<string, string>> = {
     "check.hashMismatch.l3":
       'L3 "{name}" contentHash mismatch: stored={stored}, computed={computed}',
     "check.hashMismatch.l2": 'L2 "{id}" contentHash mismatch: stored={stored}, computed={computed}',
+    "check.hashMismatch.file":
+      'File manifest "{id}" contentHash mismatch: stored={stored}, computed={computed}',
+    "check.hashMismatch.function":
+      'Function manifest "{id}" contentHash mismatch: stored={stored}, computed={computed}',
     "check.missingBlockRef.l4FlowStep":
       'L4 "{flowName}" step "{stepId}" references non-existent L3 block "{blockRef}"',
     "check.missingFlowRef":
@@ -77,7 +81,18 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{smName}" state "{stateName}" onExit references non-existent L3 block "{blockRef}"',
     "check.missingBlockRef.l4SmGuard":
       'L4 "{smName}" transition "{from}" → "{to}" guard references non-existent L3 block "{guard}"',
+    "check.missingBlockRef.file":
+      'File manifest "{id}" references non-existent L3 block "{blockRef}"',
     "check.missingBlockRef.l2": 'L2 "{id}" references non-existent L3 block "{blockRef}"',
+    "check.missingL2Ref.file":
+      'File manifest "{id}" references non-existent L2 code block "{l2BlockRef}"',
+    "check.missingFileRef.function":
+      'Function manifest "{id}" references non-existent file manifest "{fileRef}"',
+    "check.missingExportRef.function":
+      'Function manifest "{id}" export "{exportName}" is not declared by file manifest "{fileRef}"',
+    "check.missingFileManifest": 'L2 "{l2Id}" file "{filePath}" has no corresponding file manifest',
+    "check.fileExportUnregistered":
+      'File manifest "{fileId}" export "{exportName}" is governed but has no corresponding function manifest',
     "check.missingStepRef.next":
       'L4 "{parentName}" step "{stepId}" next references non-existent step "{next}"',
     "check.missingStepRef.branch":
@@ -123,6 +138,16 @@ const messages: Record<string, Record<string, string>> = {
       "Flow references missing L3 block — step needs updating or L3 needs recreating",
     "compilePlan.reason.missingL2BlockRef":
       "L2 code block references missing L3 block — orphaned code needs review",
+    "compilePlan.reason.missingFileManifest":
+      'Source file "{filePath}" has no file manifest — needs initial file-level compilation',
+    "compilePlan.reason.fileExportUnregistered":
+      'Governed export "{target}" has no function manifest — function governance needs review',
+    "compilePlan.reason.missingFileBlockRef":
+      "File manifest references missing L3 block — block refs need updating or L3 needs recreating",
+    "compilePlan.reason.missingFileL2Ref":
+      "File manifest references missing L2 code block — orphaned file governance needs review",
+    "compilePlan.reason.missingFunctionRef":
+      "Function manifest references missing file/export metadata — manifest refs need updating",
     "compilePlan.label.l3Contract": 'L3 contract "{name}"',
     "compilePlan.label.currentL2": "current L2 mapping ({files})",
     "compilePlan.label.l2CodeBlock": "L2 code block ({files})",
@@ -131,6 +156,8 @@ const messages: Record<string, Record<string, string>> = {
     "compilePlan.label.l5Blueprint": "L5 blueprint",
     "compilePlan.label.orphanedL2": "orphaned L2 code block",
     "compilePlan.label.l4FlowRef": 'L4 flow "{name}" (references this block)',
+    "compilePlan.label.fileManifest": 'file manifest for "{path}"',
+    "compilePlan.label.functionManifest": 'function manifest for export "{exportName}"',
 
     // ── view.* ──
     "view.l5.intent": "intent",
@@ -209,6 +236,10 @@ const messages: Record<string, Record<string, string>> = {
     "check.hashMismatch.l4": 'L4 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
     "check.hashMismatch.l3": 'L3 "{name}" contentHash 不匹配：存储值={stored}，计算值={computed}',
     "check.hashMismatch.l2": 'L2 "{id}" contentHash 不匹配：存储值={stored}，计算值={computed}',
+    "check.hashMismatch.file":
+      'File manifest "{id}" contentHash 不匹配：存储值={stored}，计算值={computed}',
+    "check.hashMismatch.function":
+      'Function manifest "{id}" contentHash 不匹配：存储值={stored}，计算值={computed}',
     "check.missingBlockRef.l4FlowStep":
       'L4 "{flowName}" 步骤 "{stepId}" 引用了不存在的 L3 block "{blockRef}"',
     "check.missingFlowRef": 'L4 "{flowName}" 步骤 "{stepId}" 引用了不存在的 L4 flow "{flowRef}"',
@@ -220,7 +251,16 @@ const messages: Record<string, Record<string, string>> = {
       'L4 "{smName}" 状态 "{stateName}" 的 onExit 引用了不存在的 L3 block "{blockRef}"',
     "check.missingBlockRef.l4SmGuard":
       'L4 "{smName}" 转换 "{from}" → "{to}" 的 guard 引用了不存在的 L3 block "{guard}"',
+    "check.missingBlockRef.file": 'File manifest "{id}" 引用了不存在的 L3 block "{blockRef}"',
     "check.missingBlockRef.l2": 'L2 "{id}" 引用了不存在的 L3 block "{blockRef}"',
+    "check.missingL2Ref.file": 'File manifest "{id}" 引用了不存在的 L2 code block "{l2BlockRef}"',
+    "check.missingFileRef.function":
+      'Function manifest "{id}" 引用了不存在的 file manifest "{fileRef}"',
+    "check.missingExportRef.function":
+      'Function manifest "{id}" 的导出 "{exportName}" 未在 file manifest "{fileRef}" 中声明',
+    "check.missingFileManifest": 'L2 "{l2Id}" 的源文件 "{filePath}" 缺少对应的 file manifest',
+    "check.fileExportUnregistered":
+      'File manifest "{fileId}" 的导出 "{exportName}" 已受治理，但缺少对应的 function manifest',
     "check.missingStepRef.next":
       'L4 "{parentName}" 步骤 "{stepId}" 的 next 引用了不存在的步骤 "{next}"',
     "check.missingStepRef.branch":
@@ -258,6 +298,16 @@ const messages: Record<string, Record<string, string>> = {
     "compilePlan.reason.missingBlockRef": "Flow 引用了缺失的 L3 block — 需要更新步骤或重建 L3",
     "compilePlan.reason.missingL2BlockRef":
       "L2 code block 引用了缺失的 L3 block — 孤立代码需要审查",
+    "compilePlan.reason.missingFileManifest":
+      '源文件 "{filePath}" 缺少 file manifest — 需要初次生成文件级产物',
+    "compilePlan.reason.fileExportUnregistered":
+      '受治理导出 "{target}" 缺少 function manifest — 需要审查函数级治理配置',
+    "compilePlan.reason.missingFileBlockRef":
+      "File manifest 引用了缺失的 L3 block — 需要更新 block refs 或重建 L3",
+    "compilePlan.reason.missingFileL2Ref":
+      "File manifest 引用了缺失的 L2 code block — 需要审查孤立文件治理配置",
+    "compilePlan.reason.missingFunctionRef":
+      "Function manifest 引用了缺失的文件/导出元数据 — 需要更新 manifest 引用",
     "compilePlan.label.l3Contract": 'L3 契约 "{name}"',
     "compilePlan.label.currentL2": "当前 L2 映射 ({files})",
     "compilePlan.label.l2CodeBlock": "L2 代码块 ({files})",
@@ -266,6 +316,8 @@ const messages: Record<string, Record<string, string>> = {
     "compilePlan.label.l5Blueprint": "L5 蓝图",
     "compilePlan.label.orphanedL2": "孤立的 L2 代码块",
     "compilePlan.label.l4FlowRef": 'L4 flow "{name}"（引用此 block）',
+    "compilePlan.label.fileManifest": '文件 "{path}" 的 file manifest',
+    "compilePlan.label.functionManifest": '导出 "{exportName}" 的 function manifest',
 
     // ── view.* ──
     "view.l5.intent": "意图",

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { check } from "./check.js";
-import { hashL2, hashL3, hashL4, hashL5 } from "./hash.js";
+import { computeHash, hashL2, hashL3, hashL4, hashL5 } from "./hash.js";
 import type { CheckInput } from "./check.js";
+import type { FileManifest } from "./file.js";
+import type { FunctionManifest } from "./function.js";
 import type { L2CodeBlock } from "./l2.js";
 import type { L3Block } from "./l3.js";
 import type { L4EventGraph, L4Flow, L4StateMachine } from "./l4.js";
@@ -77,12 +79,61 @@ function makeL2(overrides: Partial<L2CodeBlock> = {}): L2CodeBlock {
   };
 }
 
+function makeFileManifest(overrides: Partial<FileManifest> = {}): FileManifest {
+  const base = {
+    id: "file-validate-order",
+    path: "src/validate-order.ts",
+    purpose: "Govern order validation exports",
+    l2BlockRef: "validate-order-ts",
+    blockRefs: ["validate-order"],
+    exports: ["validateOrder"],
+    ownership: ["packages/core"],
+    dependencyBoundary: ["packages/core/*", "node:*"],
+    pluginGroups: ["trace"],
+    ...overrides,
+  };
+  const { revision: _r, ...hashInput } = base;
+  return {
+    ...base,
+    revision: REV1,
+    contentHash: overrides.contentHash ?? computeHash(hashInput as Record<string, unknown>),
+  };
+}
+
+function makeFunctionManifest(overrides: Partial<FunctionManifest> = {}): FunctionManifest {
+  const base = {
+    id: "file-validate-order:validateOrder",
+    fileRef: "file-validate-order",
+    exportName: "validateOrder",
+    signature: "validateOrder(request: OrderRequest): ValidationResult",
+    preconditions: ["request is defined"],
+    postconditions: ["returns validation result"],
+    pluginPolicy: ["trace"],
+    ...overrides,
+  };
+  const { revision: _r, ...hashInput } = base;
+  return {
+    ...base,
+    revision: REV1,
+    contentHash: overrides.contentHash ?? computeHash(hashInput as Record<string, unknown>),
+  };
+}
+
 function validInput(): CheckInput {
   const l3 = makeL3();
   const l4 = makeL4();
   const l5 = makeL5();
   const l2 = makeL2({ sourceHash: l3.contentHash });
-  return { l5, l4Flows: [l4], l3Blocks: [l3], l2Blocks: [l2] };
+  const file = makeFileManifest();
+  const fn = makeFunctionManifest();
+  return {
+    l5,
+    l4Flows: [l4],
+    l3Blocks: [l3],
+    l2Blocks: [l2],
+    fileManifests: [file],
+    functionManifests: [fn],
+  };
 }
 
 // ── 测试 ──
@@ -129,6 +180,47 @@ describe("check — hash consistency", () => {
     const hashIssues = report.issues.filter((i) => i.code === "HASH_MISMATCH");
     expect(hashIssues).toHaveLength(1);
     expect(hashIssues[0].layer).toBe("l2");
+  });
+
+  it("detects file manifest contentHash mismatch", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+    const file = makeFileManifest({ contentHash: "wrong" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const hashIssues = report.issues.filter(
+      (i) => i.code === "HASH_MISMATCH" && i.layer === "file",
+    );
+    expect(hashIssues).toHaveLength(1);
+    expect(hashIssues[0].entityId).toBe(file.id);
+  });
+
+  it("detects function manifest contentHash mismatch", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+    const file = makeFileManifest();
+    const fn = makeFunctionManifest({ contentHash: "wrong" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [fn],
+    });
+
+    const hashIssues = report.issues.filter(
+      (i) => i.code === "HASH_MISMATCH" && i.layer === "function",
+    );
+    expect(hashIssues).toHaveLength(1);
+    expect(hashIssues[0].entityId).toBe(fn.id);
   });
 });
 
@@ -240,6 +332,117 @@ describe("check — drift detection", () => {
     const report = check({ l4Flows: [], l3Blocks: [l3], l2Blocks: [l2] });
     const driftIssues = report.issues.filter((i) => i.code === "SOURCE_DRIFT");
     expect(driftIssues).toHaveLength(0);
+  });
+});
+
+describe("check — file/function manifests", () => {
+  it("detects missing file manifest coverage for an L2 source file", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+
+    const report = check({ l4Flows: [], l3Blocks: [l3], l2Blocks: [l2], fileManifests: [] });
+
+    const manifestIssues = report.issues.filter((i) => i.code === "MISSING_FILE_MANIFEST");
+    expect(manifestIssues).toHaveLength(1);
+    expect(manifestIssues[0].layer).toBe("file");
+    expect(manifestIssues[0].entityId).toBe("src/validate-order.ts");
+  });
+
+  it("detects unregistered governed file exports on the file layer", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+    const file = makeFileManifest();
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const manifestIssues = report.issues.filter((i) => i.code === "FILE_EXPORT_UNREGISTERED");
+    expect(manifestIssues).toHaveLength(1);
+    expect(manifestIssues[0].layer).toBe("file");
+    expect(manifestIssues[0].entityId).toBe("file-validate-order");
+  });
+
+  it("detects file manifests that reference missing L2 code blocks", () => {
+    const l3 = makeL3();
+    const file = makeFileManifest({ l2BlockRef: "missing-l2" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const refIssues = report.issues.filter(
+      (i) => i.code === "MISSING_L2_REF" && i.layer === "file",
+    );
+    expect(refIssues).toHaveLength(1);
+    expect(refIssues[0].entityId).toBe(file.id);
+  });
+
+  it("detects file manifests that reference missing L3 blocks", () => {
+    const l2 = makeL2({ sourceHash: "abc" });
+    const file = makeFileManifest({ blockRefs: ["ghost-block"] });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const refIssues = report.issues.filter(
+      (i) => i.code === "MISSING_BLOCK_REF" && i.layer === "file",
+    );
+    expect(refIssues).toHaveLength(1);
+    expect(refIssues[0].entityId).toBe(file.id);
+  });
+
+  it("detects function manifests that reference missing file manifests", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+    const fn = makeFunctionManifest({ fileRef: "missing-file" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [],
+      functionManifests: [fn],
+    });
+
+    const refIssues = report.issues.filter(
+      (i) => i.code === "MISSING_FILE_REF" && i.layer === "function",
+    );
+    expect(refIssues).toHaveLength(1);
+    expect(refIssues[0].entityId).toBe(fn.id);
+  });
+
+  it("detects function manifest exports that are not declared by the file manifest", () => {
+    const l3 = makeL3();
+    const l2 = makeL2({ sourceHash: l3.contentHash });
+    const file = makeFileManifest({ exports: ["validateOrder"] });
+    const fn = makeFunctionManifest({ exportName: "runValidation" });
+
+    const report = check({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [fn],
+    });
+
+    const refIssues = report.issues.filter((i) => i.code === "MISSING_EXPORT_REF");
+    expect(refIssues).toHaveLength(1);
+    expect(refIssues[0].layer).toBe("function");
+    expect(refIssues[0].entityId).toBe(fn.id);
   });
 });
 

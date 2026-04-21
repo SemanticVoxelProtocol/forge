@@ -5,7 +5,7 @@ import path from "node:path";
 import { VERSION } from "./version.js";
 
 /** Current schema version for the .svp/ data model */
-export const SCHEMA_VERSION = "1.1.0";
+export const SCHEMA_VERSION = "1.2.0";
 
 export interface Manifest {
   readonly schemaVersion: string;

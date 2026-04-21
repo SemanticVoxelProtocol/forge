@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hashL2 } from "../../core/hash.js";
-import { createL2Link, relinkL2 } from "../link.js";
+import { computeHash, hashL2 } from "../../core/hash.js";
+import { createGovernedLink, createL2Link, relinkL2 } from "../link.js";
 import type { L3Block } from "../../core/l3.js";
 
 const baseRevision = {
@@ -163,5 +163,118 @@ describe("relinkL2 — additional", () => {
     const relinked = relinkL2(existing, l3, ["src/new.ts"]);
 
     expect(relinked.contentHash).not.toBe(existing.contentHash);
+  });
+});
+
+describe("governed linking helpers", () => {
+  it("createGovernedLink creates file manifests and dotted function ids for selected exports", () => {
+    const l3 = makeL3();
+    const result = createGovernedLink({
+      l3Block: l3,
+      files: ["src/validate-order.ts", "src/validate-order.types.ts"],
+      exportsByFile: {
+        "src/validate-order.ts": ["validateOrder"],
+      },
+    });
+
+    expect(result.action).toBe("linked");
+    expect(result.l2.id).toBe("validate-order");
+    expect(result.governedFiles).toHaveLength(2);
+    expect(result.governedFiles[0]).toMatchObject({
+      id: "file-src-validate-order-ts",
+      path: "src/validate-order.ts",
+      l2BlockRef: result.l2.id,
+      blockRefs: [result.l2.blockRef],
+      exports: ["validateOrder"],
+      pluginGroups: ["governance"],
+    });
+    expect(result.governedFiles[0].revision.source).toEqual({ type: "ai", action: "compile" });
+    expect(result.governedFiles[1]).toMatchObject({
+      id: "file-src-validate-order-types-ts",
+      path: "src/validate-order.types.ts",
+      exports: [],
+    });
+    expect(result.governedFunctions).toHaveLength(1);
+    expect(result.governedFunctions[0].id).toBe("file-src-validate-order-ts.validate-order");
+  });
+
+  it("createGovernedLink preserves existing governed metadata and relinks with dotted function ids", () => {
+    const l3 = makeL3();
+    const l2 = createL2Link({ l3Block: l3, files: ["src/validate-order.ts"] });
+
+    const result = createGovernedLink({
+      l3Block: l3,
+      files: ["src/validate-order.ts"],
+      exportsByFile: {
+        "src/validate-order.ts": ["validateOrder"],
+      },
+      existingL2: l2,
+      existingFileManifests: [
+        {
+          id: "file-src-validate-order-ts",
+          path: "src/validate-order.ts",
+          purpose: "Keep custom governance metadata",
+          l2BlockRef: l2.id,
+          blockRefs: [l2.blockRef],
+          exports: [],
+          ownership: ["packages/orders"],
+          dependencyBoundary: ["packages/orders/*"],
+          pluginGroups: ["trace"],
+          revision: {
+            rev: 2,
+            parentRev: 1,
+            source: { type: "human" },
+            timestamp: "2024-01-02T00:00:00.000Z",
+          },
+          contentHash: "existing-file-hash",
+        },
+      ],
+      existingFunctionManifests: [
+        (() => {
+          const base = {
+            id: "file-src-validate-order-ts.validate-order",
+            fileRef: "file-src-validate-order-ts",
+            exportName: "validateOrder",
+            signature: "validateOrder(request: OrderRequest): ValidationResult",
+            preconditions: ["request is defined"],
+            postconditions: ["returns a validation result"],
+            pluginPolicy: ["trace"],
+          };
+
+          return {
+            ...base,
+            contentHash: computeHash(base as Record<string, unknown>),
+            revision: {
+              rev: 3,
+              parentRev: 2,
+              source: { type: "human" },
+              timestamp: "2024-01-03T00:00:00.000Z",
+            },
+          };
+        })(),
+      ],
+    });
+
+    expect(result.action).toBe("relinked");
+    expect(result.governedFiles[0]).toMatchObject({
+      purpose: "Keep custom governance metadata",
+      ownership: ["packages/orders"],
+      dependencyBoundary: ["packages/orders/*"],
+      pluginGroups: ["trace"],
+      exports: ["validateOrder"],
+    });
+    expect(result.governedFiles[0].revision.rev).toBe(3);
+
+    expect(result.governedFunctions).toHaveLength(1);
+    expect(result.governedFunctions[0]).toMatchObject({
+      id: "file-src-validate-order-ts.validate-order",
+      fileRef: "file-src-validate-order-ts",
+      exportName: "validateOrder",
+      signature: "validateOrder(request: OrderRequest): ValidationResult",
+      preconditions: ["request is defined"],
+      postconditions: ["returns a validation result"],
+      pluginPolicy: ["trace"],
+    });
+    expect(result.governedFunctions[0].revision.rev).toBe(3);
   });
 });
