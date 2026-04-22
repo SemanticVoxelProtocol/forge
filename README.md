@@ -36,6 +36,14 @@ forge init --host cursor
 
 This creates a `.svp/` directory and generates the appropriate skill file for your AI tool. Then use `/svp` (or equivalent) in your AI tool to start the guided workflow.
 
+## Migration
+
+Migration is automatic by default when forge opens an existing `.svp/` project.
+
+Most users do not need to care about schema internals or run manual migration steps.
+
+If migration fails, follow the public migration note in [`docs/migrations/1.0.0.md`](docs/migrations/1.0.0.md).
+
 ## How It Works
 
 SVP models software as a one-way compilation chain:
