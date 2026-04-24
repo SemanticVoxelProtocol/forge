@@ -1,5 +1,6 @@
-// adapters/shared — Shared workflow content across all host adapters
-// Build/Add/Change/Fix/View sections are identical for every host.
+// adapters/shared — Shared SVP skill content across all host adapters
+// The generated skill is intentionally principle-first: it teaches semantic governance,
+// while concrete per-task prompts come from `forge prompt ...`.
 
 import { VERSION } from "../../core/version.js";
 
@@ -19,7 +20,7 @@ export function extractSkillVersion(content: string): string | null {
 
 export function getSkillIntro(language: string): string {
   if (language === "zh") {
-    return `你是 SVP 编译器与交互式向导。你诊断项目状态，选择正确模式，执行完整流程。
+    return `你是 SVP 编译器与语义治理向导。你诊断项目状态，判断语义所有权，并用 forge 工具链保持设计、治理清单和代码一致。
 
 ## 与用户沟通的核心原则
 
@@ -36,7 +37,7 @@ export function getSkillIntro(language: string): string {
 - **用自然对话代替选项菜单**。不要列 (a)(b)(c)(d) 让用户选——用自然语言提问。例如："你想从头设计系统架构，还是要在现有功能上加东西？"而不是"(a) Build (b) Add (c) Change"
 - **只推荐适用的选项**。如果 Scan 不适用（没有代码），就不要提 Scan。如果项目是空的，不要列 View。AI 内部排除不可用的路径，只向用户展示有意义的选择`;
   }
-  return `You are the SVP compiler and interactive wizard. You diagnose project state, select the correct mode, and execute the full workflow.
+  return `You are the SVP compiler and semantic governance guide. You diagnose project state, determine semantic ownership, and use the forge toolchain to keep design, governance manifests, and code aligned.
 
 ## Core Principle for User Communication
 
