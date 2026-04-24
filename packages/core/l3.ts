@@ -25,7 +25,7 @@ export interface L3Block {
 
 export interface Pin {
   readonly name: string;
-  readonly type: string; // 引用 TypeScript interface 名称
+  readonly type: string; // 引用项目语言中的类型、schema、DTO 或等价契约名称
   readonly optional?: boolean;
 }
 

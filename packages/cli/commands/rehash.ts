@@ -3,19 +3,34 @@
 
 import {
   checkCompatibility,
+  deleteFileManifest,
+  deleteFunctionManifest,
+  listFileManifests,
+  listFunctionManifests,
   listL2,
   listL3,
   listL4,
+  readFileManifest,
+  readFunctionManifest,
   readL2,
   readL3,
   readL4,
   readL5,
+  writeFileManifest,
+  writeFunctionManifest,
   writeL2,
   writeL3,
   writeL4,
   writeL5,
 } from "../../core/index.js";
-import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../../skills/index.js";
+import {
+  rehashFileManifest,
+  rehashFunctionManifest,
+  rehashL2,
+  rehashL3,
+  rehashL4,
+  rehashL5,
+} from "../../skills/index.js";
 import type { RehashResult } from "../../skills/index.js";
 import type { Command } from "commander";
 
@@ -31,7 +46,7 @@ export function registerRehash(program: Command): void {
   program
     .command("rehash")
     .description("Recompute contentHash and bump revision for .svp/ artifacts")
-    .argument("[target]", "Target: l5, l4, l3, l2, l4/<id>, l3/<id>, l2/<id>")
+    .argument("[target]", "Target: l5, l4, l3, l2, file, fn, or <layer>/<id>")
     .option("-r, --root <path>", "Project root directory", ".")
     .option("--json", "Output as JSON")
     .action(async (target: string | undefined, options: { root: string; json: boolean }) => {
@@ -93,6 +108,34 @@ export function registerRehash(program: Command): void {
         }
       }
 
+      // File manifests
+      if (parsed.layers.includes("file")) {
+        const ids = parsed.id === undefined ? await listFileManifests(root) : [parsed.id];
+        for (const id of ids) {
+          const manifest = await readFileManifest(root, id);
+          if (manifest !== null) {
+            const { data, result } = rehashFileManifest(manifest);
+            results.push(result);
+            if (result.changed || data.id !== id) await writeFileManifest(root, data);
+            if (data.id !== id) await deleteFileManifest(root, id);
+          }
+        }
+      }
+
+      // Function manifests
+      if (parsed.layers.includes("fn")) {
+        const ids = parsed.id === undefined ? await listFunctionManifests(root) : [parsed.id];
+        for (const id of ids) {
+          const manifest = await readFunctionManifest(root, id);
+          if (manifest !== null) {
+            const { data, result } = rehashFunctionManifest(manifest);
+            results.push(result);
+            if (result.changed || data.id !== id) await writeFunctionManifest(root, data);
+            if (data.id !== id) await deleteFunctionManifest(root, id);
+          }
+        }
+      }
+
       // 输出
       if (options.json) {
         console.log(JSON.stringify(results, null, 2));
@@ -115,24 +158,31 @@ export function registerRehash(program: Command): void {
     });
 }
 
-type Layer = "l2" | "l3" | "l4" | "l5";
-const ALL_LAYERS: readonly Layer[] = ["l5", "l4", "l3", "l2"];
+type Layer = "l2" | "l3" | "l4" | "l5" | "file" | "fn";
+const ALL_LAYERS: readonly Layer[] = ["l5", "l4", "l3", "l2", "file", "fn"];
 
 function parseTarget(target: string | undefined): { layers: readonly Layer[]; id?: string } {
   if (target === undefined) return { layers: ALL_LAYERS };
 
-  // "l5", "l4", "l3", "l2" — 整层
-  if (target === "l5" || target === "l4" || target === "l3" || target === "l2") {
+  // "l5", "l4", "l3", "l2", "file", "fn" — 整层
+  if (
+    target === "l5" ||
+    target === "l4" ||
+    target === "l3" ||
+    target === "l2" ||
+    target === "file" ||
+    target === "fn"
+  ) {
     return { layers: [target] };
   }
 
-  // "l4/flow-id", "l3/block-id", "l2/block-id" — 指定实体
-  const match = /^(l[234])\/(.+)$/.exec(target);
+  // "l4/flow-id", "l3/block-id", "l2/block-id", "file/<id>", "fn/<id>" — 指定实体
+  const match = /^(l[234]|file|fn)\/(.+)$/.exec(target);
   if (match !== null) {
     return { layers: [match[1] as Layer], id: match[2] };
   }
 
-  console.error(`Invalid target: ${target}. Use: l5, l4, l3, l2, l4/<id>, l3/<id>, l2/<id>`);
+  console.error(`Invalid target: ${target}. Use: l5, l4, l3, l2, file, fn, or <layer>/<id>`);
   process.exitCode = 1;
   return { layers: [] };
 }

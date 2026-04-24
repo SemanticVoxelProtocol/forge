@@ -13,13 +13,9 @@ const baseRevision = {
   timestamp: "2024-01-01T00:00:00Z",
 };
 
-const makeScanContext = (
-  files: Array<{ filePath: string; exportNames?: readonly string[] }>,
-  truncated = false,
-): ScanContext => {
+const makeScanContext = (files: Array<{ filePath: string }>, truncated = false): ScanContext => {
   const scannedFiles = files.map((f) => ({
     filePath: f.filePath,
-    exportNames: f.exportNames ?? [],
   }));
   return {
     files: scannedFiles,
@@ -77,15 +73,13 @@ describe("buildScanL3Prompt", () => {
     expect(result).toContain("src/handler.ts");
   });
 
-  it("includes exported function candidates in the scanned codebase tree", () => {
-    const ctx = makeScanContext([
-      { filePath: "src/handler.ts", exportNames: ["handleOrder", "normalizeOrder"] },
-    ]);
+  it("does not inject language-specific function candidates into the scanned codebase tree", () => {
+    const ctx = makeScanContext([{ filePath: "src/handler.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
-    expect(result).toContain("handleOrder");
-    expect(result).toContain("normalizeOrder");
+    expect(result).toContain("src/handler.ts");
+    expect(result).not.toContain("exportNames:");
   });
 
   it("includes user intent when provided", () => {
@@ -153,29 +147,33 @@ describe("buildScanL3Prompt", () => {
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
-    expect(result).toContain("forge rehash l3");
+    expect(result).toContain("forge rehash");
+    expect(result).toContain("file/function manifests");
     expect(result).toContain("forge prompt scan");
   });
 
   it("instructs phase 1 to emit governed file and function manifests", () => {
-    const ctx = makeScanContext([{ filePath: "src/index.ts", exportNames: ["validateOrder"] }]);
+    const ctx = makeScanContext([{ filePath: "src/index.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
     expect(result).toContain(".svp/file/<file-id>.json");
     expect(result).toContain(".svp/fn/<file-id>.<export-id>.json");
     expect(result).toContain("dotted function manifest IDs");
-    expect(result).toContain("exportNames");
+    expect(result).toContain("AI determine `exports`");
+    expect(result).toContain("project's language and framework conventions");
   });
 
-  it("does not ask for unsupported function-level inference beyond exported names", () => {
-    const ctx = makeScanContext([{ filePath: "src/index.ts", exportNames: ["validateOrder"] }]);
+  it("keeps function governance selective instead of static blanket inference", () => {
+    const ctx = makeScanContext([{ filePath: "src/index.ts" }]);
 
     const result = buildScanL3Prompt({ scanContext: ctx });
 
     expect(result).not.toContain(
       "Infer signatures, preconditions, postconditions, and plugin policy",
     );
+    expect(result).toContain("SVP does not statically infer function names here");
+    expect(result).toContain("Do not create function manifests for every helper");
     expect(result).toContain("use conservative placeholders/default governance values");
     expect(result).toContain("`<exportName>(…): unknown`");
   });

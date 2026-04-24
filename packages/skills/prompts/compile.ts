@@ -20,12 +20,12 @@ export function compileInstructions(language = "en"): string {
       "",
       "## Code Guidelines",
       "",
-      "- File naming: `src/<block-id>.ts`",
-      "- Export a single main function named after the block id (camelCase)",
+      "- File naming: follow the target project's language and directory conventions",
+      "- Expose a single main entry point named after the block id using the target language's public/export mechanism",
       "- Input parameter types must match L3 input pins",
       "- Return type must match L3 output pins",
-      "- Add a corresponding test file: `src/<block-id>.test.ts`",
-      "- Use TypeScript strict mode",
+      "- Add a corresponding test file using the target project's test conventions",
+      "- Use the target language's strictest practical type/lint/runtime checks",
       "- No external dependencies unless specified in L5 integrations",
     ].join("\n") + languageDirective(language)
   );

@@ -20,7 +20,7 @@ export const cursorAdapter: HostAdapter = {
   generateSkillFiles(language = "en"): readonly SkillFile[] {
     return [
       {
-        relativePath: "svp.md",
+        relativePath: "forge.md",
         content: buildSkillFileContent(language, genericModelTierLine(language)),
       },
     ];

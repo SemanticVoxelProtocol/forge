@@ -2,7 +2,7 @@
   "name": "@svporg/forge",
   "version": "0.3.1",
   "type": "module",
-  "description": "Semantic Voxel Protocol — five-layer observability framework for AI-assisted development",
+  "description": "Semantic Voxel Protocol — language-agnostic semantic governance for AI-assisted development",
   "license": "MIT",
   "bin": {
     "forge": "./dist/packages/cli/index.js"

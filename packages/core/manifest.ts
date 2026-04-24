@@ -103,11 +103,13 @@ export function checkSchemaCompatibility(manifest: Manifest): CompatibilityStatu
  */
 export async function checkCompatibility(root: string): Promise<Manifest> {
   // If .svp/ doesn't exist at all, nothing to check (not an initialized project)
-  try {
-    const s = await stat(path.join(root, SVP_DIR));
-    if (!s.isDirectory()) return createManifest();
-  } catch {
+  const svpRoot = path.join(root, SVP_DIR);
+  const svpStat = await stat(svpRoot).catch(() => null);
+  if (svpStat === null) {
     return createManifest();
+  }
+  if (!svpStat.isDirectory()) {
+    throw new Error(`Invalid SVP project: ${svpRoot} exists but is not a directory.`);
   }
 
   let manifest = await readManifest(root);

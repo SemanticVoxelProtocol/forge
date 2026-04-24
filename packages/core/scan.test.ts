@@ -138,7 +138,7 @@ describe("collectScanContext", () => {
     expect(paths).toEqual([...paths].toSorted());
   });
 
-  it("captures exported function candidates only for TypeScript files", async () => {
+  it("does not infer function names from source text", async () => {
     const root = await makeTempProject({
       "src/index.ts": [
         "export const alpha = 1;",
@@ -154,35 +154,17 @@ describe("collectScanContext", () => {
     const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
 
     expect(result.files).toHaveLength(1);
-    expect(result.files[0].exportNames).toEqual(["beta"]);
+    expect(result.files[0]).toEqual({ filePath: "src/index.ts" });
   });
 
-  it("always includes exportNames array on scanned files", async () => {
+  it("leaves language-specific entry point detection to AI scan prompts", async () => {
     const root = await makeTempProject({
-      "src/config.json": "{}",
-      "src/index.ts": "const localValue = 1;",
+      "src/index.ts": "export async function runTask() { return true; }",
+      "src/main.py": "def run_task():\n    return True\n",
     });
 
     const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
 
-    expect(result.files).toHaveLength(2);
-    expect(result.files.every((file) => Array.isArray(file.exportNames))).toBe(true);
-    expect(result.files.find((file) => file.filePath === "src/config.json")?.exportNames).toEqual(
-      [],
-    );
-    expect(result.files.find((file) => file.filePath === "src/index.ts")?.exportNames).toEqual([]);
-  });
-
-  it("treats exportNames as exported function candidate names only", async () => {
-    const root = await makeTempProject({
-      "src/index.ts": [
-        "export async function runTask() { return true; }",
-        "export const VALUE = 1;",
-      ].join("\n"),
-    });
-
-    const result = await collectScanContext({ root, dir: "src", maxFiles: 50 });
-
-    expect(result.files[0].exportNames).toEqual(["runTask"]);
+    expect(result.files).toEqual([{ filePath: "src/index.ts" }, { filePath: "src/main.py" }]);
   });
 });

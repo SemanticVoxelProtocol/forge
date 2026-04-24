@@ -372,9 +372,9 @@ refs/ — Reference materials (AI manages when reference content is identified):
 
 export function getWorkflowContent(language: string): string {
   if (language === "zh") {
-    return workflowZh;
+    return semanticGovernanceZh;
   }
-  return workflowEn;
+  return semanticGovernanceEn;
 }
 
 // ── Skill file: Full assembly (eliminates per-adapter copy-paste) ──
@@ -428,8 +428,8 @@ export function defaultSlashCommands(language: string, command = "/forge"): Slas
       command,
       description:
         language === "zh"
-          ? "统一入口——自动诊断项目状态，路由到 Build/Add/Change/Fix/View 模式"
-          : "Unified entry point — auto-diagnoses project state, routes to Build/Add/Change/Fix/View mode",
+          ? "统一入口——诊断项目状态，判断语义所有权，并维护 SVP 契约与 file/fn 治理"
+          : "Unified entry point — diagnoses project state, determines semantic ownership, and maintains SVP contracts plus file/fn governance",
     },
   ];
 }
@@ -474,9 +474,139 @@ export function generateContextBody(
   return contextBodyEn(opts);
 }
 
-// ── Private: Workflow templates ──
+// ── Private: Skill constitution templates ──
 
-const workflowZh = `## Step 0: 诊断路由
+const semanticGovernanceZh = `## SVP 语义治理宪法
+
+这不是操作菜单。SVP skill 负责建立判断力：先理解用户真正想改变的语义，再决定应该修改系统意图、流程编排、模块契约、文件治理、函数治理，还是只修实现。
+
+### 语义所有权判断
+
+软件变更先问“这是谁的承诺变了”，不要先问“我要改哪个文件”。
+
+- 系统目标、成功标准、业务边界变化 → 修改整体意图
+- 业务流程、触发方式、步骤顺序、跨模块数据流变化 → 修改架构编排
+- 模块行为、输入输出、校验规则、业务约束变化 → 修改 L3 语义契约
+- 文件路径、文件职责、导出覆盖、依赖边界变化 → 修改 file manifest 或重新 link
+- 导出函数名、签名、前置条件、后置条件、运行策略变化 → 修改 function manifest 或对应实现
+- 契约和治理清单都正确，但代码没有满足它们 → 修 L1 实现
+
+越高层的语义变化，越不应该从代码开始补。越靠近实现的治理漂移，越不应该假装是架构重设计。
+
+### 为什么 function governance 是一等公民
+
+文件不是最小的语义边界。一个文件可以同时包含公开入口、内部 helper、类型转换、错误处理和适配逻辑。只治理文件路径，只能知道“这段代码属于哪里”，但不知道“哪个导出函数承担了哪个语义承诺”。
+
+函数级治理解决的是更细的漂移：导出名变了、签名变了、前置条件被绕过、后置条件不再成立、运行策略没有覆盖到真正的入口点。这些问题不会总是破坏文件映射，却会破坏系统的语义稳定性。
+
+所以 \`.svp/fn\` 不是把所有函数都变成架构节点。恰恰相反，它避免 L3 膨胀：只有承担稳定语义承诺的导出函数才需要治理，普通 helper 仍然留在实现层。
+
+### 默认路线
+
+- 没有 \`.svp/\`：提醒用户先运行 \`forge init\`
+- 现有代码还没有 SVP：用 \`forge prompt scan\` 逆向提取语义契约，并在发现导出函数时生成 file/fn governance
+- 新建系统或新增能力：先对齐业务意图和流程，再设计模块契约，最后编译实现
+- 修改已有行为：先找语义所有权，再修改拥有该承诺的 artifact
+- 修复漂移：先看 \`forge check --json\` 的 issue，再判断是 hash、引用、契约、文件治理、函数治理，还是实现错误
+- 查看系统：用 \`forge view\` 收集内部结构，用业务语言向用户解释，不直接倾倒原始 SVP 术语
+
+这些是默认路线，不是死流程。默认路线的价值在于保护语义因果关系，而不是让 AI 机械执行步骤。
+
+### 原则性例外
+
+SVP 的默认方向是从高层语义向低层实现推进。但真实项目里会有例外：有时问题只是实现 bug，契约并没有错；有时只是文件拆分或导出整理，不需要重新设计模块；有时函数签名变化暴露出契约本身不够精确，需要回到 L3。
+
+遇到例外时，不要机械执行流程。先说明你判断的语义所有权在哪里，再解释为什么这次不走默认路径。偏离流程可以接受，破坏语义因果关系不可以接受。
+
+### 必要工具协议
+
+- 修改 \`.svp/\` JSON 时，\`contentHash\` 和 \`revision\` 可以写占位值；随后运行 \`forge rehash\`
+- 需要具体任务上下文时，运行 \`forge prompt <action> <id>\`，把 stdout 派发给 subagent
+- 派发 subagent 前读取 prompt 头部 \`complexity\`，选择对应模型等级
+- 生成或调整实现映射后运行 \`forge link <l3-id> --files <paths>\`；如有导出覆盖，保持 file/fn manifest 同步
+- 完成后运行 \`forge check\`；如果失败，回到语义所有权判断，而不是随机 patch
+- 无依赖的设计、编译、审查任务可以并行派发
+
+### 对用户的交付方式
+
+用户不需要学习 SVP。你应该用业务语言说明：
+
+- 我判断这次变化属于哪类语义承诺
+- 我为什么选择从这个层面修改
+- 会影响哪些功能、文件或公开入口
+- 验证结果是什么，还有没有风险
+
+内部可以精确使用 L5/L4/L3/L2/file/fn 等术语；对用户只翻译成目标、流程、模块、文件职责、公开函数和验证结果。
+
+$ARGUMENTS`;
+
+const semanticGovernanceEn = `## SVP Semantic Governance Constitution
+
+This is not an operation menu. The SVP skill builds judgment: understand what semantic commitment the user wants to change, then decide whether the owning source is system intent, process architecture, module contract, file governance, function governance, or only implementation.
+
+### Semantic Ownership
+
+For every change, first ask “which commitment changed?” Do not start with “which file should I edit?”
+
+- System goals, success criteria, or business boundaries changed → update system intent
+- Business process, trigger, step order, or cross-module data flow changed → update architecture orchestration
+- Module behavior, inputs, outputs, validation, or business constraints changed → update the L3 semantic contract
+- File path, file responsibility, export coverage, or dependency boundary changed → update file manifest or relink
+- Exported function name, signature, preconditions, postconditions, or runtime policy changed → update function manifest or backing implementation
+- Contract and governance manifests are correct, but code violates them → fix L1 implementation
+
+Higher-level semantic changes should not begin as code patches. Implementation-boundary drift should not be inflated into architecture redesign.
+
+### Why Function Governance Is First-Class
+
+A file is not the smallest semantic boundary. One file may contain public entry points, internal helpers, type conversion, error handling, and adapters. Governing only file paths tells you where code belongs, not which exported function promises which behavior.
+
+Function governance catches finer drift: export names change, signatures change, preconditions are bypassed, postconditions stop holding, or runtime policy misses the real entry point. These issues may not break file mapping, but they do break semantic stability.
+
+So \`.svp/fn\` does not turn every function into an architecture node. It prevents L3 sprawl: only exported functions with stable semantic commitments need governance; ordinary helpers stay in implementation.
+
+### Default Routes
+
+- No \`.svp/\`: tell the user to run \`forge init\` first
+- Existing code without SVP: use \`forge prompt scan\` to reverse-engineer semantic contracts, emitting file/fn governance when exported functions are discovered
+- New system or capability: align business intent and process first, then design module contracts, then compile implementation
+- Existing behavior change: find semantic ownership first, then update the artifact that owns that commitment
+- Drift repair: inspect \`forge check --json\`, then decide whether the issue is hash, reference, contract, file governance, function governance, or implementation
+- View/explain: use \`forge view\` internally, then explain in business language instead of dumping raw SVP terms
+
+These are defaults, not a rigid flow. Their purpose is preserving semantic causality, not forcing mechanical step execution.
+
+### Principled Exceptions
+
+SVP defaults to moving from higher semantic sources toward lower implementation. Real projects still have exceptions: sometimes the contract is right and only the implementation is wrong; sometimes a file split or export cleanup does not require module redesign; sometimes a function signature change reveals an underspecified L3 contract.
+
+When an exception appears, do not execute the default path mechanically. State where you believe semantic ownership lives, then explain why this case should deviate. Deviating from the workflow is acceptable; breaking semantic causality is not.
+
+### Necessary Tool Protocol
+
+- When editing \`.svp/\` JSON, placeholder \`contentHash\` and \`revision\` values are acceptable; run \`forge rehash\` afterward
+- When concrete task context is needed, run \`forge prompt <action> <id>\` and dispatch stdout to a subagent
+- Before dispatching a subagent, read the prompt header \`complexity\` and select the corresponding model tier
+- After generating or changing implementation mappings, run \`forge link <l3-id> --files <paths>\`; keep file/fn manifests synchronized with export coverage
+- Finish with \`forge check\`; if it fails, return to semantic ownership analysis instead of random patching
+- Independent design, compile, and review tasks may be dispatched in parallel
+
+### User-Facing Handoff
+
+The user does not need to learn SVP. Explain in business language:
+
+- what kind of semantic commitment you believe changed
+- why you chose this ownership level
+- which features, files, or public entry points are affected
+- what validation proved, and what risk remains
+
+Use L5/L4/L3/L2/file/fn terms internally with precision; translate them for users into goals, flows, modules, file responsibilities, public functions, and validation results.
+
+$ARGUMENTS`;
+
+// ── Deprecated workflow templates retained only for migration context ──
+
+export const legacyWorkflowZh = `## Step 0: 诊断路由
 
 - 运行 \`forge check --json\`（忽略错误）+ \`forge view l5\` + 检查 .svp/ 是否存在
 - 根据结果判断：
@@ -722,7 +852,7 @@ const workflowZh = `## Step 0: 诊断路由
 
 $ARGUMENTS`;
 
-const workflowEn = `## Step 0: Diagnostic Router
+export const legacyWorkflowEn = `## Step 0: Diagnostic Router
 
 - Run \`forge check --json\` (ignore errors) + \`forge view l5\` + check whether .svp/ exists
 - Based on the result, determine:
@@ -980,11 +1110,13 @@ function contextBodyZh(opts: ContextOptions): string {
 
 本项目使用 SVP 进行结构化 AI 辅助开发。
 
-### 五层模型
+### 语义治理模型
 
 \`\`\`
-L5 Blueprint  ─聚合─→  L4 Artifact  ─聚合─→  L3 Block  ←1:1配对→  L2 Code  ─聚合─→  L1 Source
-(意图)              (流程编排)           (契约)              (映射)           (代码)
+L5 Blueprint → L4 Artifact → L3 Block → L2 Code → L1 Source
+   意图           流程编排        语义契约       代码映射       源代码
+                                      │
+                                      └─ file/fn governance：文件所有权、导出入口、函数语义承诺
 \`\`\`
 
 ### .svp/ 目录结构
@@ -996,8 +1128,12 @@ L5 Blueprint  ─聚合─→  L4 Artifact  ─聚合─→  L3 Block  ←1:1配
 │   └── <artifact-id>.json
 ├── l3/              # L3 Block 契约
 │   └── <block-id>.json
-└── l2/              # L2 Code block 映射
-    └── <block-id>.json
+├── l2/              # L2 Code block 映射
+│   └── <block-id>.json
+├── file/            # Governed file manifests（文件所有权、导出覆盖、依赖边界）
+│   └── <file-id>.json
+└── fn/              # Governed function manifests（导出函数签名、前置/后置条件、运行策略）
+    └── <file-id>.<export-id>.json
 \`\`\`
 
 ### 模块化文档 (docs.md)
@@ -1047,7 +1183,7 @@ nodes/<block-id>/
 | **Toolchain** | 校验一致性 | \`forge check\` |
 | **Toolchain** | 渲染层视图 | \`forge view\` |
 | **Toolchain** | 生成编译任务列表 | \`forge compile-plan\` |
-| **Toolchain** | 创建/更新 L2 映射 | \`forge link\` |
+| **Toolchain** | 创建/更新 L2 映射与 file/fn 治理清单 | \`forge link\` |
 | **Toolchain** | 重算 hash | \`forge rehash\` |
 
 核心原则：AI 只做需要创造力/判断力的事。机械操作全部交给 toolchain CLI。
@@ -1081,7 +1217,7 @@ SVP prompt 包含 \`complexity\` front-matter 字段，指示任务难度：
 | \`forge check\` | 校验跨层一致性 |
 | \`forge compile-plan\` | 检测变更并生成重编译任务 |
 | \`forge rehash [target]\` | 重算 contentHash + 递增 revision |
-| \`forge link <l3-id> --files <paths>\` | 创建/更新 L2 code block 映射 |
+| \`forge link <l3-id> --files <paths>\` | 创建/更新 L2 code block 映射，并维护 file/fn 治理清单 |
 | \`forge prompt <action> <id>\` | 生成上下文感知的 AI 提示词到 stdout |
 | \`forge changeset start <name> --reason "..."\` | 创建变更集，快照基线 |
 | \`forge changeset complete\` | 完成活跃变更集，计算差异 |
@@ -1095,8 +1231,8 @@ SVP prompt 包含 \`complexity\` front-matter 字段，指示任务难度：
 |---|---|
 | \`forge prompt compile <l3-id>\` | 生成 L3→L1 编译提示词 |
 | \`forge prompt recompile <l3-id>\` | 生成重编译提示词（L3 已变更） |
-| \`forge prompt review <l3-id>\` | 生成审查提示词（L1 漂移） |
-| \`forge prompt update-ref <l4-id>\` | 生成修复断裂 L4→L3 引用的提示词 |
+| \`forge prompt review <id>\` | 生成审查提示词（L3/L1 或 file/fn 治理漂移） |
+| \`forge prompt update-ref <id>\` | 生成修复断裂 L4/L3/file/fn 引用的提示词 |
 | \`forge prompt design-l5 --intent "..."\` | 生成 L5 设计提示词 |
 | \`forge prompt design-l4 --intent "..." [--kind flow|event-graph|state-machine]\` | 生成 L4 设计提示词 |
 | \`forge prompt design-l3 <id> --flow <fid> --step <n> --intent "..."\` | 生成 L3 设计提示词 |
@@ -1112,11 +1248,11 @@ Toolchain 操作直接运行 CLI：\`forge check\`、\`forge view l3\` 等。
 
 ### 核心规则
 
-1. **分层穿透**：仅向下工作。永远不修改上层来修复下层。
-2. **上下文隔离**：主 Agent 停留在 L5+L4（~30 行）。L3 设计和 L2+L1 编译派发给 subagent。
+1. **语义所有权**：先判断变化属于意图、流程、契约、文件治理、函数治理还是实现错误。
+2. **单向因果**：优先修正拥有语义承诺的上游 artifact，不用局部代码 patch 掩盖上游不精确。
 3. **Hash 管理**：在 JSON 中写 \`"placeholder"\` 作为 contentHash。运行 \`forge rehash\` 修正。
-4. **L2 创建**：生成 L1 代码后，运行 \`forge link <l3-id> --files <paths>\` 创建 L2 映射。
-5. **验证**：每层完成后运行 \`forge check\` 确保一致性。
+4. **治理同步**：生成或调整 L1 后，运行 \`forge link <l3-id> --files <paths>\` 同步 L2 与 file/fn manifest。
+5. **验证**：完成后运行 \`forge check\` 确保契约、治理清单和代码一致。
 
 ### L3 Contract Box 模型
 
@@ -1134,6 +1270,8 @@ description → 描述中间（转换逻辑）
 **L4StateMachine**: \`{ kind: "state-machine", id, name, entity, initialState, states: {name: {onEntry?, onExit?}}, transitions: [{from, to, event, guard?}], contentHash, revision }\`
 **L3Block**: \`{ id, name, input: Pin[], output: Pin[], validate: {}, constraints[], description, contentHash, revision }\`
 **L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, revision }\`
+**FileManifest**: \`{ id, path, purpose, l2BlockRef, blockRefs[], exports[], ownership[], dependencyBoundary[], pluginGroups[], contentHash, revision }\`
+**FunctionManifest**: \`{ id, fileRef, exportName, signature, preconditions[], postconditions[], pluginPolicy[], contentHash, revision }\`
 
 ### L4 变体选择指南
 
@@ -1154,11 +1292,13 @@ function contextBodyEn(opts: ContextOptions): string {
 
 This project uses SVP for structured AI-assisted development.
 
-### Five-Layer Model
+### Semantic Governance Model
 
 \`\`\`
-L5 Blueprint  ──aggregates──→  L4 Artifact  ──aggregates──→  L3 Block  ←1:1 pair→  L2 Code  ──aggregates──→  L1 Source
-(Intent)                    (Logic chains)               (Contract)              (Mapping)               (Code)
+L5 Blueprint → L4 Artifact → L3 Block → L2 Code → L1 Source
+    Intent        Flow logic     Contract     Mapping       Code
+                                  │
+                                  └─ file/fn governance: file ownership, exported entry points, function semantic commitments
 \`\`\`
 
 ### .svp/ Directory Structure
@@ -1170,8 +1310,12 @@ L5 Blueprint  ──aggregates──→  L4 Artifact  ──aggregates──→ 
 │   └── <artifact-id>.json
 ├── l3/              # L3 Block contracts
 │   └── <block-id>.json
-└── l2/              # L2 Code block mappings
-    └── <block-id>.json
+├── l2/              # L2 Code block mappings
+│   └── <block-id>.json
+├── file/            # Governed file manifests (ownership, export coverage, dependency boundary)
+│   └── <file-id>.json
+└── fn/              # Governed function manifests (signature, pre/postconditions, runtime policy)
+    └── <file-id>.<export-id>.json
 \`\`\`
 
 ### Modular Documentation (docs.md)
@@ -1221,7 +1365,7 @@ nodes/<block-id>/
 | **Toolchain** | Validate consistency | \`forge check\` |
 | **Toolchain** | Render layer views | \`forge view\` |
 | **Toolchain** | Generate compile task list | \`forge compile-plan\` |
-| **Toolchain** | Create/update L2 mapping | \`forge link\` |
+| **Toolchain** | Create/update L2 mapping and file/fn governance manifests | \`forge link\` |
 | **Toolchain** | Recompute hash | \`forge rehash\` |
 
 Core Principle: AI only does what requires creativity or judgment. All mechanical operations go to the toolchain CLI.
@@ -1256,7 +1400,7 @@ and pass the corresponding model parameter.
 | \`forge check\` | Validate cross-layer consistency |
 | \`forge compile-plan\` | Detect changes and generate recompile tasks |
 | \`forge rehash [target]\` | Recompute contentHash + bump revision |
-| \`forge link <l3-id> --files <paths>\` | Create/update L2 code block mapping |
+| \`forge link <l3-id> --files <paths>\` | Create/update L2 code block mapping and maintain file/fn governance manifests |
 | \`forge prompt <action> <id>\` | Generate context-aware AI prompt to stdout |
 | \`forge changeset start <name> --reason "..."\` | Start changeset, snapshot baseline |
 | \`forge changeset complete\` | Complete active changeset, compute diff |
@@ -1270,8 +1414,8 @@ and pass the corresponding model parameter.
 |---|---|
 | \`forge prompt compile <l3-id>\` | Generate compile prompt for L3→L1 |
 | \`forge prompt recompile <l3-id>\` | Generate recompile prompt (L3 changed) |
-| \`forge prompt review <l3-id>\` | Generate review prompt (L1 drift) |
-| \`forge prompt update-ref <l4-id>\` | Generate fix prompt for broken L4→L3 refs |
+| \`forge prompt review <id>\` | Generate review prompt (L3/L1 or file/fn governance drift) |
+| \`forge prompt update-ref <id>\` | Generate repair prompt for broken L4/L3/file/fn references |
 | \`forge prompt design-l5 --intent "..."\` | Generate L5 design prompt |
 | \`forge prompt design-l4 --intent "..." [--kind flow|event-graph|state-machine]\` | Generate L4 design prompt |
 | \`forge prompt design-l3 <id> --flow <fid> --step <n> --intent "..."\` | Generate L3 design prompt |
@@ -1287,11 +1431,11 @@ Toolchain operations run CLI directly: \`forge check\`, \`forge view l3\`, etc.
 
 ### Core Rules
 
-1. **Layered penetration**: Work top-down only. Never modify upper layers to fix lower layers.
-2. **Context isolation**: Main agent stays at L5+L4 (~30 lines). L3 design and L2+L1 compile dispatched to subagents.
+1. **Semantic ownership**: First decide whether the change belongs to intent, flow, contract, file governance, function governance, or implementation.
+2. **One-way causality**: Prefer fixing the upstream artifact that owns the commitment; do not hide underspecified semantics with local code patches.
 3. **Hash management**: Write \`"placeholder"\` for contentHash in JSON. Run \`forge rehash\` to fix.
-4. **L2 creation**: After generating L1 code, run \`forge link <l3-id> --files <paths>\` to create L2 mapping.
-5. **Verification**: Run \`forge check\` after each layer to ensure consistency.
+4. **Governance sync**: After generating or changing L1, run \`forge link <l3-id> --files <paths>\` to sync L2 plus file/fn manifests.
+5. **Verification**: Run \`forge check\` when complete to ensure contracts, governance manifests, and code align.
 
 ### L3 Contract Box Model
 
@@ -1309,6 +1453,8 @@ description → describes the MIDDLE (transformation logic)
 **L4StateMachine**: \`{ kind: "state-machine", id, name, entity, initialState, states: {name: {onEntry?, onExit?}}, transitions: [{from, to, event, guard?}], contentHash, revision }\`
 **L3Block**: \`{ id, name, input: Pin[], output: Pin[], validate: {}, constraints[], description, contentHash, revision }\`
 **L2CodeBlock**: \`{ id, blockRef, language, files[], sourceHash, contentHash, revision }\`
+**FileManifest**: \`{ id, path, purpose, l2BlockRef, blockRefs[], exports[], ownership[], dependencyBoundary[], pluginGroups[], contentHash, revision }\`
+**FunctionManifest**: \`{ id, fileRef, exportName, signature, preconditions[], postconditions[], pluginPolicy[], contentHash, revision }\`
 
 ### L4 Variant Selection Guide
 

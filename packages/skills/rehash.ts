@@ -2,7 +2,9 @@
 // AI 写完 JSON 后运行 forge rehash，自动修正 hash
 // 纯函数，不做 IO
 
-import { hashL2, hashL3, hashL4, hashL5 } from "../core/hash.js";
+import { computeHash, hashL2, hashL3, hashL4, hashL5 } from "../core/hash.js";
+import type { FileManifest } from "../core/file.js";
+import type { FunctionManifest } from "../core/function.js";
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
 import type { L4Artifact } from "../core/l4.js";
@@ -11,7 +13,7 @@ import type { ArtifactVersion } from "../core/version.js";
 
 export interface RehashResult {
   readonly id: string;
-  readonly layer: "l2" | "l3" | "l4" | "l5";
+  readonly layer: "l2" | "l3" | "l4" | "l5" | "file" | "fn";
   readonly oldHash: string;
   readonly newHash: string;
   readonly changed: boolean;
@@ -86,6 +88,48 @@ export function rehashL2(cb: L2CodeBlock): { data: L2CodeBlock; result: RehashRe
   return {
     data,
     result: { id: cb.id, layer: "l2", oldHash: cb.contentHash, newHash, changed },
+  };
+}
+
+/** 重算 file manifest 的 contentHash，hash 变了则 rev+1 */
+export function rehashFileManifest(manifest: FileManifest): {
+  data: FileManifest;
+  result: RehashResult;
+} {
+  const { contentHash: _ch, revision: _rev, ...rest } = manifest;
+  const newHash = computeHash(rest as Record<string, unknown>);
+  const changed = newHash !== manifest.contentHash;
+
+  const data: FileManifest = {
+    ...manifest,
+    contentHash: newHash,
+    ...(changed ? { revision: bumpRevision(manifest.revision) } : {}),
+  };
+
+  return {
+    data,
+    result: { id: manifest.id, layer: "file", oldHash: manifest.contentHash, newHash, changed },
+  };
+}
+
+/** 重算 function manifest 的 contentHash，hash 变了则 rev+1 */
+export function rehashFunctionManifest(manifest: FunctionManifest): {
+  data: FunctionManifest;
+  result: RehashResult;
+} {
+  const { contentHash: _ch, revision: _rev, ...rest } = manifest;
+  const newHash = computeHash(rest as Record<string, unknown>);
+  const changed = newHash !== manifest.contentHash;
+
+  const data: FunctionManifest = {
+    ...manifest,
+    contentHash: newHash,
+    ...(changed ? { revision: bumpRevision(manifest.revision) } : {}),
+  };
+
+  return {
+    data,
+    result: { id: manifest.id, layer: "fn", oldHash: manifest.contentHash, newHash, changed },
   };
 }
 

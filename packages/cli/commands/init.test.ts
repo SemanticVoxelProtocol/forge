@@ -108,8 +108,8 @@ describe("forge init", () => {
     expect(await dirExists(commandsDir)).toBe(true);
 
     // Should have at least one .md slash command file
-    const svpCmd = path.join(commandsDir, "svp.md");
-    expect(await fileExists(svpCmd)).toBe(true);
+    const forgeCmd = path.join(commandsDir, "forge.md");
+    expect(await fileExists(forgeCmd)).toBe(true);
   });
 
   it("--host claude-code appends SVP section to CLAUDE.md", async () => {
@@ -226,7 +226,7 @@ describe("forge init", () => {
     expect(content).toMatch(/^---\nname: svp/);
     expect(content).toContain("type: flow");
     // Should have the workflow content
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host kimi-code creates AGENTS.md with SVP section", async () => {
@@ -260,7 +260,7 @@ describe("forge init", () => {
     expect(content).toContain("o3");
     expect(content).toContain("o4-mini");
     // Should have the workflow content
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host codex creates AGENTS.md with SVP section", async () => {
@@ -317,11 +317,11 @@ describe("forge init", () => {
 
     expect(exitCode).toBe(0);
 
-    const skillFile = path.join(testRoot, ".cursor", "commands", "svp.md");
+    const skillFile = path.join(testRoot, ".cursor", "commands", "forge.md");
     expect(await fileExists(skillFile)).toBe(true);
 
     const content = await readFile(skillFile, "utf8");
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host cursor creates .cursor/rules/svp.mdc with frontmatter", async () => {
@@ -346,11 +346,11 @@ describe("forge init", () => {
 
     expect(exitCode).toBe(0);
 
-    const skillFile = path.join(testRoot, ".windsurf", "commands", "svp.md");
+    const skillFile = path.join(testRoot, ".windsurf", "commands", "forge.md");
     expect(await fileExists(skillFile)).toBe(true);
 
     const content = await readFile(skillFile, "utf8");
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host windsurf creates .windsurf/rules/svp.md with SVP section", async () => {
@@ -378,7 +378,7 @@ describe("forge init", () => {
     expect(await fileExists(skillFile)).toBe(true);
 
     const content = await readFile(skillFile, "utf8");
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host github-copilot creates .github/copilot-instructions.md with SVP section", async () => {
@@ -565,7 +565,7 @@ describe("forge init", () => {
     const content = await readFile(skillFile, "utf8");
     // Cline has no YAML frontmatter
     expect(content).not.toMatch(/^---\n/);
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
     // Should have version stamp
     expect(content).toContain("<!-- svp-skill-version:");
   });
@@ -596,7 +596,7 @@ describe("forge init", () => {
     const content = await readFile(skillFile, "utf8");
     // Gemini has YAML frontmatter
     expect(content).toMatch(/^---\nname: svp/);
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host gemini-cli creates GEMINI.md with SVP section", async () => {
@@ -625,7 +625,7 @@ describe("forge init", () => {
     const content = await readFile(skillFile, "utf8");
     // RooCode has YAML frontmatter
     expect(content).toMatch(/^---\nname: svp/);
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("--host roo-code creates AGENTS.md with SVP section", async () => {
@@ -718,7 +718,7 @@ describe("forge init", () => {
     await runInit(testRoot, ["my-app", "--host", "claude-code"]);
 
     // Overwrite the skill file with legacy content (no version tag)
-    const skillFile = path.join(testRoot, ".claude", "commands", "svp.md");
+    const skillFile = path.join(testRoot, ".claude", "commands", "forge.md");
     await writeFile(skillFile, "# Legacy content without version tag\n", "utf8");
 
     // Re-init should detect legacy and update
@@ -730,7 +730,7 @@ describe("forge init", () => {
     // Verify the file now has the version tag
     const content = await readFile(skillFile, "utf8");
     expect(content).toContain("<!-- svp-skill-version:");
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 
   it("extend mode: older version gets updated with version transition message", async () => {
@@ -738,7 +738,7 @@ describe("forge init", () => {
     await runInit(testRoot, ["my-app", "--host", "claude-code"]);
 
     // Overwrite with an older version tag
-    const skillFile = path.join(testRoot, ".claude", "commands", "svp.md");
+    const skillFile = path.join(testRoot, ".claude", "commands", "forge.md");
     await writeFile(skillFile, "# Old content\n\n<!-- svp-skill-version: 0.0.1 -->\n", "utf8");
 
     // Re-init should detect older version and update
@@ -750,6 +750,6 @@ describe("forge init", () => {
 
     // Verify the file has been updated
     const content = await readFile(skillFile, "utf8");
-    expect(content).toContain("Step 0: Diagnostic Router");
+    expect(content).toContain("SVP Semantic Governance Constitution");
   });
 });

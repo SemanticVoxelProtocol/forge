@@ -1,7 +1,14 @@
 // packages/skills — AI Skill 实现 & host adapter 集成
 // 提供：rehash、link、prompt 模板、adapter、slash command 模板
 
-export { rehashL5, rehashL4, rehashL3, rehashL2 } from "./rehash.js";
+export {
+  rehashL5,
+  rehashL4,
+  rehashL3,
+  rehashL2,
+  rehashFileManifest,
+  rehashFunctionManifest,
+} from "./rehash.js";
 export type { RehashResult } from "./rehash.js";
 
 export { createGovernedLink, createL2Link, relinkL2 } from "./link.js";

@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -123,5 +123,13 @@ describe("checkCompatibility", () => {
     await writeManifest(testRoot, future);
 
     await expect(checkCompatibility(testRoot)).rejects.toThrow("upgrade forge");
+  });
+
+  it("throws when .svp exists but is not a directory", async () => {
+    const brokenRoot = path.join(testRoot, "broken-project");
+    await mkdir(brokenRoot, { recursive: true });
+    await writeFile(path.join(brokenRoot, ".svp"), "not a directory", "utf8");
+
+    await expect(checkCompatibility(brokenRoot)).rejects.toThrow("exists but is not a directory");
   });
 });

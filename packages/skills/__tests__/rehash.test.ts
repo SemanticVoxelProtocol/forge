@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { hashL3, hashL4, hashL5 } from "../../core/hash.js";
-import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../rehash.js";
+import { computeHash, hashL3, hashL4, hashL5 } from "../../core/hash.js";
+import {
+  rehashFileManifest,
+  rehashFunctionManifest,
+  rehashL2,
+  rehashL3,
+  rehashL4,
+  rehashL5,
+} from "../rehash.js";
+import type { FileManifest } from "../../core/file.js";
+import type { FunctionManifest } from "../../core/function.js";
 import type { L2CodeBlock } from "../../core/l2.js";
 import type { L3Block } from "../../core/l3.js";
 import type { L4EventGraph, L4Flow, L4StateMachine } from "../../core/l4.js";
@@ -62,6 +71,38 @@ function makeL2(overrides?: Partial<L2CodeBlock>): L2CodeBlock {
     language: "typescript",
     files: ["src/test-block.ts"],
     sourceHash: "abc123",
+    contentHash: "placeholder",
+    revision: baseRevision,
+    ...overrides,
+  };
+}
+
+function makeFileManifest(overrides?: Partial<FileManifest>): FileManifest {
+  return {
+    id: "file-src-test-block-ts",
+    path: "src/test-block.ts",
+    purpose: "Govern src/test-block.ts",
+    l2BlockRef: "test-block",
+    blockRefs: ["test-block"],
+    exports: ["runTestBlock"],
+    ownership: ["src"],
+    dependencyBoundary: ["src/*"],
+    pluginGroups: ["governance"],
+    contentHash: "placeholder",
+    revision: baseRevision,
+    ...overrides,
+  };
+}
+
+function makeFunctionManifest(overrides?: Partial<FunctionManifest>): FunctionManifest {
+  return {
+    id: "file-src-test-block-ts.run-test-block",
+    fileRef: "file-src-test-block-ts",
+    exportName: "runTestBlock",
+    signature: "runTestBlock(…): unknown",
+    preconditions: [],
+    postconditions: [],
+    pluginPolicy: ["governance"],
     contentHash: "placeholder",
     revision: baseRevision,
     ...overrides,
@@ -168,6 +209,44 @@ describe("rehashL2", () => {
   it("is idempotent", () => {
     const { data: first } = rehashL2(makeL2());
     const { result } = rehashL2(first);
+    expect(result.changed).toBe(false);
+  });
+});
+
+describe("rehashFileManifest", () => {
+  it("computes correct contentHash for file manifest", () => {
+    const manifest = makeFileManifest();
+    const { data, result } = rehashFileManifest(manifest);
+
+    expect(result.changed).toBe(true);
+    expect(result.layer).toBe("file");
+    expect(data.contentHash).toBe(result.newHash);
+    const { contentHash: _, revision: _r, ...rest } = manifest;
+    expect(data.contentHash).toBe(computeHash(rest as Record<string, unknown>));
+  });
+
+  it("is idempotent", () => {
+    const { data: first } = rehashFileManifest(makeFileManifest());
+    const { result } = rehashFileManifest(first);
+    expect(result.changed).toBe(false);
+  });
+});
+
+describe("rehashFunctionManifest", () => {
+  it("computes correct contentHash for function manifest", () => {
+    const manifest = makeFunctionManifest();
+    const { data, result } = rehashFunctionManifest(manifest);
+
+    expect(result.changed).toBe(true);
+    expect(result.layer).toBe("fn");
+    expect(data.contentHash).toBe(result.newHash);
+    const { contentHash: _, revision: _r, ...rest } = manifest;
+    expect(data.contentHash).toBe(computeHash(rest as Record<string, unknown>));
+  });
+
+  it("is idempotent", () => {
+    const { data: first } = rehashFunctionManifest(makeFunctionManifest());
+    const { result } = rehashFunctionManifest(first);
     expect(result.changed).toBe(false);
   });
 });

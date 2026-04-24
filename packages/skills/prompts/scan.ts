@@ -13,9 +13,7 @@ import type { ScanContext } from "../../core/scan.js";
 function formatFileTree(ctx: ScanContext): string {
   const lines: string[] = [];
   for (const f of ctx.files) {
-    const exportSuffix =
-      f.exportNames.length === 0 ? "" : ` [exportNames: ${f.exportNames.join(", ")}]`;
-    lines.push(`- ${f.filePath}${exportSuffix}`);
+    lines.push(`- ${f.filePath}`);
   }
   if (ctx.summary.truncated) {
     lines.push(`  ... (truncated to ${String(ctx.summary.totalFiles)} files)`);
@@ -64,7 +62,7 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
     [
       "# Reverse-Engineer L3 Contracts from Existing Code",
       "",
-      "You are analyzing an existing codebase to extract L3 contract blocks for SVP.",
+      "You are analyzing an existing codebase to extract language-agnostic L3 contract blocks for SVP.",
       "L3 blocks are the interface specifications — each groups related files into a logical unit.",
       "",
       ...(input.userIntent === undefined ? [] : ["## System Intent", "", input.userIntent, ""]),
@@ -80,7 +78,7 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "",
       "Analyze the scanned code and group related files into logical L3 blocks.",
       "Each block represents one cohesive responsibility unit.",
-      "Also derive governed file/function manifests from the same scan context so Tasks 3/4 shapes stay aligned.",
+      "Also derive governed file/function manifests from the same scan context so Tasks 3/4 shapes stay aligned across implementation languages.",
       "",
       "For each block:",
       "1. **Identify cohesion**: Group files that work together (same domain, shared types)",
@@ -99,12 +97,15 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "## Governed Manifest Outputs",
       "",
       "For every source file you include in a block, also write a governed file manifest to `.svp/file/<file-id>.json`.",
-      "- Keep `path` equal to the scanned file path and keep `exports` aligned with the discovered `exportNames`.",
+      "- The JSON filename must exactly match the manifest `id`: `.svp/file/<id>.json`.",
+      "- Keep `path` equal to the scanned file path and let the AI determine `exports` from the source language's public entry-point conventions.",
       "- Capture file-level governance context such as purpose, ownership, dependencyBoundary, and pluginGroups.",
-      "For every governed exported function, also write a function manifest to `.svp/fn/<file-id>.<export-id>.json`.",
+      "For every governed function/entry point, also write a function manifest to `.svp/fn/<file-id>.<export-id>.json`.",
+      "- The JSON filename must exactly match the function manifest `id`: `.svp/fn/<id>.json`.",
       "- Use dotted function manifest IDs: `<file-id>.<export-id>`.",
-      "- The function manifest must reference its parent file manifest via `fileRef` and preserve the original `exportName`.",
-      "- Only the rendered `exportNames` are guaranteed function-level evidence here, so keep function manifests aligned with those names.",
+      "- The function manifest must reference its parent file manifest via `fileRef` and preserve the original public entry-point name in `exportName`.",
+      "- SVP does not statically infer function names here. You must inspect the code and choose governed entry points according to the project's language and framework conventions.",
+      "- Do not create function manifests for every helper; govern only stable public entry points or functions with explicit semantic commitments.",
       "- When deeper function details are not evident from the rendered prompt, use conservative placeholders/default governance values.",
       "- Default signature to `<exportName>(…): unknown` unless the rendered prompt provides stronger evidence.",
       "",
@@ -118,16 +119,16 @@ export function buildScanL3Prompt(input: ScanL3Input): string {
       "",
       "## After Writing",
       "",
-      "Run `forge rehash l3` to fix all contentHash values.",
+      "Run `forge rehash` to fix contentHash values for L3 plus governed file/function manifests.",
       "Then run `forge prompt scan` to proceed to Phase 2 (L4 flow design).",
       "",
       "## Rules",
       "",
-      "- Pin types reference TypeScript interface names from the project",
+      "- Pin types reference the project's own language types, schemas, DTOs, or equivalent contract names",
       '- validate uses natural language: `"array, min 1"` not code',
       "- constraints use natural language assertions about output",
       "- description explains WHAT, not HOW (implementation is already in code)",
-      "- Keep exportNames, governed file manifests, and governed function manifests consistent with each other",
+      "- Keep file manifest `exports` and governed function manifests consistent with the public entry points you identify",
       '- Write "placeholder" for contentHash — rehash will fix it',
       "- Do NOT create blocks for test files, configs, or build artifacts",
     ].join("\n") +

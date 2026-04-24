@@ -10,7 +10,7 @@ import { writeL5 } from "./store.js";
 import type { L5Blueprint } from "./l5.js";
 
 const SVP_DIR = ".svp";
-const SUB_DIRS = ["l2", "l3", "l4", "changesets"] as const;
+const SUB_DIRS = ["l2", "l3", "l4", "file", "fn", "changesets"] as const;
 
 export interface InitOptions {
   readonly name: string;

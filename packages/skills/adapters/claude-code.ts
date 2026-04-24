@@ -22,7 +22,7 @@ export const claudeCodeAdapter: HostAdapter = {
         ? "heavy=opus/最强 | standard=sonnet/均衡 | light=haiku/最快"
         : "heavy=opus/strongest | standard=sonnet/balanced | light=haiku/fastest";
 
-    return [{ relativePath: "svp.md", content: buildSkillFileContent(language, modelTierLine) }];
+    return [{ relativePath: "forge.md", content: buildSkillFileContent(language, modelTierLine) }];
   },
 
   contextFilePath() {
