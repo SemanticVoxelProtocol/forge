@@ -21,10 +21,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: tsc --noEmit
+      - run: npm exec tsc -- --noEmit
       - run: npm run lint
       - run: npm run format:check
-      - run: npx vitest run
+      - run: npm test
       - name: Coverage report
         if: matrix.node-version == 22
         run: npx vitest run --coverage --test-timeout=30000
@@ -39,7 +39,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: tsc
+      - run: npm run build
       - name: Verify CLI entry point exists
         run: test -f dist/packages/cli/index.js
       - name: Smoke test
