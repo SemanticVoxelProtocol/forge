@@ -99,7 +99,7 @@ jobs:
             echo "NPM_TOKEN secret is not set; relying on npm trusted publishing/OIDC." >&2
           fi
 
-          npm publish --provenance --access public --tag "$NPM_DIST_TAG"
+          npx --yes npm@latest publish --provenance --access public --tag "$NPM_DIST_TAG"
       - name: Verify published package
         run: |
           set -euo pipefail
