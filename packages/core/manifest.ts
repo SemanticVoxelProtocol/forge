@@ -5,7 +5,7 @@ import path from "node:path";
 import { VERSION } from "./version.js";
 
 /** Current schema version for the .svp/ data model */
-export const SCHEMA_VERSION = "1.2.0";
+export const SCHEMA_VERSION = "2.0.0";
 
 export interface Manifest {
   readonly schemaVersion: string;
@@ -115,8 +115,21 @@ export async function checkCompatibility(root: string): Promise<Manifest> {
   let manifest = await readManifest(root);
 
   if (manifest === null) {
-    // Legacy project without manifest — create one at v1.0.0
-    manifest = createManifest();
+    // Legacy project without manifest — treat as schema v1 and migrate to current.
+    const now = new Date().toISOString();
+    const legacyMajor = 1;
+    const currentMajor = major(SCHEMA_VERSION);
+    if (legacyMajor < currentMajor) {
+      const { runMigrations } = await import("./migrate.js");
+      await runMigrations(root, legacyMajor, currentMajor);
+    }
+
+    manifest = {
+      schemaVersion: SCHEMA_VERSION,
+      forgeVersion: VERSION,
+      createdAt: now,
+      updatedAt: new Date().toISOString(),
+    };
     await writeManifest(root, manifest);
     return manifest;
   }

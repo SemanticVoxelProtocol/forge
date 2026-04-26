@@ -3,16 +3,33 @@
 
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadCheckInput } from "../cli/load.js";
 import { check } from "../core/check.js";
 import { compilePlan } from "../core/compile-plan.js";
+import { computeEvidenceHash } from "../core/evidence.js";
 import { hashL2, hashL3, hashL4 } from "../core/hash.js";
 import { init } from "../core/init.js";
-import { writeL2, writeL3, writeL4, writeL5 } from "../core/store.js";
-import { rehashL2, rehashL3, rehashL4, rehashL5 } from "../skills/rehash.js";
+import {
+  readFileManifest,
+  readFunctionManifest,
+  writeFileManifest,
+  writeFunctionManifest,
+  writeL2,
+  writeL3,
+  writeL4,
+  writeL5,
+} from "../core/store.js";
+import {
+  rehashFileManifest,
+  rehashFunctionManifest,
+  rehashL2,
+  rehashL3,
+  rehashL4,
+  rehashL5,
+} from "../skills/rehash.js";
 import type { L2CodeBlock } from "../core/l2.js";
 import type { L3Block } from "../core/l3.js";
 import type { L4Flow } from "../core/l4.js";
@@ -555,6 +572,109 @@ describe("E2E: SVP Pipeline", () => {
         ].includes(issue.code),
       );
       expect(postRelinkGovernanceIssues).toHaveLength(0);
+    });
+
+    it("validates agent-authored source evidence and routes stale evidence to review tasks", async () => {
+      await init(tmpDir, { name: "governed-evidence-test" });
+
+      const sourcePath = "src/governed-block.ts";
+      const sourceContent = "export function runBlock(): boolean {\n  return true;\n}\n";
+      const excerpt = "export function runBlock(): boolean";
+      await mkdir(path.join(tmpDir, "src"), { recursive: true });
+      await writeFile(path.join(tmpDir, sourcePath), sourceContent, "utf8");
+
+      const l3 = makeL3({ id: "governed-block", name: "governed-block" });
+      await writeL3(tmpDir, l3);
+
+      const primaryFileId = "file-src-governed-block-ts";
+      const primaryFunctionId = `${primaryFileId}.run-block`;
+
+      const linkResult = runSvp(
+        `link governed-block --files ${sourcePath} --exports ${sourcePath}=runBlock -r "${tmpDir}"`,
+        tmpDir,
+      );
+      expect(linkResult.ok).toBe(true);
+
+      const fileManifest = await readFileManifest(tmpDir, primaryFileId);
+      const functionManifest = await readFunctionManifest(tmpDir, primaryFunctionId);
+      expect(fileManifest).not.toBeNull();
+      expect(functionManifest).not.toBeNull();
+
+      const evidence = {
+        path: sourcePath,
+        kind: "source-excerpt" as const,
+        excerpt,
+        excerptHash: computeEvidenceHash(excerpt),
+        fileHash: computeEvidenceHash(sourceContent),
+        note: "AI observed exported function in source during governed link.",
+      };
+
+      const { data: fileWithEvidence } = rehashFileManifest({
+        ...fileManifest!,
+        evidence: [evidence],
+        confidence: "high",
+        assumptions: [],
+        needsHumanReview: false,
+      });
+      const { data: functionWithEvidence } = rehashFunctionManifest({
+        ...functionManifest!,
+        observedSignature: "runBlock(): boolean",
+        contractSignature: "runBlock(): boolean",
+        evidence: [evidence],
+        confidence: "high",
+        assumptions: [],
+        needsHumanReview: false,
+      });
+      await writeFileManifest(tmpDir, fileWithEvidence);
+      await writeFunctionManifest(tmpDir, functionWithEvidence);
+
+      let input = await loadCheckInput(tmpDir);
+      expect(input.evidenceFiles?.[sourcePath]).toMatchObject({
+        path: sourcePath,
+        exists: true,
+        fileHash: computeEvidenceHash(sourceContent),
+      });
+
+      let report = check(input);
+      expect(
+        report.issues.filter((issue) =>
+          [
+            "MISSING_GOVERNANCE_EVIDENCE",
+            "STALE_GOVERNANCE_EVIDENCE",
+            "MISSING_EVIDENCE_FILE",
+            "LOW_CONFIDENCE_GOVERNANCE",
+            "NEEDS_HUMAN_REVIEW",
+          ].includes(issue.code),
+        ),
+      ).toHaveLength(0);
+
+      await writeFile(
+        path.join(tmpDir, sourcePath),
+        "export function runBlock(): boolean {\n  return false;\n}\n",
+        "utf8",
+      );
+
+      input = await loadCheckInput(tmpDir);
+      report = check(input);
+
+      const staleEvidenceIssues = report.issues.filter(
+        (issue) => issue.code === "STALE_GOVERNANCE_EVIDENCE",
+      );
+      expect(staleEvidenceIssues).toHaveLength(2);
+      expect(staleEvidenceIssues.map((issue) => issue.layer).toSorted()).toEqual([
+        "file",
+        "function",
+      ]);
+
+      const plan = compilePlan(input);
+      const fnReviewTask = plan.tasks.find(
+        (task) =>
+          task.targetLayer === "fn" &&
+          task.targetId === primaryFunctionId &&
+          task.issueCode === "STALE_GOVERNANCE_EVIDENCE",
+      );
+      expect(fnReviewTask).toBeDefined();
+      expect(fnReviewTask?.action).toBe("review");
     });
   });
 });

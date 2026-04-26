@@ -226,7 +226,7 @@ describe("forge link", () => {
     expect(stderr).toContain("not found");
   });
 
-  it("--json flag: outputs valid JSON of the L2 object", async () => {
+  it("--json flag: outputs the governed link result for agents", async () => {
     const l3 = makeL3();
     await writeL3(testRoot, l3);
 
@@ -239,14 +239,24 @@ describe("forge link", () => {
 
     expect(exitCode).toBe(0);
 
-    const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    expect(parsed).toHaveProperty("id", "validate-order");
-    expect(parsed).toHaveProperty("blockRef", "validate-order");
-    expect(parsed).toHaveProperty("language", "typescript");
-    expect(parsed).toHaveProperty("files");
-    expect(parsed).toHaveProperty("sourceHash");
-    expect(parsed).toHaveProperty("contentHash");
-    expect(parsed).toHaveProperty("revision");
+    const parsed = JSON.parse(stdout) as {
+      action: string;
+      l2: Record<string, unknown>;
+      fileManifests: unknown[];
+      functionManifests: unknown[];
+      deleted: { fileManifests: unknown[]; functionManifests: unknown[] };
+    };
+    expect(parsed).toHaveProperty("action", "linked");
+    expect(parsed.l2).toHaveProperty("id", "validate-order");
+    expect(parsed.l2).toHaveProperty("blockRef", "validate-order");
+    expect(parsed.l2).toHaveProperty("language", "typescript");
+    expect(parsed.l2).toHaveProperty("files");
+    expect(parsed.l2).toHaveProperty("sourceHash");
+    expect(parsed.l2).toHaveProperty("contentHash");
+    expect(parsed.l2).toHaveProperty("revision");
+    expect(parsed.fileManifests).toHaveLength(1);
+    expect(parsed.functionManifests).toHaveLength(0);
+    expect(parsed.deleted).toEqual({ fileManifests: [], functionManifests: [] });
   });
 
   it("writes governed file manifests alongside the L2 link", async () => {

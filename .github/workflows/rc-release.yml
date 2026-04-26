@@ -1,0 +1,138 @@
+name: RC Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*-rc.*"
+  workflow_dispatch:
+    inputs:
+      npm_tag:
+        description: "npm dist-tag for this release candidate"
+        required: true
+        default: rc
+        type: choice
+        options:
+          - rc
+          - next
+      dry_run:
+        description: "Run the full pipeline without publishing"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: rc-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish-rc:
+    name: Validate and publish RC
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NPM_DIST_TAG: ${{ inputs.npm_tag || 'rc' }}
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - name: Verify RC tag and package metadata
+        run: |
+          set -euo pipefail
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+
+          if [[ "$VERSION" != *"-rc."* ]]; then
+            echo "package.json version must be an rc prerelease, got: $VERSION" >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            echo "RC publish must run from a git tag, got ref type: $GITHUB_REF_TYPE" >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "Tag/version mismatch: tag=$GITHUB_REF_NAME package=v$VERSION" >&2
+            exit 1
+          fi
+
+          case "$NPM_DIST_TAG" in
+            rc|next) ;;
+            *)
+              echo "RC workflow only allows npm dist-tags 'rc' or 'next', got: $NPM_DIST_TAG" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "PACKAGE_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "PACKAGE_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Verify project
+        run: |
+          set -euo pipefail
+          npm run check
+          npm test
+          npm run build
+          npm audit --omit=dev
+          npm audit
+      - name: Verify npm package contents
+        run: |
+          set -euo pipefail
+          PACK_JSON="$RUNNER_TEMP/npm-pack.json"
+          npm pack --dry-run --json > "$PACK_JSON"
+          node - "$PACK_JSON" <<'NODE'
+          const fs = require('node:fs')
+          const [pack] = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+          const paths = pack.files.map((file) => file.path)
+          const required = [
+            'README.md',
+            'LICENSE',
+            'dist/packages/cli/index.js',
+            'docs/migrations/2.0.0.md',
+          ]
+          const forbidden = paths.filter(
+            (path) => /(^|\/)__tests__(\/|$)/.test(path) || /\.test\.(js|d\.ts)$/.test(path),
+          )
+          const missing = required.filter((path) => !paths.includes(path))
+          if (missing.length > 0 || forbidden.length > 0) {
+            if (missing.length > 0) console.error(`Missing package files: ${missing.join(', ')}`)
+            if (forbidden.length > 0) console.error(`Forbidden test files in package: ${forbidden.join(', ')}`)
+            process.exit(1)
+          }
+          console.log(`Pack OK: ${pack.name}@${pack.version}, ${pack.entryCount} files, ${pack.size} bytes`)
+          NODE
+      - name: Publish RC to npm
+        run: |
+          set -euo pipefail
+          publish_args=(--access public --tag "$NPM_DIST_TAG")
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            publish_args+=(--dry-run)
+          else
+            publish_args+=(--provenance)
+          fi
+
+          if [[ -n "${NPM_TOKEN:-}" ]]; then
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            unset NODE_AUTH_TOKEN
+            echo "NPM_TOKEN secret is not set; relying on npm trusted publishing/OIDC." >&2
+          fi
+
+          npm publish "${publish_args[@]}"
+      - name: Verify published RC
+        if: env.DRY_RUN != 'true'
+        run: |
+          set -euo pipefail
+          npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version --json
+          npm view "$PACKAGE_NAME" dist-tags --json

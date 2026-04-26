@@ -4,6 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { computeHash } from "../../core/hash.js";
+import { createManifest, writeManifest } from "../../core/manifest.js";
 import { writeFileManifest, writeL2, writeL3 } from "../../core/store.js";
 import { governedFileManifestId } from "../../skills/link.js";
 import { registerCompilePlan } from "./compile-plan.js";
@@ -113,6 +114,8 @@ describe("forge compile-plan", () => {
       `svp-compile-plan-test-${String(Date.now())}-${String(Math.random()).slice(2, 8)}`,
     );
     await mkdir(testRoot, { recursive: true });
+    await mkdir(path.join(testRoot, ".svp"), { recursive: true });
+    await writeManifest(testRoot, createManifest());
   });
 
   afterEach(async () => {

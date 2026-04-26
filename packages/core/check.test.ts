@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { check } from "./check.js";
+import { computeEvidenceHash } from "./evidence.js";
 import { computeHash, hashL2, hashL3, hashL4, hashL5 } from "./hash.js";
 import type { CheckInput } from "./check.js";
 import type { FileManifest } from "./file.js";
@@ -443,6 +444,112 @@ describe("check — file/function manifests", () => {
     expect(refIssues).toHaveLength(1);
     expect(refIssues[0].layer).toBe("function");
     expect(refIssues[0].entityId).toBe(fn.id);
+  });
+});
+
+describe("check — governance evidence", () => {
+  it("accepts fresh source evidence without language parsing", () => {
+    const source = "export function validateOrder() { return true; }";
+    const file = makeFileManifest({
+      evidence: [
+        {
+          path: "src/validate-order.ts",
+          kind: "source-excerpt",
+          excerpt: "export function validateOrder",
+          excerptHash: computeEvidenceHash("export function validateOrder"),
+          fileHash: computeEvidenceHash(source),
+        },
+      ],
+      confidence: "high",
+      needsHumanReview: false,
+    });
+    const fn = makeFunctionManifest({
+      evidence: file.evidence,
+      confidence: "high",
+      needsHumanReview: false,
+    });
+
+    const report = check({
+      ...validInput(),
+      fileManifests: [file],
+      functionManifests: [fn],
+      evidenceFiles: {
+        "src/validate-order.ts": {
+          path: "src/validate-order.ts",
+          exists: true,
+          content: source,
+          fileHash: computeEvidenceHash(source),
+        },
+      },
+    });
+
+    expect(report.issues.filter((issue) => issue.code.includes("GOVERNANCE"))).toEqual([]);
+    expect(report.issues.filter((issue) => issue.code === "MISSING_EVIDENCE_FILE")).toEqual([]);
+  });
+
+  it("detects stale source evidence when the file hash changes", () => {
+    const file = makeFileManifest({
+      evidence: [
+        {
+          path: "src/validate-order.ts",
+          kind: "source-excerpt",
+          fileHash: computeEvidenceHash("old source"),
+        },
+      ],
+    });
+
+    const report = check({
+      ...validInput(),
+      fileManifests: [file],
+      functionManifests: [],
+      evidenceFiles: {
+        "src/validate-order.ts": {
+          path: "src/validate-order.ts",
+          exists: true,
+          content: "new source",
+          fileHash: computeEvidenceHash("new source"),
+        },
+      },
+    });
+
+    const evidenceIssues = report.issues.filter(
+      (issue) => issue.code === "STALE_GOVERNANCE_EVIDENCE",
+    );
+    expect(evidenceIssues).toHaveLength(1);
+    expect(evidenceIssues[0]).toMatchObject({ layer: "file", entityId: file.id });
+  });
+
+  it("detects missing evidence files", () => {
+    const fn = makeFunctionManifest({
+      evidence: [{ path: "src/missing.ts", kind: "source-excerpt" }],
+    });
+
+    const report = check({
+      ...validInput(),
+      functionManifests: [fn],
+      evidenceFiles: {
+        "src/missing.ts": { path: "src/missing.ts", exists: false },
+      },
+    });
+
+    const evidenceIssues = report.issues.filter((issue) => issue.code === "MISSING_EVIDENCE_FILE");
+    expect(evidenceIssues).toHaveLength(1);
+    expect(evidenceIssues[0]).toMatchObject({ layer: "function", entityId: fn.id });
+  });
+
+  it("surfaces low-confidence and human-review governance flags", () => {
+    const file = makeFileManifest({
+      confidence: "low",
+      needsHumanReview: true,
+      evidence: [],
+    });
+
+    const report = check({ ...validInput(), fileManifests: [file], functionManifests: [] });
+    const codes = report.issues.map((issue) => issue.code);
+
+    expect(codes).toContain("LOW_CONFIDENCE_GOVERNANCE");
+    expect(codes).toContain("NEEDS_HUMAN_REVIEW");
+    expect(codes).toContain("MISSING_GOVERNANCE_EVIDENCE");
   });
 });
 

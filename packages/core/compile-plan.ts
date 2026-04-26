@@ -68,6 +68,7 @@ export function compilePlan(input: CheckInput, language = "en"): CompilePlan {
     ...detectMissingCompilations(input, report, lang),
     ...detectRecompilations(input, report, lang),
     ...detectBrokenRefs(input, report, lang),
+    ...detectGovernanceEvidenceReviews(input, report, lang),
   ];
 
   // 去重（同一个 target 可能被多个检测器命中）
@@ -310,6 +311,60 @@ function detectBrokenRefs(input: CheckInput, report: CheckReport, lang: string):
   return tasks;
 }
 
+function detectGovernanceEvidenceReviews(
+  input: CheckInput,
+  report: CheckReport,
+  lang: string,
+): CompileTask[] {
+  const evidenceIssueCodes = new Set([
+    "MISSING_GOVERNANCE_EVIDENCE",
+    "STALE_GOVERNANCE_EVIDENCE",
+    "LOW_CONFIDENCE_GOVERNANCE",
+    "NEEDS_HUMAN_REVIEW",
+    "MISSING_EVIDENCE_FILE",
+  ]);
+
+  return report.issues
+    .filter((issue) => evidenceIssueCodes.has(issue.code))
+    .flatMap((issue): CompileTask[] => {
+      if (issue.layer === "file") {
+        const file = (input.fileManifests ?? []).find((manifest) => manifest.id === issue.entityId);
+        if (file === undefined) return [];
+        return [
+          {
+            action: "review",
+            targetLayer: "file",
+            targetId: file.id,
+            reason: evidenceReviewReason(issue.code, lang),
+            issueCode: issue.code,
+            context: buildFileContext(file, input, lang),
+            complexity: "standard",
+          },
+        ];
+      }
+
+      if (issue.layer === "function") {
+        const fn = (input.functionManifests ?? []).find(
+          (manifest) => manifest.id === issue.entityId,
+        );
+        if (fn === undefined) return [];
+        return [
+          {
+            action: "review",
+            targetLayer: "fn",
+            targetId: fn.id,
+            reason: evidenceReviewReason(issue.code, lang),
+            issueCode: issue.code,
+            context: buildFunctionContext(fn, input, lang),
+            complexity: "standard",
+          },
+        ];
+      }
+
+      return [];
+    });
+}
+
 // ── 辅助：构建上下文引用 ──
 
 function buildL3Context(block: L3Block, input: CheckInput, lang: string): ContextRef[] {
@@ -404,4 +459,10 @@ function toFnArtifactId(fileId: string, exportName: string): string {
     .replaceAll(/^-|-$/g, "")
     .toLowerCase();
   return `${fileId}.${normalizedExportName}`;
+}
+
+function evidenceReviewReason(issueCode: string, lang: string): string {
+  return issueCode === "NEEDS_HUMAN_REVIEW"
+    ? t(lang, "compilePlan.reason.needsHumanReview")
+    : t(lang, "compilePlan.reason.staleGovernanceEvidence");
 }

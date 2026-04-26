@@ -18,7 +18,8 @@ export type VersionSource =
       readonly action: string; // "compile" | "recompile" | "update-ref" | "review"
       readonly fromRev?: Readonly<Record<string, number>>; // 如 { "l3:validate": 3 }
     }
-  | { readonly type: "init" };
+  | { readonly type: "init" }
+  | { readonly type: "migration"; readonly fromSchema: string; readonly toSchema: string };
 
 // ── Package version (single source of truth: package.json) ──
 

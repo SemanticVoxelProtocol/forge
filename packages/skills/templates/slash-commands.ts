@@ -1,6 +1,6 @@
 // slash-commands — unified /forge slash command template
 // forge init --host claude-code 时生成 /forge 到 .claude/commands/
-// 纯 toolchain 操作（check/view）由用户直接运行 CLI，不需要 slash command
+// 纯 toolchain 操作（check/view）由 agent 在 workflow 内调用 CLI；用户入口仍是 slash command/skill
 //
 // DEPRECATED: This module is a backward-compatible re-export.
 // New code should use adapters/claude-code.ts directly.

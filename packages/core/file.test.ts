@@ -21,6 +21,17 @@ describe("FileManifest", () => {
       ownership: ["packages/core"],
       dependencyBoundary: ["packages/core/*", "node:*"],
       pluginGroups: ["governance", "observability"],
+      evidence: [
+        {
+          path: "packages/core/store.ts",
+          kind: "source-excerpt",
+          excerpt: "export async function readFileManifest",
+          excerptHash: "evidence-hash",
+        },
+      ],
+      confidence: "high",
+      assumptions: ["readFileManifest is a stable public store entry point"],
+      needsHumanReview: false,
       revision: REV,
       contentHash: "file-manifest-hash",
     };
@@ -29,6 +40,9 @@ describe("FileManifest", () => {
     expect(manifest.exports).toContain("readFileManifest");
     expect(manifest.dependencyBoundary).toContain("node:*");
     expect(manifest.revision).toEqual(REV);
+    expect(manifest.evidence?.[0].kind).toBe("source-excerpt");
+    expect(manifest.confidence).toBe("high");
+    expect(manifest.needsHumanReview).toBe(false);
     expect(manifest.contentHash).toBe("file-manifest-hash");
   });
 });

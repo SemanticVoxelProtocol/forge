@@ -6,6 +6,7 @@ import path from "node:path";
 import { Command } from "commander";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { computeHash } from "../../core/hash.js";
+import { createManifest, writeManifest } from "../../core/manifest.js";
 import {
   readFileManifest,
   readFunctionManifest,
@@ -215,6 +216,8 @@ describe("forge rehash", () => {
       `svp-rehash-test-${String(Date.now())}-${String(Math.random()).slice(2, 8)}`,
     );
     await mkdir(testRoot, { recursive: true });
+    await mkdir(path.join(testRoot, ".svp"), { recursive: true });
+    await writeManifest(testRoot, createManifest());
   });
 
   afterEach(async () => {

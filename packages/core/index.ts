@@ -18,6 +18,13 @@ export type { L5Blueprint, Domain, Integration } from "./l5.js";
 export type { L2CodeBlock } from "./l2.js";
 export type { FileManifest } from "./file.js";
 export type { FunctionManifest } from "./function.js";
+export type {
+  EvidenceFileSnapshot,
+  EvidenceFileSnapshots,
+  EvidenceKind,
+  GovernanceConfidence,
+  SourceEvidence,
+} from "./evidence.js";
 export type { ArtifactVersion, VersionSource } from "./version.js";
 export type { Result, Ok, Err } from "./result.js";
 export { ok, err, unwrap } from "./result.js";
@@ -29,6 +36,7 @@ export type { ExecuteFunctionUnitOptions } from "./runtime/execute.js";
 export { executeFunctionUnit } from "./runtime/execute.js";
 
 export { computeHash, hashL3, hashL4, hashL5, hashL2 } from "./hash.js";
+export { computeEvidenceHash } from "./evidence.js";
 export {
   computeSignature,
   collectBlockRefs,

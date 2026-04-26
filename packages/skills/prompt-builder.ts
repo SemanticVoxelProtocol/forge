@@ -43,6 +43,7 @@ const DEFAULT_OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Internal logic should follow the description",
     "- If Documentation is provided, use it for design intent, edge cases, and error strategy",
     "- If governed file/function manifests are provided, keep generated files, exports, and governed function behavior aligned with them",
+    "- When updating governed manifests, record source evidence, confidence, assumptions, and needsHumanReview when uncertain",
     "- After writing files, run: forge link <l3-id> --files <paths>",
     "- File naming: src/<block-id>.ts (or appropriate for language)",
   ].join("\n"),
@@ -52,6 +53,7 @@ const DEFAULT_OUTPUT_SPECS: Record<TaskAction, string> = {
     "- Modify only the affected parts of the implementation",
     "- Preserve unchanged logic and tests",
     "- If governed file/function manifests are provided, preserve their file ownership, export coverage, signatures, and plugin policy unless the task explicitly changes them",
+    "- Refresh governed manifest evidence when backing source excerpts or file hashes changed",
     "- After updating files, run: forge link <l3-id> --files <paths>",
   ].join("\n"),
   review: [
@@ -61,6 +63,7 @@ const DEFAULT_OUTPUT_SPECS: Record<TaskAction, string> = {
     "- If L3 needs update, suggest specific changes",
     "- If L1 is wrong, explain what to fix",
     "- If governed file/function manifests are provided, report any drift against their file paths, export coverage, signatures, or plugin policy",
+    "- Treat stale or missing evidence as a governance drift signal; refresh the manifest rather than adding language-specific parser assumptions",
     "- Do NOT make changes — only report findings",
   ].join("\n"),
   "update-ref": [
@@ -87,6 +90,7 @@ const COMMON_RULES = [
   "- Each file should be independently understandable — avoid files that only make sense when read alongside another",
   "- Prefer explicit over clever — straightforward code is easier to verify against the L3 contract",
   "- When file/function manifests are present, treat them as governance boundaries for file paths, exported functions, signatures, and plugin policy",
+  "- AI owns language understanding; SVP validates evidence freshness, references, and hashes rather than parsing ASTs",
 ].join("\n");
 
 // ── 主入口 ──
@@ -638,6 +642,10 @@ function formatFileManifest(fileManifest: FileManifest): string {
     `- Ownership: ${formatList(fileManifest.ownership)}`,
     `- Dependency Boundary: ${formatList(fileManifest.dependencyBoundary)}`,
     `- Plugin Groups: ${formatList(fileManifest.pluginGroups)}`,
+    `- Evidence: ${formatEvidence(fileManifest.evidence)}`,
+    `- Confidence: ${fileManifest.confidence ?? "(unspecified)"}`,
+    `- Assumptions: ${formatList(fileManifest.assumptions ?? [])}`,
+    `- Needs Human Review: ${String(fileManifest.needsHumanReview ?? false)}`,
   ].join("\n");
 }
 
@@ -647,12 +655,48 @@ function formatFunctionManifest(functionManifest: FunctionManifest): string {
     `- File Ref: ${functionManifest.fileRef}`,
     `- Export Name: ${functionManifest.exportName}`,
     `- Signature: ${functionManifest.signature}`,
+    `- Observed Signature: ${functionManifest.observedSignature ?? "(unspecified)"}`,
+    `- Contract Signature: ${functionManifest.contractSignature ?? "(unspecified)"}`,
     `- Preconditions: ${formatList(functionManifest.preconditions)}`,
     `- Postconditions: ${formatList(functionManifest.postconditions)}`,
     `- Plugin Policy: ${formatList(functionManifest.pluginPolicy)}`,
+    `- Evidence: ${formatEvidence(functionManifest.evidence)}`,
+    `- Confidence: ${functionManifest.confidence ?? "(unspecified)"}`,
+    `- Assumptions: ${formatList(functionManifest.assumptions ?? [])}`,
+    `- Needs Human Review: ${String(functionManifest.needsHumanReview ?? false)}`,
   ].join("\n");
 }
 
 function formatList(values: readonly string[]): string {
   return values.length === 0 ? "(none)" : values.join(", ");
+}
+
+function formatEvidence(
+  evidence:
+    | ReadonlyArray<{
+        readonly path: string;
+        readonly kind: string;
+        readonly excerpt?: string;
+        readonly fileHash?: string;
+        readonly excerptHash?: string;
+        readonly note?: string;
+      }>
+    | undefined,
+): string {
+  if (evidence === undefined || evidence.length === 0) return "(none)";
+  return evidence
+    .map((item) => {
+      const details = [
+        item.excerpt === undefined ? "" : `excerpt="${item.excerpt}"`,
+        item.fileHash === undefined ? "" : `fileHash=${item.fileHash}`,
+        item.excerptHash === undefined ? "" : `excerptHash=${item.excerptHash}`,
+        item.note === undefined ? "" : `note="${item.note}"`,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      return details.length === 0
+        ? `${item.kind}:${item.path}`
+        : `${item.kind}:${item.path} (${details})`;
+    })
+    .join("; ");
 }

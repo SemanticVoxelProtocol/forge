@@ -128,6 +128,14 @@ const messages: Record<string, Record<string, string>> = {
       "L5 blueprint has no language field — consider adding language preference",
     "check.missingNodeDocs":
       'L3 block "{blockRef}" has implementation but no documentation (nodes/{blockRef}/docs.md)',
+    "check.missingGovernanceEvidence": 'Governance artifact "{id}" has an empty evidence list',
+    "check.staleGovernanceEvidence":
+      'Governance artifact "{id}" has stale source evidence for "{path}"',
+    "check.missingEvidenceFile":
+      'Governance artifact "{id}" references missing evidence file "{path}"',
+    "check.lowConfidenceGovernance":
+      'Governance artifact "{id}" is marked low confidence and needs agent review',
+    "check.needsHumanReview": 'Governance artifact "{id}" is marked as needing human review',
 
     // ── compilePlan.* ──
     "compilePlan.reason.missingL2":
@@ -148,6 +156,10 @@ const messages: Record<string, Record<string, string>> = {
       "File manifest references missing L2 code block — orphaned file governance needs review",
     "compilePlan.reason.missingFunctionRef":
       "Function manifest references missing file/export metadata — manifest refs need updating",
+    "compilePlan.reason.staleGovernanceEvidence":
+      "Governance evidence is stale or incomplete — agent should review the governed artifact",
+    "compilePlan.reason.needsHumanReview":
+      "Governance artifact is marked for human review — agent should surface the ambiguity",
     "compilePlan.label.l3Contract": 'L3 contract "{name}"',
     "compilePlan.label.currentL2": "current L2 mapping ({files})",
     "compilePlan.label.l2CodeBlock": "L2 code block ({files})",
@@ -291,6 +303,11 @@ const messages: Record<string, Record<string, string>> = {
     "check.orphanStep": 'L4 "{entityName}" 步骤 "{stepId}" 从第一个步骤不可达',
     "check.missingLanguage": "L5 blueprint 未设置 language 字段 — 建议添加语言偏好",
     "check.missingNodeDocs": 'L3 block "{blockRef}" 有实现但缺少文档 (nodes/{blockRef}/docs.md)',
+    "check.missingGovernanceEvidence": '治理制品 "{id}" 的 evidence 列表为空',
+    "check.staleGovernanceEvidence": '治理制品 "{id}" 针对 "{path}" 的源码证据已过期',
+    "check.missingEvidenceFile": '治理制品 "{id}" 引用了不存在的证据文件 "{path}"',
+    "check.lowConfidenceGovernance": '治理制品 "{id}" 标记为低置信度，需要 agent 审查',
+    "check.needsHumanReview": '治理制品 "{id}" 标记为需要人工确认',
 
     // ── compilePlan.* ──
     "compilePlan.reason.missingL2": 'L3 block "{name}" 没有对应的 L2 code block — 需要初始编译',
@@ -308,6 +325,10 @@ const messages: Record<string, Record<string, string>> = {
       "File manifest 引用了缺失的 L2 code block — 需要审查孤立文件治理配置",
     "compilePlan.reason.missingFunctionRef":
       "Function manifest 引用了缺失的文件/导出元数据 — 需要更新 manifest 引用",
+    "compilePlan.reason.staleGovernanceEvidence":
+      "治理证据已过期或不完整 — 需要 agent 重新审查该治理制品",
+    "compilePlan.reason.needsHumanReview":
+      "治理制品标记为需要人工确认 — agent 需要向用户暴露语义歧义",
     "compilePlan.label.l3Contract": 'L3 契约 "{name}"',
     "compilePlan.label.currentL2": "当前 L2 映射 ({files})",
     "compilePlan.label.l2CodeBlock": "L2 代码块 ({files})",

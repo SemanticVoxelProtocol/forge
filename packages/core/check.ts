@@ -1,6 +1,11 @@
 // forge check — 层间一致性校验
 // 检查 hash 一致性、引用完整性、漂移检测、图结构合法性
 
+import {
+  computeEvidenceHash,
+  type EvidenceFileSnapshots,
+  type SourceEvidence,
+} from "./evidence.js";
 import { computeHash } from "./hash.js";
 import { t } from "./i18n.js";
 import { getL4Kind } from "./l4.js";
@@ -41,6 +46,7 @@ export interface CheckInput {
   readonly l2Blocks: readonly L2CodeBlock[];
   readonly fileManifests?: readonly FileManifest[];
   readonly functionManifests?: readonly FunctionManifest[];
+  readonly evidenceFiles?: EvidenceFileSnapshots;
 
   // 已有文档的 L3 block id 集合（nodes/<id>/docs.md 存在的）
   // 省略时跳过 MISSING_NODE_DOCS 检测
@@ -63,6 +69,7 @@ export function check(input: CheckInput, language = "en"): CheckReport {
     ...checkHashConsistency(input, lang),
     ...checkReferentialIntegrity(input, lang),
     ...checkManifestCoverage(input, lang),
+    ...checkGovernanceEvidence(input, lang),
     ...checkDrift(input, lang),
     ...checkGraphStructure(input, lang),
     ...checkDocsPresence(input, lang),
@@ -75,6 +82,126 @@ export function check(input: CheckInput, language = "en"): CheckReport {
       warnings: issues.filter((i) => i.severity === "warning").length,
     },
   };
+}
+
+function checkGovernanceEvidence(input: CheckInput, lang: string): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+  const evidenceFiles = input.evidenceFiles ?? {};
+
+  for (const manifest of fileManifestsOf(input)) {
+    issues.push(
+      ...checkArtifactEvidence({
+        layer: "file",
+        entityId: manifest.id,
+        confidence: manifest.confidence,
+        evidence: manifest.evidence,
+        needsHumanReview: manifest.needsHumanReview,
+        evidenceFiles,
+        lang,
+      }),
+    );
+  }
+
+  for (const manifest of functionManifestsOf(input)) {
+    issues.push(
+      ...checkArtifactEvidence({
+        layer: "function",
+        entityId: manifest.id,
+        confidence: manifest.confidence,
+        evidence: manifest.evidence,
+        needsHumanReview: manifest.needsHumanReview,
+        evidenceFiles,
+        lang,
+      }),
+    );
+  }
+
+  return issues;
+}
+
+function checkArtifactEvidence(options: {
+  readonly layer: "file" | "function";
+  readonly entityId: string;
+  readonly confidence?: "low" | "medium" | "high";
+  readonly evidence?: readonly SourceEvidence[];
+  readonly needsHumanReview?: boolean;
+  readonly evidenceFiles: EvidenceFileSnapshots;
+  readonly lang: string;
+}): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+  const { layer, entityId, confidence, evidence, evidenceFiles, lang } = options;
+
+  if (options.needsHumanReview === true) {
+    issues.push({
+      severity: "warning",
+      layer,
+      entityId,
+      code: "NEEDS_HUMAN_REVIEW",
+      message: t(lang, "check.needsHumanReview", { id: entityId }),
+    });
+  }
+
+  if (confidence === "low") {
+    issues.push({
+      severity: "warning",
+      layer,
+      entityId,
+      code: "LOW_CONFIDENCE_GOVERNANCE",
+      message: t(lang, "check.lowConfidenceGovernance", { id: entityId }),
+    });
+  }
+
+  if (evidence?.length === 0) {
+    issues.push({
+      severity: "warning",
+      layer,
+      entityId,
+      code: "MISSING_GOVERNANCE_EVIDENCE",
+      message: t(lang, "check.missingGovernanceEvidence", { id: entityId }),
+    });
+  }
+
+  for (const item of evidence ?? []) {
+    const snapshot = evidenceFiles[item.path];
+    if (snapshot?.exists !== true) {
+      issues.push({
+        severity: "error",
+        layer,
+        entityId,
+        code: "MISSING_EVIDENCE_FILE",
+        message: t(lang, "check.missingEvidenceFile", { id: entityId, path: item.path }),
+      });
+      continue;
+    }
+
+    if (item.fileHash !== undefined && snapshot.fileHash !== item.fileHash) {
+      issues.push({
+        severity: "warning",
+        layer,
+        entityId,
+        code: "STALE_GOVERNANCE_EVIDENCE",
+        message: t(lang, "check.staleGovernanceEvidence", { id: entityId, path: item.path }),
+      });
+      continue;
+    }
+
+    if (
+      item.excerpt !== undefined &&
+      snapshot.content !== undefined &&
+      (!snapshot.content.includes(item.excerpt) ||
+        (item.excerptHash !== undefined && computeEvidenceHash(item.excerpt) !== item.excerptHash))
+    ) {
+      issues.push({
+        severity: "warning",
+        layer,
+        entityId,
+        code: "STALE_GOVERNANCE_EVIDENCE",
+        message: t(lang, "check.staleGovernanceEvidence", { id: entityId, path: item.path }),
+      });
+    }
+  }
+
+  return issues;
 }
 
 // ── 1. Hash 一致性 ──

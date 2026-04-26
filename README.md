@@ -43,7 +43,7 @@ Migration is automatic by default when forge opens an existing `.svp/` project.
 
 Most users do not need to care about schema internals or run manual migration steps.
 
-If migration fails, follow the public migration note in [`docs/migrations/1.0.0.md`](docs/migrations/1.0.0.md).
+If migration fails, follow the public migration note for the target schema, such as [`docs/migrations/2.0.0.md`](docs/migrations/2.0.0.md).
 
 ## How It Works
 

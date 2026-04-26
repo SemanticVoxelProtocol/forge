@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { compilePlan, getDefaultComplexity } from "./compile-plan.js";
+import { computeEvidenceHash } from "./evidence.js";
 import { computeHash } from "./hash.js";
 import type { FileManifest } from "./file.js";
 import type { FunctionManifest } from "./function.js";
@@ -379,6 +380,66 @@ describe("compilePlan", () => {
     expect(task).toBeDefined();
     expect(task?.action).toBe("update-ref");
     expect(task?.targetId).toBe(fn.id);
+  });
+
+  it("generates a fn review task when governance evidence is stale", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const file = makeFileManifest(l2, { exports: ["run"] });
+    const fn = makeFunctionManifest(file, {
+      evidence: [
+        {
+          path: "src/validate.ts",
+          kind: "source-excerpt",
+          fileHash: computeEvidenceHash("old source"),
+        },
+      ],
+    });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [fn],
+      evidenceFiles: {
+        "src/validate.ts": {
+          path: "src/validate.ts",
+          exists: true,
+          content: "new source",
+          fileHash: computeEvidenceHash("new source"),
+        },
+      },
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "fn" && entry.issueCode === "STALE_GOVERNANCE_EVIDENCE",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("review");
+    expect(task?.targetId).toBe(fn.id);
+    expect(task?.context.map((ref) => ref.layer)).toContain("function");
+  });
+
+  it("generates a file review task when governance needs human review", () => {
+    const l3 = makeL3("validate", "Validate");
+    const l2 = makeL2(l3);
+    const file = makeFileManifest(l2, { needsHumanReview: true });
+
+    const plan = compilePlan({
+      l4Flows: [],
+      l3Blocks: [l3],
+      l2Blocks: [l2],
+      fileManifests: [file],
+      functionManifests: [],
+    });
+
+    const task = plan.tasks.find(
+      (entry) => entry.targetLayer === "file" && entry.issueCode === "NEEDS_HUMAN_REVIEW",
+    );
+    expect(task).toBeDefined();
+    expect(task?.action).toBe("review");
+    expect(task?.targetId).toBe(file.id);
   });
 });
 

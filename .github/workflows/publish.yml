@@ -2,10 +2,11 @@ name: Publish
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   publish:
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

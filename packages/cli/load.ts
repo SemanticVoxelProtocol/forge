@@ -1,7 +1,7 @@
 // 共享的 .svp/ 数据加载逻辑
 // 两个命令（check, compile-plan）复用
 
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   listL2,
@@ -16,9 +16,12 @@ import {
   readFileManifest,
   readFunctionManifest,
   checkCompatibility,
+  computeEvidenceHash,
 } from "../core/index.js";
 import type {
   CheckInput,
+  EvidenceFileSnapshot,
+  EvidenceFileSnapshots,
   FileManifest,
   FunctionManifest,
   L2CodeBlock,
@@ -75,8 +78,18 @@ export async function loadCheckInput(root: string): Promise<CheckInput> {
 
   // 扫描 nodes/ 目录收集已有文档列表
   const existingNodeDocs = await scanExistingNodeDocs(root);
+  const evidenceFiles = await loadEvidenceFileSnapshots(root, fileManifests, functionManifests);
 
-  return { l5, l4Flows, l3Blocks, l2Blocks, fileManifests, functionManifests, existingNodeDocs };
+  return {
+    l5,
+    l4Flows,
+    l3Blocks,
+    l2Blocks,
+    fileManifests,
+    functionManifests,
+    existingNodeDocs,
+    evidenceFiles,
+  };
 }
 
 export function summarizeLoadedArtifacts(input: CheckInput): LoadedArtifactSummary {
@@ -124,4 +137,51 @@ async function scanExistingNodeDocs(root: string): Promise<Set<string>> {
     // nodes/ directory doesn't exist
   }
   return result;
+}
+
+async function loadEvidenceFileSnapshots(
+  root: string,
+  fileManifests: readonly FileManifest[],
+  functionManifests: readonly FunctionManifest[],
+): Promise<EvidenceFileSnapshots> {
+  const evidencePaths = new Set<string>();
+  for (const manifest of fileManifests) {
+    for (const evidence of manifest.evidence ?? []) {
+      evidencePaths.add(evidence.path);
+    }
+  }
+  for (const manifest of functionManifests) {
+    for (const evidence of manifest.evidence ?? []) {
+      evidencePaths.add(evidence.path);
+    }
+  }
+
+  const snapshots: Record<string, EvidenceFileSnapshot> = {};
+  for (const evidencePath of evidencePaths) {
+    const content = await readProjectTextFile(root, evidencePath);
+    snapshots[evidencePath] =
+      content === null
+        ? { path: evidencePath, exists: false }
+        : {
+            path: evidencePath,
+            exists: true,
+            fileHash: computeEvidenceHash(content),
+            content,
+          };
+  }
+
+  return snapshots;
+}
+
+async function readProjectTextFile(root: string, filePath: string): Promise<string | null> {
+  const rootPath = path.resolve(root);
+  const resolved = path.resolve(rootPath, filePath);
+  const isInsideRoot = resolved === rootPath || resolved.startsWith(rootPath + path.sep);
+  if (!isInsideRoot) return null;
+
+  try {
+    return await readFile(resolved, "utf8");
+  } catch {
+    return null;
+  }
 }

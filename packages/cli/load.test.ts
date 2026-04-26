@@ -1,7 +1,9 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { computeEvidenceHash } from "../core/evidence.js";
+import { createManifest, writeManifest } from "../core/manifest.js";
 import {
   writeFileManifest,
   writeFunctionManifest,
@@ -113,6 +115,8 @@ describe("loadCheckInput", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), "svp-load-test-"));
+    await mkdir(path.join(root, ".svp"), { recursive: true });
+    await writeManifest(root, createManifest());
   });
 
   afterEach(async () => {
@@ -145,6 +149,36 @@ describe("loadCheckInput", () => {
     expect(result.l3Blocks).toHaveLength(3);
     const ids = result.l3Blocks.map((b) => b.id).toSorted();
     expect(ids).toEqual(["block-a", "block-b", "block-c"]);
+  });
+
+  it("loads source evidence file snapshots for governed artifacts", async () => {
+    const sourcePath = path.join(root, "src");
+    await mkdir(sourcePath, { recursive: true });
+    const source = "export function main() { return true; }";
+    await writeFile(path.join(sourcePath, "file-a.ts"), source, "utf8");
+
+    await writeFileManifest(
+      root,
+      makeFileManifest("file-a", {
+        path: "src/file-a.ts",
+        evidence: [
+          {
+            path: "src/file-a.ts",
+            kind: "source-excerpt",
+            excerpt: "export function main",
+          },
+        ],
+      }),
+    );
+
+    const result = await loadCheckInput(root);
+
+    expect(result.evidenceFiles?.["src/file-a.ts"]).toMatchObject({
+      path: "src/file-a.ts",
+      exists: true,
+      content: source,
+      fileHash: computeEvidenceHash(source),
+    });
   });
 
   it("loads L4 flows correctly", async () => {

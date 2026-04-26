@@ -135,7 +135,22 @@ export function registerLink(program: Command): void {
         await Promise.all(staleFileManifestIds.map(async (id) => deleteFileManifest(root, id)));
 
         if (options.json) {
-          console.log(JSON.stringify(result.l2, null, 2));
+          console.log(
+            JSON.stringify(
+              {
+                action: result.action,
+                l2: result.l2,
+                fileManifests: result.governedFiles,
+                functionManifests: result.governedFunctions,
+                deleted: {
+                  fileManifests: staleFileManifestIds,
+                  functionManifests: staleFunctionManifestIds,
+                },
+              },
+              null,
+              2,
+            ),
+          );
           return;
         }
 
