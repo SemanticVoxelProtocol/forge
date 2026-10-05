@@ -4,6 +4,9 @@
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen?style=flat-square" alt="node" />
 </p>
 
+> [!WARNING]
+> 这个实验性项目一开始用AI乱糊的，99%的功能没有用，后面也难以维护了，主要是为了和朋友验证一些想法，后面发现svp这个思想还有很多可以调整之处，至少forge的实现绝不是最优解，当然，我并没有放弃对于agent框架的研究，我也坚持认为agent的工作应该建立在人类的完全理解之下，不过forge是一个失败的作品，它没有必要再被任何人使用
+
 # forge
 
 **forge** 是 [Semantic Voxel Protocol (SVP)](https://github.com/SemanticVoxelProtocol) 的 CLI 工具 — 一个语言无关的语义治理模型，让 AI 辅助开发从架构到受治理源码保持一致。
