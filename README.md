@@ -6,6 +6,9 @@
 
 [中文版](./i18n/zh/README.md)
 
+> [!WARNING]
+> This experimental project was initially haphazardly built with AI. 99% of its features are useless, and it has since become difficult to maintain. Its main purpose was to validate the idea behind SVP. I later found that there was still considerable room to refine this idea, and Forge’s implementation is certainly not the best possible solution. Of course, I have not abandoned my research into agent frameworks, and I remain convinced that agents’ work should be based on humans having a complete understanding of it. However, Forge is a failed project, and there is no reason for anyone to use it anymore.
+
 # forge
 
 **forge** is the CLI for [Semantic Voxel Protocol (SVP)](https://github.com/SemanticVoxelProtocol) — a language-agnostic semantic governance model that keeps AI-assisted development aligned from architecture to governed source code.
